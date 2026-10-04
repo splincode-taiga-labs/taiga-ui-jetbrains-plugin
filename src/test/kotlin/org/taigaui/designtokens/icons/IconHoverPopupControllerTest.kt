@@ -98,6 +98,26 @@ class IconHoverPopupControllerTest : BasePlatformTestCase() {
         assertNull(readPrivateField(controller, "activeKey"))
     }
 
+    fun testListenerForwardsMovePressAndDragToIconHoverController() {
+        configureHtml("""<button iconStart="@tui.search"></button>""")
+        val controller = project.service<IconHoverPopupController>()
+        val listener = IconHoverPopupListener()
+        val offset = myFixture.editor.document.text.indexOf("@tui.search") + 3
+        val event = editorMouseEvent(offset)
+
+        listener.mouseMoved(event)
+        assertNotNull(readPrivateField(controller, "activeKey"))
+
+        listener.mousePressed(event)
+        assertNull(readPrivateField(controller, "activeKey"))
+
+        listener.mouseMoved(event)
+        assertNotNull(readPrivateField(controller, "activeKey"))
+
+        listener.mouseDragged(event)
+        assertNull(readPrivateField(controller, "activeKey"))
+    }
+
     private fun configureHtml(content: String) {
         configureSource("icons.html", content)
     }
