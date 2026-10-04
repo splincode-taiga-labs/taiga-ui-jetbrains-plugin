@@ -197,6 +197,22 @@ class YarnPnpManifestTest {
     }
 
     @Test
+    fun `reader parses inline runtime state when data file is absent`() {
+        val root = Files.createTempDirectory("pnp-reader-loader")
+        val loader = root.resolve(".pnp.cjs")
+        val json =
+            """{"packageRegistryData":[[null,[[null,{"packageLocation":"./"}]]]],"enableTopLevelFallback":false}"""
+
+        Files.writeString(loader, "const RAW_RUNTIME_STATE = '$json';")
+
+        val manifest = requireNotNull(YarnPnpManifestReader().read(root))
+
+        assertEquals(loader.toAbsolutePath().normalize(), manifest.primarySource)
+        assertEquals(setOf(loader.toAbsolutePath().normalize()), manifest.sourceFiles)
+        assertTrue(YarnPnpLocator(null, null) in manifest.packages)
+    }
+
+    @Test
     fun `inline runtime state decoder handles javascript string escapes and invalid input`() {
         val reader = YarnPnpManifestReader()
         val method =
