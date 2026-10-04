@@ -78,6 +78,54 @@ class ProjectStylesheetImportCacheTest {
         assertEquals(2, reads)
     }
 
+
+    @Test
+    fun `parses sources without stable stamps and treats missing text as no imports`() {
+        val root = Path.of("build/fixtures/project-import-cache-no-stamp").toAbsolutePath().normalize()
+        val sourceFile = root.resolve("theme.scss")
+        val missingFile = root.resolve("missing.scss")
+        var reads = 0
+        val cache =
+            ProjectStylesheetImportCache(
+                readText = { path ->
+                    reads++
+                    if (path == sourceFile) "@use './tokens';" else null
+                },
+                modificationStampProvider = ProjectStylesheetModificationStampProvider { null },
+            )
+
+        assertEquals(listOf("./tokens"), cache.imports(sourceFile))
+        assertEquals(listOf("./tokens"), cache.imports(sourceFile))
+        assertEquals(emptyList<String>(), cache.imports(missingFile))
+        assertEquals(3, reads)
+    }
+
+    @Test
+    fun `returns parsed imports when file loses its stamp during read`() {
+        val sourceFile =
+            Path
+                .of("build/fixtures/project-import-cache-disappearing-stamp/theme.scss")
+                .toAbsolutePath()
+                .normalize()
+        var stampReads = 0
+        val cache =
+            ProjectStylesheetImportCache(
+                readText = { "@forward './tokens';" },
+                modificationStampProvider =
+                    ProjectStylesheetModificationStampProvider {
+                        stampReads++
+                        if (stampReads == 1) 1L else null
+                    },
+            )
+
+        assertEquals(listOf("./tokens"), cache.imports(sourceFile))
+        assertEquals(2, stampReads)
+
+        cache.clear()
+
+        assertEquals(listOf("./tokens"), cache.imports(sourceFile))
+    }
+
     @Test
     fun `invalidation removes renamed or deleted paths`() {
         val root = Path.of("build/fixtures/project-import-cache-invalidation").toAbsolutePath().normalize()
