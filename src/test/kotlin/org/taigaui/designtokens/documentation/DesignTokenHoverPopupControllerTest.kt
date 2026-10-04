@@ -116,6 +116,26 @@ class DesignTokenHoverPopupControllerTest : BasePlatformTestCase() {
         assertNull(readPrivateField(controller, "activeHoverKey"))
     }
 
+    fun testListenerForwardsMovePressAndDragToHoverController() {
+        configureCss(".demo { color: var(--tui-text-primary); }")
+        val controller = project.service<DesignTokenHoverPopupController>()
+        val listener = DesignTokenHoverPopupListener()
+        val offset = myFixture.editor.document.text.indexOf("--tui-text-primary") + 3
+        val event = editorMouseEvent(offset)
+
+        listener.mouseMoved(event)
+        assertNotNull(readPrivateField(controller, "activeHoverKey"))
+
+        listener.mousePressed(event)
+        assertNull(readPrivateField(controller, "activeHoverKey"))
+
+        listener.mouseMoved(event)
+        assertNotNull(readPrivateField(controller, "activeHoverKey"))
+
+        listener.mouseDragged(event)
+        assertNull(readPrivateField(controller, "activeHoverKey"))
+    }
+
     fun testPopupWidthUsesPreferredFallbackForFixtureEditor() {
         configureCss(".demo { color: red; }")
         val method =
