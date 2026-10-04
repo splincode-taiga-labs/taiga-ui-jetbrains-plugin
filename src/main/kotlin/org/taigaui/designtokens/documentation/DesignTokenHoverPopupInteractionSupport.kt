@@ -33,13 +33,10 @@ internal fun createDesignTokenPopup(
         .createPopup()
 
 internal fun DesignTokenHoverPopupPanel?.containsPointer(): Boolean {
-    val content = this?.takeIf { component -> component.isShowing }
-    val pointer = MouseInfo.getPointerInfo()?.location
+    val content = this?.takeIf { component -> component.isShowing } ?: return false
+    val pointer = MouseInfo.getPointerInfo()?.location ?: return false
 
-    return if (content == null || pointer == null) {
-        false
-    } else {
-        SwingUtilities.convertPointFromScreen(pointer, content)
-        content.contains(pointer)
-    }
+    SwingUtilities.convertPointFromScreen(pointer, content)
+
+    return content.contains(pointer)
 }
