@@ -2,6 +2,8 @@ package org.taigaui.designtokens.documentation
 
 import com.intellij.lang.documentation.ide.IdeDocumentationTargetProvider
 import com.intellij.openapi.components.service
+import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.platform.backend.documentation.impl.computeDocumentationBlocking
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiFile
@@ -11,14 +13,17 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.nio.file.Files
 import java.nio.file.Path
 
 class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4TestCase() {
     private val docsSource = requireNotNull(TaigaDocsSources.forMajor(5))
     private val docsCache = TaigaDocsCache()
+    private lateinit var workspaceRoot: Path
 
     override fun setUp() {
         super.setUp()
+        workspaceRoot = Files.createTempDirectory("taiga-quick-docs")
         docsCache.invalidate(docsSource)
         configureAngularProject()
         configureTaigaPackage()
@@ -28,6 +33,7 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
         try {
             docsCache.invalidate(docsSource)
             project.service<TaigaDocsService>().clearMemory()
+            workspaceRoot.toFile().deleteRecursively()
         } finally {
             super.tearDown()
         }
@@ -114,7 +120,7 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
     }
 
     private fun configureTemplate(template: String): PsiFile {
-        val file = myFixture.tempDirFixture.createFile("src/component.html", template)
+        val file = createFile(workspaceRoot.resolve("src/component.html"), template)
 
         myFixture.configureFromExistingVirtualFile(file)
         PsiDocumentManager.getInstance(project).commitAllDocuments()
@@ -132,8 +138,8 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
     }
 
     private fun configureAngularProject() {
-        myFixture.tempDirFixture.createFile(
-            "angular.json",
+        createFile(
+            workspaceRoot.resolve("angular.json"),
             """
             {
               "projects": {
@@ -146,8 +152,8 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
             }
             """.trimIndent(),
         )
-        myFixture.tempDirFixture.createFile(
-            "package.json",
+        createFile(
+            workspaceRoot.resolve("package.json"),
             """
             {
               "name": "quick-docs-fixture",
@@ -159,8 +165,8 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
             }
             """.trimIndent(),
         )
-        myFixture.tempDirFixture.createFile(
-            "node_modules/@angular/core/package.json",
+        createFile(
+            workspaceRoot.resolve("node_modules/@angular/core/package.json"),
             """
             {
               "name": "@angular/core",
@@ -169,8 +175,8 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
             }
             """.trimIndent(),
         )
-        myFixture.tempDirFixture.createFile(
-            "node_modules/@angular/core/index.d.ts",
+        createFile(
+            workspaceRoot.resolve("node_modules/@angular/core/index.d.ts"),
             """
             export interface ComponentMetadata {
                 selector?: string;
@@ -180,8 +186,8 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
             export declare function Component(metadata: ComponentMetadata): ClassDecorator;
             """.trimIndent(),
         )
-        myFixture.tempDirFixture.createFile(
-            "src/component.ts",
+        createFile(
+            workspaceRoot.resolve("src/component.ts"),
             """
             import {Component} from '@angular/core';
 
@@ -195,8 +201,8 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
     }
 
     private fun configureTaigaPackage() {
-        myFixture.tempDirFixture.createFile(
-            "node_modules/@taiga-ui/core/package.json",
+        createFile(
+            workspaceRoot.resolve("node_modules/@taiga-ui/core/package.json"),
             """
             {
               "name": "@taiga-ui/core",
@@ -205,8 +211,8 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
             }
             """.trimIndent(),
         )
-        myFixture.tempDirFixture.createFile(
-            "node_modules/@taiga-ui/core/web-types.json",
+        createFile(
+            workspaceRoot.resolve("node_modules/@taiga-ui/core/web-types.json"),
             """
             {
               "name": "@taiga-ui/core",
@@ -270,6 +276,18 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
             "<tui-calendar></tui-calendar>",
             FENCE,
         ).joinToString("\n")
+
+    private fun createFile(
+        path: Path,
+        content: String,
+    ): VirtualFile {
+        Files.createDirectories(path.parent)
+        Files.writeString(path, content)
+
+        return requireNotNull(
+            LocalFileSystem.getInstance().refreshAndFindFileByNioFile(path),
+        )
+    }
 
     private fun tick(value: String): String = BACKTICK + value + BACKTICK
 
