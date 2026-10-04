@@ -8,6 +8,7 @@ import com.intellij.psi.PsiDocumentManager
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.testFramework.runInEdtAndGet
 import com.intellij.ui.components.JBLabel
+import com.intellij.util.ui.UIUtil
 import java.awt.Component
 import java.awt.Container
 import java.awt.event.MouseEvent
@@ -156,6 +157,7 @@ class EventPluginsHoverPopupControllerTest : BasePlatformTestCase() {
         expectedNull: Boolean,
     ): Any? {
         repeat(300) {
+            UIUtil.dispatchAllInvocationEvents()
             val value = readPrivateField(target, fieldName)
             val matched = if (expectedNull) value == null else value != null
 
