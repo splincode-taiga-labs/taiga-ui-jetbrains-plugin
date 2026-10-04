@@ -136,6 +136,35 @@ class DesignTokenHoverPopupControllerTest : BasePlatformTestCase() {
         assertNull(readPrivateField(controller, "activeHoverKey"))
     }
 
+    fun testPopupInteractionSupportCoversInactiveEditorAndPopupCreation() {
+        configureCss(".demo { color: red; }")
+        val editor = myFixture.editor
+
+        assertFalse(project.hasActiveCompletionLookup())
+        assertFalse(project.blocksDesignTokenPopup(editor))
+
+        editor.selectionModel.setSelection(0, 1)
+        assertTrue(project.blocksDesignTokenPopup(editor))
+        editor.selectionModel.removeSelection()
+
+        assertFalse((null as DesignTokenHoverPopupPanel?).containsPointer())
+
+        val panel =
+            DesignTokenHoverPopupPanel(
+                popupWidth = 560,
+                onNavigate = {},
+                onReportBug = {},
+                onPreferredSizeChanged = {},
+            )
+
+        assertFalse(panel.containsPointer())
+
+        val popup = createDesignTokenPopup(project, panel)
+
+        assertNotNull(popup)
+        popup.cancel()
+    }
+
     fun testPopupWidthUsesPreferredFallbackForFixtureEditor() {
         configureCss(".demo { color: red; }")
         val method =
