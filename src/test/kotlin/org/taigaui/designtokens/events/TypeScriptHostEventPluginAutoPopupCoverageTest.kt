@@ -6,6 +6,7 @@ import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.psi.PsiFile
 import com.intellij.testFramework.fixtures.LightPlatformCodeInsightFixture4TestCase
 import com.intellij.testFramework.runInEdtAndGet
+import com.intellij.util.ui.UIUtil
 import org.junit.Test
 
 class TypeScriptHostEventPluginAutoPopupCoverageTest : LightPlatformCodeInsightFixture4TestCase() {
@@ -168,6 +169,7 @@ class TypeScriptHostEventPluginAutoPopupCoverageTest : LightPlatformCodeInsightF
 
     private fun waitForLookup(): Any? {
         repeat(300) {
+            UIUtil.dispatchAllInvocationEvents()
             val lookup =
                 runInEdtAndGet {
                     LookupManager.getActiveLookup(myFixture.editor)
