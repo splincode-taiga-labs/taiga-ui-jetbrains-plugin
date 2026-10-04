@@ -6,6 +6,7 @@ import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.psi.PsiFile
 import com.intellij.testFramework.fixtures.LightPlatformCodeInsightFixture4TestCase
 import com.intellij.testFramework.runInEdtAndGet
+import org.junit.Test
 
 class TypeScriptHostEventPluginAutoPopupCoverageTest : LightPlatformCodeInsightFixture4TestCase() {
     override fun setUp() {
@@ -42,6 +43,7 @@ class TypeScriptHostEventPluginAutoPopupCoverageTest : LightPlatformCodeInsightF
         )
     }
 
+    @Test
     fun testCharTypedWithoutPreparedCaretContinues() {
         val file = configureHost("(<caret>)")
         val handler = TypeScriptHostEventPluginCompletionAutoPopupHandler()
@@ -57,6 +59,7 @@ class TypeScriptHostEventPluginAutoPopupCoverageTest : LightPlatformCodeInsightF
         )
     }
 
+    @Test
     fun testPreparedCaretMismatchContinuesWithoutSchedulingCompletion() {
         val file = configureHost("(<caret>)")
         val handler = TypeScriptHostEventPluginCompletionAutoPopupHandler()
@@ -84,6 +87,7 @@ class TypeScriptHostEventPluginAutoPopupCoverageTest : LightPlatformCodeInsightF
         )
     }
 
+    @Test
     fun testPreparedTriggerSchedulesBasicCompletionAfterTyping() {
         val file = configureHost("(<caret>)")
         val handler = TypeScriptHostEventPluginCompletionAutoPopupHandler()
@@ -117,6 +121,7 @@ class TypeScriptHostEventPluginAutoPopupCoverageTest : LightPlatformCodeInsightF
         assertNotNull(waitForLookup())
     }
 
+    @Test
     fun testNonTriggerDoesNotPrepareCompletion() {
         val file = configureHost("(<caret>)")
         val handler = TypeScriptHostEventPluginCompletionAutoPopupHandler()
