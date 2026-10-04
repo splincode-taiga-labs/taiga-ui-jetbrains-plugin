@@ -1,6 +1,7 @@
 package org.taigaui.designtokens.events
 
 import com.intellij.testFramework.fixtures.LightPlatformCodeInsightFixture4TestCase
+import org.junit.Test
 
 class EventPluginInspectionCoverageTest : LightPlatformCodeInsightFixture4TestCase() {
     override fun setUp() {
@@ -43,6 +44,7 @@ class EventPluginInspectionCoverageTest : LightPlatformCodeInsightFixture4TestCa
         )
     }
 
+    @Test
     fun testHtmlInspectionsReportUnknownDuplicateAndAliasDuplicates() {
         myFixture.configureByText(
             "events.html",
@@ -68,6 +70,7 @@ class EventPluginInspectionCoverageTest : LightPlatformCodeInsightFixture4TestCa
         assertTrue(descriptions.any { it == "Duplicate Taiga UI event modifier 'throttle~2s'" })
     }
 
+    @Test
     fun testHostInspectionReportsUnknownAndDuplicateModifiersWithExactRanges() {
         val file =
             myFixture.addFileToProject(
@@ -113,6 +116,7 @@ class EventPluginInspectionCoverageTest : LightPlatformCodeInsightFixture4TestCa
         )
     }
 
+    @Test
     fun testFindersIgnorePlainEventsAndDetectModifierLikeTyposAfterTaigaModifier() {
         assertTrue(EventPluginUnknownModifierFinder.findInEventName("click", 10).isEmpty())
         assertTrue(EventPluginUnknownModifierFinder.findInEventName("click.custom", 10).isEmpty())
