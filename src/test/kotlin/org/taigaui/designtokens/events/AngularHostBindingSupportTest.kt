@@ -11,6 +11,8 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.taigaui.designtokens.completion.designTokenCompletionContextAt
+import org.taigaui.designtokens.units.AngularHostRemStyleBindingHintCollector
+import org.taigaui.designtokens.units.RemInlayHint
 
 class AngularHostBindingSupportTest : LightPlatformCodeInsightFixture4TestCase() {
     override fun setUp() {
@@ -657,6 +659,40 @@ class AngularHostBindingSupportTest : LightPlatformCodeInsightFixture4TestCase()
 
         assertEquals("captre", file.text.substring(unknown.startOffset, unknown.endOffset))
         assertEquals("zoneless", file.text.substring(duplicate.startOffset, duplicate.endOffset))
+    }
+
+
+    @Test
+    fun `collects rem hints only from Angular host style bindings`() {
+        val file =
+            configureAngularFile(
+                "rem-hints.ts",
+                """
+                import {Component} from '@angular/core';
+
+                const ordinary = {'[style.height.rem]': '3'};
+
+                @Component({
+                    selector: 'example',
+                    host: {
+                        '[style.width.rem]': '2',
+                        '[style.margin-left.rem]': '-0.5',
+                    },
+                })
+                export class ExampleComponent {}
+                """.trimIndent(),
+            )
+
+        val hints = AngularHostRemStyleBindingHintCollector.collect(file)
+
+        assertEquals(
+            listOf(" 32px", " -8px"),
+            hints.map(RemInlayHint::text),
+        )
+        assertEquals(
+            listOf("2rem = 32px", "-0.5rem = -8px"),
+            hints.map(RemInlayHint::tooltip),
+        )
     }
 
     private fun configureAngularFile(
