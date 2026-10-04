@@ -7,6 +7,7 @@ import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.testFramework.runInEdtAndGet
+import com.intellij.util.ui.UIUtil
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -136,6 +137,7 @@ class IconCompletionAutoPopupHandlerCoverageTest : BasePlatformTestCase() {
         val attempts = if (short) 20 else 300
 
         repeat(attempts) {
+            UIUtil.dispatchAllInvocationEvents()
             val lookup =
                 runInEdtAndGet {
                     LookupManager.getActiveLookup(myFixture.editor)
