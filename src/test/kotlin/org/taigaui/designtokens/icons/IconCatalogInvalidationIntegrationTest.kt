@@ -1,13 +1,13 @@
 package org.taigaui.designtokens.icons
 
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
-import org.taigaui.designtokens.diagnostics.PerformanceDiagnostics
+import com.intellij.util.ui.UIUtil
 import org.taigaui.designtokens.cache.RefreshCallback
+import org.taigaui.designtokens.diagnostics.PerformanceDiagnostics
 import org.taigaui.designtokens.diagnostics.PerformanceMetric
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicInteger
-import com.intellij.util.ui.UIUtil
 
 class IconCatalogInvalidationIntegrationTest : BasePlatformTestCase() {
     private lateinit var tempRoot: Path
