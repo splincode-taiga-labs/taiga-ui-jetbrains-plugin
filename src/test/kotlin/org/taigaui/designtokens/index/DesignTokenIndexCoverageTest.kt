@@ -106,6 +106,35 @@ class DesignTokenIndexCoverageTest {
     }
 
     @Test
+    fun `merge orders equivalent variants by source path and line`() {
+        val indexes =
+            listOf(
+                DesignTokenIndex.build(
+                    root,
+                    listOf(declaration(file = "b.css", line = 2, packageName = "@taiga-ui/core")),
+                ),
+                DesignTokenIndex.build(
+                    root,
+                    listOf(declaration(file = "a.css", line = 3, packageName = "@taiga-ui/core")),
+                ),
+                DesignTokenIndex.build(
+                    root,
+                    listOf(declaration(file = "a.css", line = 1, packageName = "@taiga-ui/core")),
+                ),
+            )
+        val variants = DesignTokenIndex.merge(indexes).find(TOKEN)
+
+        assertEquals(
+            listOf("a.css:1", "a.css:3", "b.css:2"),
+            variants.map { variant ->
+                val origin = variant.origins.single()
+
+                "${origin.sourceFile.fileName}:${origin.line}"
+            },
+        )
+    }
+
+    @Test
     fun `deprecation prefers project origins and requires one distinct value`() {
         val packageDeprecation = DesignTokenDeprecation(message = "Package")
         val projectDeprecation = DesignTokenDeprecation(message = "Project")
