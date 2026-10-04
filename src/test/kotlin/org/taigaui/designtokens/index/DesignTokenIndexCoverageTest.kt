@@ -34,8 +34,7 @@ class DesignTokenIndexCoverageTest {
             DesignTokenIndex
                 .build(root, declarations)
                 .find(TOKEN)
-                .single()
-                .origins
+                .flatMap(DesignTokenVariant::origins)
 
         assertEquals(packages, origins.map(DesignTokenOrigin::packageName))
     }
