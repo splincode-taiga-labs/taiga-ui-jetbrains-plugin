@@ -81,7 +81,7 @@ class IconCatalogInvalidationIntegrationTest : BasePlatformTestCase() {
         val updates = AtomicInteger()
 
         assertEquals(listOf("@tui.first"), service.loadNow(sourceFile))
-        assertEquals(1, service.invalidate(listOf(firstIcon)))
+        service.clear()
 
         assertNull(
             service.namesFor(

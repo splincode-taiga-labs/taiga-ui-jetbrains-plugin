@@ -76,6 +76,29 @@ class EventPluginsHoverPopupControllerTest : BasePlatformTestCase() {
         assertNull(readPrivateField(controller, "activeKey"))
     }
 
+    fun testListenerForwardsMovePressAndDragToController() {
+        myFixture.configureByText(
+            "event-plugin-listener.html",
+            """<button (click.stop.prevent)="submit()">Save</button>""",
+        )
+        val controller = project.service<EventPluginsHoverPopupController>()
+        val listener = EventPluginsHoverPopupListener()
+        val offset = myFixture.editor.document.text.indexOf("stop") + 2
+        val event = editorMouseEvent(offset, EditorMouseEventArea.EDITING_AREA)
+
+        listener.mouseMoved(event)
+        assertNotNull(readPrivateField(controller, "activeKey"))
+
+        listener.mousePressed(event)
+        assertNull(readPrivateField(controller, "activeKey"))
+
+        listener.mouseMoved(event)
+        assertNotNull(readPrivateField(controller, "activeKey"))
+
+        listener.mouseDragged(event)
+        assertNull(readPrivateField(controller, "activeKey"))
+    }
+
     fun testPopupPanelRendersEscapedBindingDocumentation() {
         val binding = requireNotNull(EventPluginBinding.parse("(click.stop.debounce~250ms)"))
         val panelClass = Class.forName("org.taigaui.designtokens.events.EventPluginsHoverPopupPanel")

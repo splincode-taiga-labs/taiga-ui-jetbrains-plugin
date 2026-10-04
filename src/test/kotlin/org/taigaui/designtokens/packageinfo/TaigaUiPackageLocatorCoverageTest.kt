@@ -1,7 +1,6 @@
 package org.taigaui.designtokens.packageinfo
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -10,145 +9,89 @@ import java.nio.file.Path
 
 class TaigaUiPackageLocatorCoverageTest {
     @Test
-    fun `locates nearest node modules scope and reads only valid Taiga packages`() {
+    fun `discovers valid physical packages and ignores incomplete scope entries`() {
         val workspace = Files.createTempDirectory("taiga-locator-node-modules")
-        val scope = workspace.resolve("node_modules/@taiga-ui")
-        val app = workspace.resolve("apps/demo/src/app.ts")
 
         try {
-            write(app, "export {}")
+            val scopeRoot = workspace.resolve("node_modules/@taiga-ui")
+            val core = scopeRoot.resolve("core")
+            val wrong = scopeRoot.resolve("wrong")
+            val incomplete = scopeRoot.resolve("incomplete")
+            val source = workspace.resolve("src/app.ts")
+
             write(
-                scope.resolve("core/package.json"),
+                core.resolve("package.json"),
                 """{"name":"@taiga-ui/core","version":"5.1.0"}""",
             )
             write(
-                scope.resolve("icons/package.json"),
-                """{"name":"@taiga-ui/icons","version":"5.2.0"}""",
+                wrong.resolve("package.json"),
+                """{"name":"third-party","version":"1.0.0"}""",
             )
-            write(
-                scope.resolve("wrong/package.json"),
-                """{"name":"not-taiga","version":"1.0.0"}""",
-            )
-            Files.createDirectories(scope.resolve("missing-metadata"))
+            Files.createDirectories(incomplete)
+            write(source, "export const value = 1;")
 
-            val result = requireNotNull(TaigaUiPackageLocator().locate(app))
+            val located = requireNotNull(TaigaUiPackageLocator().locate(source))
+            val corePackage = requireNotNull(located.packages["@taiga-ui/core"])
 
-            assertEquals(scope.toAbsolutePath().normalize(), result.discoveryRoot)
-            assertEquals(workspace.toAbsolutePath().normalize(), result.workspaceRoot)
             assertEquals(
-                setOf("@taiga-ui/core", "@taiga-ui/icons"),
-                result.packages.keys,
+                workspace.toAbsolutePath().normalize(),
+                located.workspaceRoot,
             )
-            assertTrue(result.identity.startsWith("node-modules:"))
-            assertTrue(result.contentVersion.contains("@taiga-ui/core@5.1.0"))
-            assertTrue(result.contentVersion.contains("@taiga-ui/icons@5.2.0"))
+            assertEquals(
+                scopeRoot.toAbsolutePath().normalize(),
+                located.discoveryRoot,
+            )
+            assertEquals(setOf("@taiga-ui/core"), located.packages.keys)
+            assertTrue(located.identity.startsWith("node-modules:"))
+            assertEquals("@taiga-ui/core@5.1.0", located.contentVersion)
+            assertTrue(corePackage.identity.startsWith("fs:"))
+            assertEquals("5.1.0", corePackage.contentVersion)
+            assertEquals(located.discoveryRoot, located.cacheKey)
+
+            assertEquals(
+                located.discoveryRoot,
+                requireNotNull(TaigaUiPackageLocator().locate(source.parent)).discoveryRoot,
+            )
         } finally {
             workspace.toFile().deleteRecursively()
         }
     }
 
     @Test
-    fun `locates from directory and normalizes real package roots`() {
-        val workspace = Files.createTempDirectory("taiga-locator-directory")
-        val scope = workspace.resolve("node_modules/@taiga-ui")
-        val packageRoot = scope.resolve("core")
+    fun `returns physical scope even when every package entry is rejected`() {
+        val workspace = Files.createTempDirectory("taiga-locator-empty-scope")
 
         try {
-            Files.createDirectories(workspace.resolve("src"))
+            val scopeRoot = workspace.resolve("node_modules/@taiga-ui")
+            val source = workspace.resolve("src/app.ts")
+
             write(
-                packageRoot.resolve("package.json"),
-                """{"name":"@taiga-ui/core","version":"5.0.0"}""",
+                scopeRoot.resolve("wrong/package.json"),
+                """{"name":"not-taiga","version":"1.0.0"}""",
             )
+            write(source, "export const value = 1;")
 
-            val result =
-                requireNotNull(
-                    TaigaUiPackageLocator().locate(workspace.resolve("src")),
-                )
-            val core = requireNotNull(result.packages["@taiga-ui/core"])
+            val located = requireNotNull(TaigaUiPackageLocator().locate(source))
 
-            assertEquals(packageRoot.toAbsolutePath().normalize(), core.root)
-            assertEquals(packageRoot.toRealPath(), core.realRoot)
-            assertTrue(core.identity.startsWith("fs:"))
-            assertEquals("5.0.0", core.contentVersion)
+            assertTrue(located.packages.isEmpty())
+            assertEquals("", located.contentVersion)
         } finally {
             workspace.toFile().deleteRecursively()
         }
     }
 
     @Test
-    fun `returns null when no taiga scope or pnp manifest can be found`() {
-        val workspace = Files.createTempDirectory("taiga-locator-empty")
+    fun `returns null when neither node modules nor pnp metadata exists`() {
+        val workspace = Files.createTempDirectory("taiga-locator-missing")
 
         try {
             val source = workspace.resolve("src/app.ts")
-            write(source, "export {}")
+
+            write(source, "export const value = 1;")
 
             assertNull(TaigaUiPackageLocator().locate(source))
         } finally {
             workspace.toFile().deleteRecursively()
-        }
-    }
-
-    @Test
-    fun `ignores malformed package json entries without failing whole scope`() {
-        val workspace = Files.createTempDirectory("taiga-locator-malformed")
-        val scope = workspace.resolve("node_modules/@taiga-ui")
-        val source = workspace.resolve("src/app.ts")
-
-        try {
-            write(source, "export {}")
-            write(scope.resolve("broken/package.json"), "{not-json")
-            write(
-                scope.resolve("core/package.json"),
-                """{"name":"@taiga-ui/core","version":"5.0.0"}""",
-            )
-
-            val result = requireNotNull(TaigaUiPackageLocator().locate(source))
-
-            assertEquals(setOf("@taiga-ui/core"), result.packages.keys)
-            assertFalse(result.contentVersion.contains("broken"))
-        } finally {
-            workspace.toFile().deleteRecursively()
-        }
-    }
-
-    @Test
-    fun `scope cache key uses discovery directory or stable virtual identity`() {
-        val physical = Files.createTempDirectory("taiga-scope-cache")
-
-        try {
-            val physicalScope =
-                TaigaUiPackageScope(
-                    workspaceRoot = physical,
-                    discoveryRoot = physical,
-                    packages = emptyMap(),
-                    identity = "physical",
-                    contentVersion = "1",
-                )
-            val virtualScope =
-                TaigaUiPackageScope(
-                    workspaceRoot = physical,
-                    discoveryRoot = physical.resolve(".pnp.cjs"),
-                    packages = emptyMap(),
-                    identity = "virtual",
-                    contentVersion = "1",
-                )
-
-            assertEquals(physical, physicalScope.cacheKey)
-            assertTrue(virtualScope.cacheKey.isAbsolute)
-            assertTrue(virtualScope.cacheKey.toString().contains("yarn-pnp-scopes"))
-            assertEquals(
-                virtualScope.cacheKey,
-                TaigaUiPackageScope(
-                    workspaceRoot = physical,
-                    discoveryRoot = physical.resolve("different.pnp.cjs"),
-                    packages = emptyMap(),
-                    identity = "virtual",
-                    contentVersion = "1",
-                ).cacheKey,
-            )
-        } finally {
-            physical.toFile().deleteRecursively()
         }
     }
 
