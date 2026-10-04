@@ -55,7 +55,6 @@ class DesignTokenCompletionContextFinderTest {
         )
     }
 
-
     @Test
     fun `finds prefix in unterminated var function`() {
         assertPrefix(

@@ -120,7 +120,9 @@ class DesignTokenHoverPopupControllerTest : BasePlatformTestCase() {
         configureCss(".demo { color: var(--tui-text-primary); }")
         val controller = project.service<DesignTokenHoverPopupController>()
         val listener = DesignTokenHoverPopupListener()
-        val offset = myFixture.editor.document.text.indexOf("--tui-text-primary") + 3
+        val offset =
+            myFixture.editor.document.text
+                .indexOf("--tui-text-primary") + 3
         val event = editorMouseEvent(offset)
 
         listener.mouseMoved(event)

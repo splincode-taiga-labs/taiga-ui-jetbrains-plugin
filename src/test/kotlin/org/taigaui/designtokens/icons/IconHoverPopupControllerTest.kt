@@ -102,7 +102,9 @@ class IconHoverPopupControllerTest : BasePlatformTestCase() {
         configureHtml("""<button iconStart="@tui.search"></button>""")
         val controller = project.service<IconHoverPopupController>()
         val listener = IconHoverPopupListener()
-        val offset = myFixture.editor.document.text.indexOf("@tui.search") + 3
+        val offset =
+            myFixture.editor.document.text
+                .indexOf("@tui.search") + 3
         val event = editorMouseEvent(offset)
 
         listener.mouseMoved(event)

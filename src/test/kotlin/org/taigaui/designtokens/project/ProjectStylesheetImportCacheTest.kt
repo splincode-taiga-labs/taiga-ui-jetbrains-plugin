@@ -78,7 +78,6 @@ class ProjectStylesheetImportCacheTest {
         assertEquals(2, reads)
     }
 
-
     @Test
     fun `parses sources without stable stamps and treats missing text as no imports`() {
         val root = Path.of("build/fixtures/project-import-cache-no-stamp").toAbsolutePath().normalize()

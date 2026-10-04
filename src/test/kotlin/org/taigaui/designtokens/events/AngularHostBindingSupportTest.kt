@@ -662,7 +662,6 @@ class AngularHostBindingSupportTest : LightPlatformCodeInsightFixture4TestCase()
         assertEquals("zoneless", file.text.substring(duplicate.startOffset, duplicate.endOffset))
     }
 
-
     @Test
     fun `collects rem hints only from Angular host style bindings`() {
         val file =

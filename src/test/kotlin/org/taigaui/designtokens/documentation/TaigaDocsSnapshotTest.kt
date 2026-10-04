@@ -32,7 +32,6 @@ class TaigaDocsSnapshotTest {
         assertNull(snapshot.findBySectionId("components/keypad"))
     }
 
-
     @Test
     fun `keeps package agnostic docs and handles partial or unknown versions`() {
         val source = requireNotNull(TaigaDocsSources.forMajor(5))
