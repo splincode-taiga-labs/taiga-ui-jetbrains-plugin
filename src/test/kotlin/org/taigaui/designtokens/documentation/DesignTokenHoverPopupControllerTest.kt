@@ -8,6 +8,7 @@ import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.testFramework.runInEdtAndGet
+import com.intellij.util.ui.UIUtil
 import org.taigaui.designtokens.project.DesignTokenIndexService
 import org.taigaui.designtokens.settings.TaigaDesignTokensSettings
 import java.awt.event.MouseEvent
@@ -212,6 +213,8 @@ class DesignTokenHoverPopupControllerTest : BasePlatformTestCase() {
         fieldName: String,
     ) {
         repeat(300) {
+            UIUtil.dispatchAllInvocationEvents()
+
             if (readPrivateField(target, fieldName) == null) {
                 return
             }
