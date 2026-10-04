@@ -112,10 +112,14 @@ internal object TaigaQuickDocumentationRenderer {
     private fun TaigaEntityDoc.displaySymbol(): String = publicSymbols.firstOrNull() ?: title
 
     private fun TaigaDocumentationSubject.canonicalImport(): String? {
-        val symbol = publicSymbol ?: return null
-        val packageName = packageName ?: return null
+        val symbol = publicSymbol
+        val resolvedPackageName = packageName
 
-        return "import {$symbol} from '$packageName';"
+        return if (symbol != null && resolvedPackageName != null) {
+            "import {$symbol} from '$resolvedPackageName';"
+        } else {
+            null
+        }
     }
 
     private fun String.html(): String = StringUtil.escapeXmlEntities(this)
