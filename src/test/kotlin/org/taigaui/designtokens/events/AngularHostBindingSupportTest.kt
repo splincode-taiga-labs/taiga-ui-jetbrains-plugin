@@ -14,6 +14,7 @@ import org.taigaui.designtokens.completion.designTokenCompletionContextAt
 import org.taigaui.designtokens.units.AngularHostRemStyleBindingHintCollector
 import org.taigaui.designtokens.units.RemInlayHint
 
+@Suppress("LargeClass")
 class AngularHostBindingSupportTest : LightPlatformCodeInsightFixture4TestCase() {
     override fun setUp() {
         super.setUp()
