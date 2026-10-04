@@ -36,7 +36,7 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
     @Test
     fun `registered provider renders local Taiga directive documentation`() {
         val file = configureTemplate("<button tuiButton>Save</button>")
-        warmDocumentation()
+        warmDocumentation(file)
         val offset = file.text.indexOf("tuiButton") + 3
 
         var html: String? = null
@@ -62,7 +62,7 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
     @Test
     fun `registered provider renders local Taiga element documentation`() {
         val file = configureTemplate("<tui-calendar></tui-calendar>")
-        warmDocumentation()
+        warmDocumentation(file)
         val offset = file.text.indexOf("tui-calendar") + 4
 
         var html: String? = null
@@ -97,7 +97,7 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
     @Test
     fun `provider stays fail open for local Taiga-looking symbol missing from docs`() {
         val file = configureTemplate("<div tuiUnknown></div>")
-        warmDocumentation()
+        warmDocumentation(file)
         val offset = file.text.indexOf("tuiUnknown") + 3
 
         val targets = TaigaQuickDocumentationTargetProvider().documentationTargets(file, offset)
@@ -122,9 +122,9 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
         return myFixture.file
     }
 
-    private fun warmDocumentation() {
+    private fun warmDocumentation(file: PsiFile) {
         docsCache.write(docsSource, docsFixture())
-        val path = Path.of(myFixture.tempDirFixture.tempDirPath, "src/component.html")
+        val path = Path.of(requireNotNull(file.virtualFile).path)
 
         runBlocking {
             assertNotNull(project.service<TaigaDocsService>().snapshotFor(path))
