@@ -55,6 +55,15 @@ class DesignTokenCompletionContextFinderTest {
         )
     }
 
+
+    @Test
+    fun `finds prefix in unterminated var function`() {
+        assertPrefix(
+            ".demo { color: var(--tui-text-<caret>",
+            "--tui-text-",
+        )
+    }
+
     @Test
     fun `ignores second var argument`() {
         assertNoContext(".demo { color: var(--brand, --tui-te<caret>); }")
