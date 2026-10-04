@@ -2,9 +2,12 @@ package org.taigaui.designtokens.icons
 
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import org.taigaui.designtokens.diagnostics.PerformanceDiagnostics
+import org.taigaui.designtokens.cache.RefreshCallback
 import org.taigaui.designtokens.diagnostics.PerformanceMetric
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.concurrent.atomic.AtomicInteger
+import com.intellij.util.ui.UIUtil
 
 class IconCatalogInvalidationIntegrationTest : BasePlatformTestCase() {
     private lateinit var tempRoot: Path
@@ -68,6 +71,93 @@ class IconCatalogInvalidationIntegrationTest : BasePlatformTestCase() {
             listOf("@tui.fancy.medium.private"),
             service.loadNow(sourceFile),
         )
+    }
+
+    fun testAsyncWarmupPublishesNamesCallbacksAndSvgSources() {
+        val workspace = tempRoot.resolve("async-workspace")
+        val firstIcon = createIcon(workspace, "icons/src/first.svg")
+        val sourceFile = createSourceFile(workspace)
+        val owner = Any()
+        val updates = AtomicInteger()
+
+        assertNull(
+            service.namesFor(
+                sourceFile,
+                RefreshCallback(owner, "initial") {
+                    updates.incrementAndGet()
+                },
+            ),
+        )
+        waitUntil { updates.get() == 1 }
+
+        assertEquals(
+            listOf("@tui.first"),
+            service.namesFor(
+                sourceFile,
+                RefreshCallback(owner, "cached") {},
+            ),
+        )
+        assertNotNull(service.svgSourceFor(sourceFile, "@tui.first"))
+        assertNull(service.svgSourceFor(sourceFile, "@tui.missing"))
+
+        val secondIcon = createIcon(workspace, "icons/src/second.svg")
+
+        assertEquals(1, service.invalidate(listOf(secondIcon)))
+
+        val refreshes = AtomicInteger()
+        assertEquals(
+            listOf("@tui.first"),
+            service.namesFor(
+                sourceFile,
+                RefreshCallback(owner, "refresh") {
+                    refreshes.incrementAndGet()
+                },
+            ),
+        )
+        waitUntil { refreshes.get() == 1 }
+
+        assertEquals(
+            listOf("@tui.first", "@tui.second"),
+            service.namesFor(
+                sourceFile,
+                RefreshCallback(owner, "after-refresh") {},
+            ),
+        )
+        assertNotNull(service.svgSourceFor(sourceFile, "@tui.second"))
+        assertTrue(Files.isRegularFile(firstIcon))
+    }
+
+    fun testMissingScopeReturnsEmptyNamesAndNoSvgSource() {
+        val sourceFile = tempRoot.resolve("standalone/app.ts")
+
+        Files.createDirectories(sourceFile.parent)
+        Files.writeString(sourceFile, "const value = 1;")
+
+        assertTrue(
+            service
+                .namesFor(
+                    sourceFile,
+                    RefreshCallback(Any(), "missing") {},
+                ).orEmpty()
+                .isEmpty(),
+        )
+        assertNull(service.svgSourceFor(sourceFile, "@tui.missing"))
+        assertTrue(service.loadNow(sourceFile).isEmpty())
+        assertEquals(0, service.invalidate(emptyList()))
+    }
+
+    private fun waitUntil(condition: () -> Boolean) {
+        repeat(500) {
+            UIUtil.dispatchAllInvocationEvents()
+
+            if (condition()) {
+                return
+            }
+
+            Thread.sleep(10)
+        }
+
+        assertTrue(condition())
     }
 
     private fun iconLoads(): Long =
