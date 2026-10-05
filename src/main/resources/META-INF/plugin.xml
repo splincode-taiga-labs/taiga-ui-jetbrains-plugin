@@ -83,10 +83,15 @@
             source="web-types/event-plugins@3.1.0.web-types.json"
             enableByDefault="false"
         />
-        <polySymbols.documentationCustomizer
+        <platform.backend.documentation.symbolTargetProvider
             id="taiga-ui-quick-documentation"
-            order="last"
-            implementation="org.taigaui.designtokens.documentation.TaigaQuickDocumentationCustomizer"
+            order="first"
+            implementation="org.taigaui.designtokens.documentation.TaigaQuickDocumentationTargetProvider"
+        />
+        <platform.backend.documentation.lookupElementTargetProvider
+            id="taiga-ui-quick-documentation-completion"
+            order="first"
+            implementation="org.taigaui.designtokens.documentation.TaigaQuickDocumentationTargetProvider"
         />
         <psi.referenceContributor
             language="CSS"
