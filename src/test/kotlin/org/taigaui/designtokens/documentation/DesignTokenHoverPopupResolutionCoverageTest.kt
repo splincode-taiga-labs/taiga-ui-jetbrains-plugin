@@ -106,7 +106,8 @@ class DesignTokenHoverPopupResolutionCoverageTest : BasePlatformTestCase() {
             )
 
         assertEquals(missing, model.tokenName)
-        assertTrue(model.sections.isNotEmpty())
+        assertTrue(model.sections.isEmpty())
+        assertTrue(model.description.orEmpty().contains("--tui-text-primary"))
     }
 
     fun testRejectsNullAndStaleHoverRequests() {
