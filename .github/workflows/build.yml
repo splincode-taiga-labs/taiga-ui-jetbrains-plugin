@@ -138,7 +138,7 @@ jobs:
                               )
 
                   print("TOP MISSED SOURCE FILES:")
-                  for missed, path, lines in sorted(missed_files, reverse=True)[:40]:
+                  for missed, path, lines in sorted(missed_files, reverse=True):
                       print(f"MISSED {missed:4d} {path}: {','.join(lines)}")
 
                   print(f"MISSED SOURCE FILES: {len(missed_files)}")
