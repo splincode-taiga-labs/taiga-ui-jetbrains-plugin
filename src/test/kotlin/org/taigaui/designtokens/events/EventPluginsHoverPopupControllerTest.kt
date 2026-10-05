@@ -83,7 +83,9 @@ class EventPluginsHoverPopupControllerTest : BasePlatformTestCase() {
         )
         val controller = project.service<EventPluginsHoverPopupController>()
         val listener = EventPluginsHoverPopupListener()
-        val offset = myFixture.editor.document.text.indexOf("stop") + 2
+        val offset =
+            myFixture.editor.document.text
+                .indexOf("stop") + 2
         val event = editorMouseEvent(offset, EditorMouseEventArea.EDITING_AREA)
 
         listener.mouseMoved(event)
