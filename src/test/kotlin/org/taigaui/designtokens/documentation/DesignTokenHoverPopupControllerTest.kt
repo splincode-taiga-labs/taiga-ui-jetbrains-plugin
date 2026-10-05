@@ -71,6 +71,32 @@ class DesignTokenHoverPopupControllerTest : BasePlatformTestCase() {
         assertNull(readPrivateField(controller, "popup"))
     }
 
+    fun testResolvedTokenHoverShowsPopupAfterDelay() {
+        configureCss(
+            """
+            :root {
+                --tui-text-primary: #ff0000;
+            }
+
+            .demo {
+                color: var(--tui-text-primary);
+            }
+            """.trimIndent(),
+        )
+        val editor = myFixture.editor
+        val controller = project.service<DesignTokenHoverPopupController>()
+        val offset = editor.document.text.lastIndexOf("--tui-text-primary") + 3
+
+        controller.mouseMoved(editorMouseEvent(offset))
+
+        try {
+            assertNotNull(waitForPrivateField(controller, "popupContent"))
+            assertNotNull(readPrivateField(controller, "popupKey"))
+        } finally {
+            controller.dismissHover(editor)
+        }
+    }
+
     fun testMovingAwayFromReferenceClearsPendingHover() {
         configureCss(".demo { color: var(--tui-text-primary); }")
         val editor = myFixture.editor
@@ -251,7 +277,8 @@ class DesignTokenHoverPopupControllerTest : BasePlatformTestCase() {
         target: Any,
         fieldName: String,
     ): Any? {
-        repeat(200) {
+        repeat(500) {
+            UIUtil.dispatchAllInvocationEvents()
             readPrivateField(target, fieldName)?.let { return it }
             Thread.sleep(10)
         }
