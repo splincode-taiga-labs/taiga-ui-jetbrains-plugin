@@ -219,7 +219,7 @@ jobs:
                   disable_search: true
                   flags: unit
                   name: unit-tests
-                  fail_ci_if_error: true
+                  fail_ci_if_error: false
 
             - name: Verify packaged plugin icons
               run: bash scripts/verify-plugin-icons.sh
