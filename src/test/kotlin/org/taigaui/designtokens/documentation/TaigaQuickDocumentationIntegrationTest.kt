@@ -10,6 +10,7 @@ import com.intellij.psi.PsiFile
 import com.intellij.testFramework.fixtures.LightPlatformCodeInsightFixture4TestCase
 import com.intellij.testFramework.runInEdtAndWait
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -40,75 +41,89 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
     }
 
     @Test
-    fun `registered provider renders local Taiga directive documentation`() {
+    fun `native provider renders one enriched Taiga directive documentation target`() {
         val file = configureTemplate("<button tuiButton>Save</button>")
         warmDocumentation(file)
         val offset = file.text.indexOf("tuiButton") + 3
 
+        var targetCount = 0
         var html: String? = null
         runInEdtAndWait {
             val targets =
                 IdeDocumentationTargetProvider
                     .getInstance(project)
                     .documentationTargets(myFixture.editor, file, offset)
-            val documentation =
-                targets
-                    .asSequence()
-                    .mapNotNull { target -> computeDocumentationBlocking(target.createPointer()) }
-                    .firstOrNull { data -> "TuiButton" in data.html }
 
-            html = documentation?.html
+            targetCount = targets.size
+            html = targets.singleOrNull()?.let { target -> computeDocumentationBlocking(target.createPointer())?.html }
         }
 
+        assertEquals(1, targetCount)
         assertNotNull(html)
+        assertTrue(requireNotNull(html).contains("TuiButton"))
         assertTrue(requireNotNull(html).contains("@taiga-ui/core"))
-        assertTrue(requireNotNull(html).contains("Open full Taiga UI documentation"))
+        assertTrue(requireNotNull(html).contains("tuiButton"))
+        assertTrue(requireNotNull(html).contains("TuiSizeXS | TuiSizeL"))
+        assertTrue(requireNotNull(html).contains("&lt;button tuiButton&gt;Save&lt;/button&gt;"))
     }
 
     @Test
-    fun `registered provider renders local Taiga element documentation`() {
+    fun `native provider renders one enriched Taiga element documentation target`() {
         val file = configureTemplate("<tui-calendar></tui-calendar>")
         warmDocumentation(file)
         val offset = file.text.indexOf("tui-calendar") + 4
 
+        var targetCount = 0
         var html: String? = null
         runInEdtAndWait {
             val targets =
                 IdeDocumentationTargetProvider
                     .getInstance(project)
                     .documentationTargets(myFixture.editor, file, offset)
-            val documentation =
-                targets
-                    .asSequence()
-                    .mapNotNull { target -> computeDocumentationBlocking(target.createPointer()) }
-                    .firstOrNull { data -> "TuiCalendar" in data.html }
 
-            html = documentation?.html
+            targetCount = targets.size
+            html = targets.singleOrNull()?.let { target -> computeDocumentationBlocking(target.createPointer())?.html }
         }
 
+        assertEquals(1, targetCount)
         assertNotNull(html)
+        assertTrue(requireNotNull(html).contains("TuiCalendar"))
         assertTrue(requireNotNull(html).contains("tui-calendar"))
     }
 
     @Test
-    fun `provider stays fail open while documentation cache is cold`() {
+    fun `cold cache keeps native documentation available without a duplicate target`() {
         val file = configureTemplate("<button tuiButton>Save</button>")
         val offset = file.text.indexOf("tuiButton") + 3
 
-        val targets = TaigaQuickDocumentationTargetProvider().documentationTargets(file, offset)
+        var targetCount = 0
+        runInEdtAndWait {
+            targetCount =
+                IdeDocumentationTargetProvider
+                    .getInstance(project)
+                    .documentationTargets(myFixture.editor, file, offset)
+                    .size
+        }
 
-        assertTrue(targets.isEmpty())
+        assertEquals(1, targetCount)
     }
 
     @Test
-    fun `provider stays fail open for local Taiga-looking symbol missing from docs`() {
+    fun `missing Taiga docs keep native documentation available`() {
         val file = configureTemplate("<div tuiUnknown></div>")
         warmDocumentation(file)
         val offset = file.text.indexOf("tuiUnknown") + 3
 
-        val targets = TaigaQuickDocumentationTargetProvider().documentationTargets(file, offset)
+        var targetCount = 0
+        runInEdtAndWait {
+            targetCount =
+                IdeDocumentationTargetProvider
+                    .getInstance(project)
+                    .documentationTargets(myFixture.editor, file, offset)
+                    .size
+        }
 
-        assertTrue(targets.isEmpty())
+        assertEquals(1, targetCount)
     }
 
     @Test
@@ -258,6 +273,11 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
             "- **Version**: 5.0.0",
             "",
             "Button is a basic component.",
+            "",
+            "### API - Inputs",
+            "| Property | Type | Description |",
+            "| --- | --- | --- |",
+            "| " + tick("[size]") + " | " + tick("TuiSizeXS | TuiSizeL") + " | Button size |",
             "",
             "### Example",
             FENCE + "html",
