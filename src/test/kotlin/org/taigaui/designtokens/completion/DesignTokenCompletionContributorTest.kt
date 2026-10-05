@@ -123,7 +123,8 @@ class DesignTokenCompletionContributorTest : BasePlatformTestCase() {
             ) as DesignTokenCompletionPreviewPanel
 
         waitUntil {
-            panel.accessibleContext?.accessibleDescription
+            panel.accessibleContext
+                ?.accessibleDescription
                 ?.startsWith("Resolved values for ") == true
         }
     }
