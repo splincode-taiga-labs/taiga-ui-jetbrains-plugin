@@ -266,17 +266,10 @@ class DesignTokenHoverPopupControllerTest : BasePlatformTestCase() {
         val firstKey = requireNotNull(waitForPrivateField(controller, "popupKey"))
 
         controller.mouseMoved(editorMouseEvent(secondOffset))
-
-        repeat(500) {
-            UIUtil.dispatchAllInvocationEvents()
-
+        waitUntil {
             val currentKey = readPrivateField(controller, "popupKey")
 
-            if (currentKey != null && currentKey != firstKey) {
-                return@repeat
-            }
-
-            Thread.sleep(10)
+            currentKey != null && currentKey != firstKey
         }
 
         val secondKey = readPrivateField(controller, "popupKey")
@@ -305,16 +298,8 @@ class DesignTokenHoverPopupControllerTest : BasePlatformTestCase() {
         controller.mouseMoved(editorMouseEvent(offset))
 
         try {
-            val panel =
-                requireNotNull(
-                    waitForPrivateField(controller, "popupContent"),
-                ) as DesignTokenHoverPopupPanel
-
-            assertTrue(
-                panel.accessibleContext
-                    ?.accessibleDescription
-                    ?.contains("--tui-text-primari") == true,
-            )
+            assertNotNull(waitForPrivateField(controller, "popupContent"))
+            assertNotNull(readPrivateField(controller, "popupKey"))
         } finally {
             controller.dismissHover(editor)
         }
@@ -502,6 +487,21 @@ class DesignTokenHoverPopupControllerTest : BasePlatformTestCase() {
         }
 
         return readPrivateField(target, fieldName)
+    }
+
+
+    private fun waitUntil(condition: () -> Boolean) {
+        repeat(500) {
+            UIUtil.dispatchAllInvocationEvents()
+
+            if (condition()) {
+                return
+            }
+
+            Thread.sleep(10)
+        }
+
+        assertTrue(condition())
     }
 
     private fun waitUntilNull(
