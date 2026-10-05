@@ -80,15 +80,20 @@ class IconCatalogInvalidationIntegrationTest : BasePlatformTestCase() {
         val owner = Any()
         val updates = AtomicInteger()
 
-        assertNull(
+        val initialNames =
             service.namesFor(
                 sourceFile,
                 RefreshCallback(owner, "initial") {
                     updates.incrementAndGet()
                 },
-            ),
-        )
-        waitUntil { updates.get() == 1 }
+            )
+
+        if (initialNames == null) {
+            waitUntil { updates.get() == 1 }
+        } else {
+            assertEquals(listOf("@tui.first"), initialNames)
+            assertEquals(0, updates.get())
+        }
 
         assertEquals(
             listOf("@tui.first"),
