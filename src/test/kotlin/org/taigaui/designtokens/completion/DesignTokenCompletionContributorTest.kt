@@ -6,6 +6,7 @@ import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.testFramework.runInEdtAndGet
+import com.intellij.util.ui.UIUtil
 import org.taigaui.designtokens.documentation.DesignTokenHoverPopupModel
 import org.taigaui.designtokens.project.DesignTokenIndexService
 import org.taigaui.designtokens.settings.TaigaDesignTokensSettings
@@ -115,7 +116,16 @@ class DesignTokenCompletionContributorTest : BasePlatformTestCase() {
         invokePrivate(controller, "requestPreview", lookup)
 
         assertNotNull(waitForPrivateField(controller, "previewKey"))
-        assertNotNull(waitForPrivateField(controller, "previewPanel"))
+
+        val panel =
+            requireNotNull(
+                waitForPrivateField(controller, "previewPanel"),
+            ) as DesignTokenCompletionPreviewPanel
+
+        waitUntil {
+            panel.accessibleContext?.accessibleDescription
+                ?.startsWith("Resolved values for ") == true
+        }
     }
 
     fun testCompletionPreviewControllerAttachDetachAndDisabledSetting() {
@@ -497,6 +507,20 @@ class DesignTokenCompletionContributorTest : BasePlatformTestCase() {
         }
 
         return runInEdtAndGet { field.get(target) }
+    }
+
+    private fun waitUntil(condition: () -> Boolean) {
+        repeat(500) {
+            UIUtil.dispatchAllInvocationEvents()
+
+            if (condition()) {
+                return
+            }
+
+            Thread.sleep(10)
+        }
+
+        assertTrue(condition())
     }
 
     private fun createFile(
