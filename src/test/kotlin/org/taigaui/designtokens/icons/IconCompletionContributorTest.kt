@@ -9,6 +9,7 @@ import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.testFramework.runInEdtAndGet
+import com.intellij.util.ui.UIUtil
 import org.junit.Assert.assertFalse
 import java.awt.image.BufferedImage
 import java.nio.file.Files
@@ -97,6 +98,48 @@ class IconCompletionContributorTest : BasePlatformTestCase() {
         )
 
         assertNotNull(waitForPrivateField(controller, "previewPanel"))
+    }
+
+    fun testIconCompletionPreviewControllerResolvesSvgAsynchronously() {
+        createIcon("icons/src/a-arrow-down.svg")
+        createIcon("icons/src/a-arrow-up.svg")
+
+        val sourcePath = workspaceRoot.resolve("src/icons-async.html")
+        val sourceFile =
+            createFile(
+                sourcePath,
+                "<button iconStart=\"@tui.\"></button>",
+            )
+
+        myFixture.configureFromExistingVirtualFile(sourceFile)
+        val caretOffset =
+            myFixture.editor.document.text
+                .indexOf("@tui.") + "@tui.".length
+
+        myFixture.editor.caretModel.moveToOffset(caretOffset)
+        project.service<IconCompletionService>().loadNow(sourcePath)
+
+        val variants = requireNotNull(myFixture.completeBasic())
+
+        assertTrue(variants.size > 1)
+
+        val controller = project.service<IconCompletionPreviewController>()
+        val lookup =
+            requireNotNull(
+                runInEdtAndGet { LookupManager.getActiveLookup(myFixture.editor) },
+            )
+
+        invokePrivate(controller, "attach", lookup)
+
+        val panel =
+            requireNotNull(
+                waitForPrivateField(controller, "previewPanel"),
+            ) as IconCompletionPreviewPanel
+
+        assertTrue(
+            panel.accessibleContext?.accessibleDescription
+                ?.startsWith("Visual preview of @tui.") == true,
+        )
     }
 
     fun testIconCompletionDoesNotExposeNativeDocumentationTarget() {
@@ -195,7 +238,8 @@ class IconCompletionContributorTest : BasePlatformTestCase() {
                 .getDeclaredField(fieldName)
                 .apply { isAccessible = true }
 
-        repeat(200) {
+        repeat(500) {
+            UIUtil.dispatchAllInvocationEvents()
             val value = runInEdtAndGet { field.get(target) }
 
             if (value != null) {
