@@ -6,6 +6,7 @@ import com.intellij.openapi.editor.event.EditorMouseEventArea
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.testFramework.runInEdtAndGet
+import com.intellij.util.ui.UIUtil
 import java.awt.event.MouseEvent
 import java.nio.file.Files
 import java.nio.file.Path
@@ -43,6 +44,51 @@ class IconHoverPopupControllerTest : BasePlatformTestCase() {
         assertNull(readPrivateField(controller, "activeKey"))
         assertNull(readPrivateField(controller, "hoverJob"))
         assertNull(readPrivateField(controller, "nativeHoverSuppressedEditor"))
+    }
+
+    fun testMissingIconClearsHoverAfterAsyncResolution() {
+        configureHtml("""<button iconStart="@tui.search"></button>""")
+        val editor = myFixture.editor
+        val controller = project.service<IconHoverPopupController>()
+        val offset = editor.document.text.indexOf("@tui.search") + 3
+
+        controller.mouseMoved(editorMouseEvent(offset))
+
+        assertNotNull(waitForPrivateField(controller, "activeKey"))
+        waitUntilNull(controller, "activeKey")
+
+        assertNull(readPrivateField(controller, "hoverJob"))
+        assertNull(readPrivateField(controller, "popup"))
+    }
+
+    fun testInstalledIconHoverShowsPopupAfterAsyncResolution() {
+        val workspace = tempRoot.resolve("workspace")
+        val icon =
+            workspace.resolve(
+                "node_modules/@taiga-ui/icons/src/search.svg",
+            )
+
+        Files.createDirectories(icon.parent)
+        Files.writeString(
+            icon,
+            """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 12h16"/></svg>""",
+        )
+        configureSource(
+            fileName = "workspace/src/icons.html",
+            content = """<button iconStart="@tui.search"></button>""",
+        )
+
+        val editor = myFixture.editor
+        val controller = project.service<IconHoverPopupController>()
+        val offset = editor.document.text.indexOf("@tui.search") + 3
+
+        controller.mouseMoved(editorMouseEvent(offset))
+
+        try {
+            assertNotNull(waitForPrivateField(controller, "popup"))
+        } finally {
+            controller.dismissHover(editor)
+        }
     }
 
     fun testRepeatedSameHoverKeepsSingleActiveKey() {
@@ -129,6 +175,8 @@ class IconHoverPopupControllerTest : BasePlatformTestCase() {
         content: String,
     ) {
         val path = tempRoot.resolve(fileName)
+
+        Files.createDirectories(path.parent)
         Files.writeString(path, content)
         val file =
             requireNotNull(
@@ -191,11 +239,29 @@ class IconHoverPopupControllerTest : BasePlatformTestCase() {
         target: Any,
         fieldName: String,
     ): Any? {
-        repeat(200) {
+        repeat(500) {
+            UIUtil.dispatchAllInvocationEvents()
             readPrivateField(target, fieldName)?.let { return it }
             Thread.sleep(10)
         }
 
         return readPrivateField(target, fieldName)
+    }
+
+    private fun waitUntilNull(
+        target: Any,
+        fieldName: String,
+    ) {
+        repeat(500) {
+            UIUtil.dispatchAllInvocationEvents()
+
+            if (readPrivateField(target, fieldName) == null) {
+                return
+            }
+
+            Thread.sleep(10)
+        }
+
+        assertNull(readPrivateField(target, fieldName))
     }
 }
