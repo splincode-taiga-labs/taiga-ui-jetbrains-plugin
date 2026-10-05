@@ -2,8 +2,10 @@ package org.taigaui.designtokens.documentation
 
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.components.service
+import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.event.EditorMouseEvent
 import com.intellij.openapi.editor.event.EditorMouseEventArea
+import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
@@ -12,6 +14,7 @@ import com.intellij.util.ui.UIUtil
 import org.taigaui.designtokens.project.DesignTokenIndexService
 import org.taigaui.designtokens.settings.TaigaDesignTokensSettings
 import java.awt.event.MouseEvent
+import java.lang.reflect.Proxy
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -213,6 +216,205 @@ class DesignTokenHoverPopupControllerTest : BasePlatformTestCase() {
         assertTrue(width <= 560)
     }
 
+
+    fun testVisiblePopupSchedulesHideWhenPointerLeavesReference() {
+        configureCss(
+            """
+            :root {
+                --tui-text-primary: #ff0000;
+            }
+
+            .demo {
+                color: var(--tui-text-primary);
+            }
+            """.trimIndent(),
+        )
+        val editor = myFixture.editor
+        val controller = project.service<DesignTokenHoverPopupController>()
+        val offset = editor.document.text.lastIndexOf("--tui-text-primary") + 3
+
+        controller.mouseMoved(editorMouseEvent(offset))
+        assertNotNull(waitForPrivateField(controller, "popupContent"))
+
+        controller.mouseMoved(editorMouseEvent(0))
+        waitUntilNull(controller, "popup")
+
+        assertNull(readPrivateField(controller, "activeHoverKey"))
+        assertNull(readPrivateField(controller, "latestHoverRequest"))
+    }
+
+    fun testSwitchingHoveredTokenReplacesVisiblePopup() {
+        configureCss(
+            """
+            :root {
+                --tui-first: #111111;
+                --tui-second: #222222;
+            }
+
+            .demo {
+                color: var(--tui-first);
+                background: var(--tui-second);
+            }
+            """.trimIndent(),
+        )
+        val editor = myFixture.editor
+        val controller = project.service<DesignTokenHoverPopupController>()
+        val firstOffset = editor.document.text.lastIndexOf("--tui-first") + 3
+        val secondOffset = editor.document.text.lastIndexOf("--tui-second") + 3
+
+        controller.mouseMoved(editorMouseEvent(firstOffset))
+        val firstKey = requireNotNull(waitForPrivateField(controller, "popupKey"))
+
+        controller.mouseMoved(editorMouseEvent(secondOffset))
+
+        repeat(500) {
+            UIUtil.dispatchAllInvocationEvents()
+
+            val currentKey = readPrivateField(controller, "popupKey")
+
+            if (currentKey != null && currentKey != firstKey) {
+                return@repeat
+            }
+
+            Thread.sleep(10)
+        }
+
+        val secondKey = readPrivateField(controller, "popupKey")
+
+        assertNotNull(secondKey)
+        assertFalse(firstKey == secondKey)
+        controller.dismissHover(editor)
+    }
+
+    fun testMissingTokenShowsNotFoundPopupWithSuggestions() {
+        configureCss(
+            """
+            :root {
+                --tui-text-primary: #ff0000;
+            }
+
+            .demo {
+                color: var(--tui-text-primari);
+            }
+            """.trimIndent(),
+        )
+        val editor = myFixture.editor
+        val controller = project.service<DesignTokenHoverPopupController>()
+        val offset = editor.document.text.lastIndexOf("--tui-text-primari") + 3
+
+        controller.mouseMoved(editorMouseEvent(offset))
+
+        try {
+            val panel =
+                requireNotNull(
+                    waitForPrivateField(controller, "popupContent"),
+                ) as DesignTokenHoverPopupPanel
+
+            assertTrue(
+                panel.accessibleContext
+                    ?.accessibleDescription
+                    ?.contains("--tui-text-primari") == true,
+            )
+        } finally {
+            controller.dismissHover(editor)
+        }
+    }
+
+    fun testPopupResizeCallbackAndCloseListenerClearControllerState() {
+        configureCss(
+            """
+            :root {
+                --tui-text-primary: #ff0000;
+            }
+
+            .demo {
+                color: var(--tui-text-primary);
+            }
+            """.trimIndent(),
+        )
+        val editor = myFixture.editor
+        val controller = project.service<DesignTokenHoverPopupController>()
+        val offset = editor.document.text.lastIndexOf("--tui-text-primary") + 3
+
+        controller.mouseMoved(editorMouseEvent(offset))
+
+        val panel =
+            requireNotNull(
+                waitForPrivateField(controller, "popupContent"),
+            ) as DesignTokenHoverPopupPanel
+        val popup = requireNotNull(readPrivateField(controller, "popup")) as JBPopup
+
+        runInEdtAndGet {
+            panel.showModel(
+                DesignTokenHoverPopupModel.notFound(
+                    tokenName = "--tui-another",
+                    suggestions = listOf("--tui-text-primary"),
+                ),
+            )
+        }
+        runInEdtAndGet { popup.cancel() }
+
+        waitUntilNull(controller, "popup")
+
+        assertNull(readPrivateField(controller, "popupContent"))
+        assertNull(readPrivateField(controller, "popupKey"))
+        assertNull(readPrivateField(controller, "activeHoverKey"))
+        assertNull(readPrivateField(controller, "latestHoverRequest"))
+    }
+
+    fun testDismissHoverIgnoresEditorFromAnotherProject() {
+        configureCss(".demo { color: var(--tui-text-primary); }")
+        val controller = project.service<DesignTokenHoverPopupController>()
+        val foreignEditor =
+            Proxy.newProxyInstance(
+                Editor::class.java.classLoader,
+                arrayOf(Editor::class.java),
+            ) { proxy, method, arguments ->
+                when (method.name) {
+                    "getProject" -> null
+                    "toString" -> "ForeignEditor"
+                    "hashCode" -> System.identityHashCode(proxy)
+                    "equals" -> proxy === arguments?.firstOrNull()
+                    else -> null
+                }
+            } as Editor
+
+        controller.dismissHover(foreignEditor)
+
+        assertNull(readPrivateField(controller, "activeHoverKey"))
+        assertNull(readPrivateField(controller, "latestHoverRequest"))
+    }
+
+    fun testNavigateToDefinitionHandlesMissingAndExistingFiles() {
+        configureCss(".demo { color: var(--tui-text-primary); }")
+        val controller = project.service<DesignTokenHoverPopupController>()
+        val missing = tempRoot.resolve("missing.css")
+
+        invokePrivate(
+            controller,
+            "navigateToDefinition",
+            DesignTokenNavigationTarget(missing, 1),
+        )
+
+        val existing = tempRoot.resolve("definition.css")
+
+        Files.writeString(existing, ":root { --tui-text-primary: red; }")
+        requireNotNull(
+            LocalFileSystem
+                .getInstance()
+                .refreshAndFindFileByNioFile(existing),
+        )
+
+        invokePrivate(
+            controller,
+            "navigateToDefinition",
+            DesignTokenNavigationTarget(existing, 1),
+        )
+
+        assertNull(readPrivateField(controller, "activeHoverKey"))
+        assertNull(readPrivateField(controller, "latestHoverRequest"))
+    }
+
     private fun configureCss(content: String) {
         val path = tempRoot.resolve("component.css")
         Files.writeString(path, content)
@@ -259,6 +461,22 @@ class DesignTokenHoverPopupControllerTest : BasePlatformTestCase() {
             null,
             null,
         )
+    }
+
+
+    private fun invokePrivate(
+        target: Any,
+        methodName: String,
+        vararg arguments: Any?,
+    ) {
+        val method =
+            target.javaClass.declaredMethods
+                .single { candidate ->
+                    candidate.name == methodName &&
+                        candidate.parameterCount == arguments.size
+                }.apply { isAccessible = true }
+
+        runInEdtAndGet { method.invoke(target, *arguments) }
     }
 
     private fun readPrivateField(
