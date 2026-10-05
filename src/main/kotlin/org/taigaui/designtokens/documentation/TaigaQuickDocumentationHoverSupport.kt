@@ -122,7 +122,7 @@ internal class TaigaQuickDocumentationHoverController(
                 service.cachedSnapshotFor(request.sourceFile)
                     ?: service.snapshotFor(request.sourceFile)
             val entity = snapshot?.find(request.subject)
-            val subject = entity?.let(request.subject::completedFrom)
+            val subject = entity?.let { resolved -> request.subject.completedFrom(resolved) }
 
             withContext(Dispatchers.EDT) {
                 if (
