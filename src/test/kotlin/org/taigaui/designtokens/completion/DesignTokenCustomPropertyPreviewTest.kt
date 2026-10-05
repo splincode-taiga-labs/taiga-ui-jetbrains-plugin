@@ -78,8 +78,49 @@ class DesignTokenCustomPropertyPreviewTest : BasePlatformTestCase() {
         assertNull(lookup.toCustomPropertyPreviewModel("--tui-missing", project))
     }
 
+    fun testProjectCustomPropertyRowUsesFallbackLabelWithoutNavigation() {
+        val declarationType =
+            Class.forName(
+                "org.taigaui.designtokens.completion.ProjectCustomPropertyDeclaration",
+            )
+        val declaration =
+            declarationType.declaredConstructors
+                .single()
+                .apply { isAccessible = true }
+                .newInstance("1rem", null, null)
+        val supportType =
+            Class.forName(
+                "org.taigaui.designtokens.completion.DesignTokenCustomPropertyPreviewKt",
+            )
+        val row =
+            supportType.declaredMethods
+                .single { method ->
+                    method.name == "toHoverValueRow" &&
+                        method.parameterCount == 1
+                }.apply { isAccessible = true }
+                .invoke(null, declaration)
+
+        val platform =
+            row.javaClass
+                .getMethod("getPlatform")
+                .invoke(row) as String
+        val resolvedValue =
+            row.javaClass
+                .getMethod("getResolvedValue")
+                .invoke(row) as String
+        val navigationTarget =
+            row.javaClass
+                .getMethod("getNavigationTarget")
+                .invoke(row)
+
+        assertEquals("Project styles", platform)
+        assertEquals("1rem", resolvedValue)
+        assertNull(navigationTarget)
+    }
+
     fun testExtractCustomPropertyValueRejectsEmptyAndNestedBlocks() {
         assertNull(extractCustomPropertyValue(":root { --tui-empty: ; }", "--tui-empty"))
+        assertNull(extractCustomPropertyValue(":root { color: red; }", "--tui-absent"))
         assertNull(
             extractCustomPropertyValue(
                 ":root { color: red; } .next { --tui-empty: ; }",
