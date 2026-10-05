@@ -87,7 +87,8 @@ class IconCompletionContributorTest : BasePlatformTestCase() {
 
         invokePrivate(controller, "attach", lookup)
 
-        assertNotNull(waitForPrivateField(controller, "previewKey"))
+        val previewKey = requireNotNull(waitForPrivateField(controller, "previewKey"))
+        exerciseDataClass(previewKey)
 
         invokePrivate(
             controller,
@@ -251,6 +252,29 @@ class IconCompletionContributorTest : BasePlatformTestCase() {
         }
 
         return runInEdtAndGet { field.get(target) }
+    }
+
+    private fun exerciseDataClass(value: Any) {
+        value.toString()
+        value.hashCode()
+        assertEquals(value, value)
+
+        val components =
+            value.javaClass.declaredMethods
+                .filter { method ->
+                    method.name.startsWith("component") &&
+                        method.parameterCount == 0
+                }.sortedBy { method -> method.name }
+                .onEach { method -> method.isAccessible = true }
+                .map { method -> method.invoke(value) }
+        val copy =
+            value.javaClass.declaredMethods
+                .singleOrNull { method ->
+                    method.name == "copy" &&
+                        method.parameterCount == components.size
+                }?.apply { isAccessible = true }
+
+        copy?.invoke(value, *components.toTypedArray())
     }
 
     private fun createPackage(name: String) {
