@@ -79,26 +79,26 @@ class IconCatalogInvalidationIntegrationTest : BasePlatformTestCase() {
         val sourceFile = createSourceFile(workspace)
         val owner = Any()
         val updates = AtomicInteger()
+        val scopeRoot =
+            workspace
+                .resolve("node_modules/@taiga-ui")
+                .toAbsolutePath()
+                .normalize()
 
-        val initialNames =
-            service.namesFor(
-                sourceFile,
+        assertNull(
+            namesForScope(
+                scopeRoot,
                 RefreshCallback(owner, "initial") {
                     updates.incrementAndGet()
                 },
-            )
-
-        if (initialNames == null) {
-            waitUntil { updates.get() == 1 }
-        } else {
-            assertEquals(listOf("@tui.first"), initialNames)
-            assertEquals(0, updates.get())
-        }
+            ),
+        )
+        waitUntil { updates.get() == 1 }
 
         assertEquals(
             listOf("@tui.first"),
-            service.namesFor(
-                sourceFile,
+            namesForScope(
+                scopeRoot,
                 RefreshCallback(owner, "cached") {},
             ),
         )
@@ -112,8 +112,8 @@ class IconCatalogInvalidationIntegrationTest : BasePlatformTestCase() {
         val refreshes = AtomicInteger()
         assertEquals(
             listOf("@tui.first"),
-            service.namesFor(
-                sourceFile,
+            namesForScope(
+                scopeRoot,
                 RefreshCallback(owner, "refresh") {
                     refreshes.incrementAndGet()
                 },
@@ -123,8 +123,8 @@ class IconCatalogInvalidationIntegrationTest : BasePlatformTestCase() {
 
         assertEquals(
             listOf("@tui.first", "@tui.second"),
-            service.namesFor(
-                sourceFile,
+            namesForScope(
+                scopeRoot,
                 RefreshCallback(owner, "after-refresh") {},
             ),
         )
@@ -149,6 +149,21 @@ class IconCatalogInvalidationIntegrationTest : BasePlatformTestCase() {
         assertNull(service.svgSourceFor(sourceFile, "@tui.missing"))
         assertTrue(service.loadNow(sourceFile).isEmpty())
         assertEquals(0, service.invalidate(emptyList()))
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun namesForScope(
+        scopeRoot: Path,
+        callback: RefreshCallback<*>,
+    ): List<String>? {
+        val method =
+            service.javaClass.declaredMethods
+                .single { candidate ->
+                    candidate.name == "namesForScope" &&
+                        candidate.parameterCount == 2
+                }.apply { isAccessible = true }
+
+        return method.invoke(service, scopeRoot, callback) as? List<String>
     }
 
     private fun waitUntil(condition: () -> Boolean) {
