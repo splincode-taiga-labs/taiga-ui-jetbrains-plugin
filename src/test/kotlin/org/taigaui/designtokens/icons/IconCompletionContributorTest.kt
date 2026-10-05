@@ -137,7 +137,8 @@ class IconCompletionContributorTest : BasePlatformTestCase() {
             ) as IconCompletionPreviewPanel
 
         assertTrue(
-            panel.accessibleContext?.accessibleDescription
+            panel.accessibleContext
+                ?.accessibleDescription
                 ?.startsWith("Visual preview of @tui.") == true,
         )
     }
