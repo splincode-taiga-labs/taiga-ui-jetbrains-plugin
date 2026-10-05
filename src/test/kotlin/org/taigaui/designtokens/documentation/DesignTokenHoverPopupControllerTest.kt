@@ -216,7 +216,6 @@ class DesignTokenHoverPopupControllerTest : BasePlatformTestCase() {
         assertTrue(width <= 560)
     }
 
-
     fun testVisiblePopupSchedulesHideWhenPointerLeavesReference() {
         configureCss(
             """
@@ -448,7 +447,6 @@ class DesignTokenHoverPopupControllerTest : BasePlatformTestCase() {
         )
     }
 
-
     private fun invokePrivate(
         target: Any,
         methodName: String,
@@ -488,7 +486,6 @@ class DesignTokenHoverPopupControllerTest : BasePlatformTestCase() {
 
         return readPrivateField(target, fieldName)
     }
-
 
     private fun waitUntil(condition: () -> Boolean) {
         repeat(500) {
