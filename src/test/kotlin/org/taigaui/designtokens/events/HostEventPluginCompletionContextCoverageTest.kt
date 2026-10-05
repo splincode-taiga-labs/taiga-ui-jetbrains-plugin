@@ -105,22 +105,29 @@ class HostEventPluginCompletionContextCoverageTest {
             HostEventPluginCompletionContext.Kind.MODIFIER,
             "",
         )
-        assertContext(
+        assertNull(
             HostEventPluginCompletionContext.findAfterTyping(
                 text = "(",
                 caretOffset = -1,
+                charTyped = 'r',
+            ),
+        )
+        assertContext(
+            HostEventPluginCompletionContext.findAfterTyping(
+                text = "(",
+                caretOffset = 1,
                 charTyped = 'r',
             ),
             HostEventPluginCompletionContext.Kind.EVENT,
             "r",
         )
 
-        val longPrefix = "x".repeat(200)
+        val longBinding = "(" + "x".repeat(200)
 
         assertNull(
             HostEventPluginCompletionContext.findBeforeCaret(
-                "$longPrefix(click",
-                (longPrefix + "(click").length,
+                longBinding,
+                longBinding.length,
             ),
         )
     }
