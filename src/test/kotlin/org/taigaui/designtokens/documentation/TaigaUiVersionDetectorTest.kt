@@ -58,6 +58,41 @@ class TaigaUiVersionDetectorTest {
     }
 
     @Test
+    fun skipsPackageWithInvalidVersionAndUsesNextCandidate() {
+        val workspace = temporaryFolder.newFolder("invalid-core-version").toPath()
+        createPackage(workspace, "core", "workspace:*")
+        createPackage(workspace, "kit", "5.18.0")
+        createPackage(workspace, "proprietary", "5.18.0")
+        val sourceFile = createSource(workspace)
+
+        val context = requireNotNull(detector.detect(sourceFile))
+
+        assertEquals(5, context.majorVersion)
+        assertEquals("5.18.0", context.version)
+        assertEquals("@taiga-ui/kit", context.versionSourcePackage)
+        assertEquals(
+            setOf("@taiga-ui/core", "@taiga-ui/kit", "@taiga-ui/proprietary"),
+            context.installedPackages,
+        )
+    }
+
+    @Test
+    fun parsesMajorFromPrereleaseAndMajorOnlyVersions() {
+        listOf(
+            "5.0.0-next.1" to 5,
+            "4" to 4,
+        ).forEachIndexed { index, (version, expectedMajor) ->
+            val workspace = temporaryFolder.newFolder("version-$index").toPath()
+            createPackage(workspace, "core", version)
+
+            val context = requireNotNull(detector.detect(createSource(workspace)))
+
+            assertEquals(expectedMajor, context.majorVersion)
+            assertEquals(version, context.version)
+        }
+    }
+
+    @Test
     fun returnsNullWhenTaigaUiPackagesAreMissing() {
         val workspace = temporaryFolder.newFolder("missing").toPath()
         val sourceFile = createSource(workspace)
