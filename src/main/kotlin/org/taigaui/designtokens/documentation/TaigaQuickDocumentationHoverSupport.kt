@@ -155,7 +155,7 @@ internal class TaigaQuickDocumentationHoverController(
                 entity = entity,
                 subject = subject,
                 onOpenDocumentation = {
-                    BrowserUtil.browse(entity.documentationUri)
+                    BrowserUtil.browse(entity.documentationUri.toString())
                     dismissHover(request.editor)
                 },
             )
