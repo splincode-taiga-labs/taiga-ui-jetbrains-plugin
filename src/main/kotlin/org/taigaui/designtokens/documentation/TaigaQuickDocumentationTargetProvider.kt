@@ -1,6 +1,7 @@
 package org.taigaui.designtokens.documentation
 
 import com.intellij.codeInsight.lookup.LookupElement
+import com.intellij.lang.injection.InjectedLanguageManager
 import com.intellij.model.Pointer
 import com.intellij.openapi.components.service
 import com.intellij.platform.backend.documentation.DocumentationResult
@@ -9,6 +10,7 @@ import com.intellij.platform.backend.documentation.DocumentationTargetProvider
 import com.intellij.platform.backend.documentation.LookupElementDocumentationTargetProvider
 import com.intellij.platform.backend.presentation.TargetPresentation
 import com.intellij.psi.PsiFile
+import java.nio.file.Path
 
 internal class TaigaQuickDocumentationTargetProvider :
     DocumentationTargetProvider,
@@ -75,3 +77,33 @@ private class TaigaQuickDocumentationTarget(
             .documentation(TaigaQuickDocumentationRenderer.render(entity, subject))
             .externalUrl(entity.documentationUri.toString())
 }
+
+
+internal fun PsiFile.sourcePath(): Path? =
+    InjectedLanguageManager
+        .getInstance(project)
+        .getTopLevelFile(this)
+        .virtualFile
+        ?.path
+        ?.let { path -> runCatching { Path.of(path) }.getOrNull() }
+
+internal fun TaigaDocsSnapshot.find(subject: TaigaDocumentationSubject): TaigaEntityDoc? =
+    buildList {
+        subject.publicSymbol?.let { symbol ->
+            addAll(findByPublicSymbol(symbol))
+        }
+        subject.selector?.let { selector ->
+            addAll(findBySelector(selector))
+        }
+    }.distinctBy(TaigaEntityDoc::sectionId)
+        .firstOrNull { entity ->
+            subject.packageName == null ||
+                entity.packageNames.isEmpty() ||
+                subject.packageName in entity.packageNames
+        }
+
+internal fun TaigaDocumentationSubject.completedFrom(entity: TaigaEntityDoc): TaigaDocumentationSubject =
+    copy(
+        publicSymbol = publicSymbol ?: entity.publicSymbols.singleOrNull(),
+        packageName = packageName ?: entity.packageNames.singleOrNull(),
+    )
