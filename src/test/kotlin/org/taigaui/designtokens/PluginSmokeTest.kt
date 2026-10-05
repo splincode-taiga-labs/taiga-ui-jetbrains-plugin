@@ -18,7 +18,17 @@ class PluginSmokeTest {
         assertTrue(descriptor.contains("<name>Taiga UI Companion</name>"))
         assertTrue(
             descriptor.contains(
-                "org.taigaui.designtokens.documentation.TaigaQuickDocumentationCustomizer",
+                "<platform.backend.documentation.symbolTargetProvider",
+            ),
+        )
+        assertTrue(
+            descriptor.contains(
+                "<platform.backend.documentation.lookupElementTargetProvider",
+            ),
+        )
+        assertTrue(
+            descriptor.contains(
+                "org.taigaui.designtokens.documentation.TaigaQuickDocumentationTargetProvider",
             ),
         )
         assertTrue(
@@ -28,7 +38,12 @@ class PluginSmokeTest {
         )
         assertFalse(
             descriptor.contains(
-                "org.taigaui.designtokens.documentation.TaigaQuickDocumentationTargetProvider",
+                "<platform.backend.documentation.targetProvider",
+            ),
+        )
+        assertFalse(
+            descriptor.contains(
+                "TaigaQuickDocumentationCustomizer",
             ),
         )
     }
