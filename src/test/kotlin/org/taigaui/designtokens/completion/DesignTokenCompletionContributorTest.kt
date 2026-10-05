@@ -201,6 +201,52 @@ class DesignTokenCompletionContributorTest : BasePlatformTestCase() {
         assertNull(readPrivateField(controller, "previewJob"))
     }
 
+    fun testCompletionPreviewControllerEnsuresAttachmentAndClearsInvalidRequests() {
+        val sourcePath = configureCompletion("--tui-")
+
+        indexService.completionTokenNames(sourcePath)
+        requireNotNull(myFixture.completeBasic())
+
+        val controller = project.service<DesignTokenCompletionPreviewController>()
+        val lookup =
+            requireNotNull(
+                runInEdtAndGet { LookupManager.getActiveLookup(myFixture.editor) },
+            )
+
+        controller.ensureAttached()
+        waitUntil { readPrivateField(controller, "activeLookup") === lookup }
+
+        invokePrivate(controller, "requestPreview", lookup)
+        assertNotNull(waitForPrivateField(controller, "previewKey"))
+
+        // Repeating the same request must reuse the in-flight preview.
+        invokePrivate(controller, "requestPreview", lookup)
+        assertNotNull(readPrivateField(controller, "previewKey"))
+
+        val settings = service<TaigaDesignTokensSettings>()
+
+        settings.showCompletionPreview = false
+
+        try {
+            invokePrivate(controller, "requestPreview", lookup)
+
+            assertNull(readPrivateField(controller, "previewKey"))
+            assertNull(readPrivateField(controller, "previewJob"))
+        } finally {
+            settings.showCompletionPreview = true
+        }
+
+        runInEdtAndGet {
+            myFixture.editor.caretModel.moveToOffset(0)
+        }
+        invokePrivate(controller, "requestPreview", lookup)
+
+        waitUntil {
+            readPrivateField(controller, "previewKey") == null &&
+                readPrivateField(controller, "previewJob") == null
+        }
+    }
+
     fun testCompletesSingleInstalledTokenMatch() {
         val tokenPrefix = "--tui-text-prima"
         val expectedToken = "--tui-text-primary"
