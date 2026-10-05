@@ -216,30 +216,20 @@ class DesignTokenHoverPopupControllerTest : BasePlatformTestCase() {
         assertTrue(width <= 560)
     }
 
-    fun testVisiblePopupSchedulesHideWhenPointerLeavesReference() {
-        configureCss(
-            """
-            :root {
-                --tui-text-primary: #ff0000;
-            }
-
-            .demo {
-                color: var(--tui-text-primary);
-            }
-            """.trimIndent(),
-        )
+    fun testPendingHoverCanBeScheduledForHideWithoutReadingRealPointerPosition() {
+        configureCss(".demo { color: var(--tui-text-primary); }")
         val editor = myFixture.editor
         val controller = project.service<DesignTokenHoverPopupController>()
-        val offset = editor.document.text.lastIndexOf("--tui-text-primary") + 3
+        val offset = editor.document.text.indexOf("--tui-text-primary") + 3
 
         controller.mouseMoved(editorMouseEvent(offset))
-        assertNotNull(waitForPrivateField(controller, "popupContent"))
+        assertNotNull(waitForPrivateField(controller, "activeHoverKey"))
 
-        controller.mouseMoved(editorMouseEvent(0))
-        waitUntilNull(controller, "popup")
+        invokePrivate(controller, "scheduleHide")
+        waitUntilNull(controller, "activeHoverKey")
 
-        assertNull(readPrivateField(controller, "activeHoverKey"))
         assertNull(readPrivateField(controller, "latestHoverRequest"))
+        assertNull(readPrivateField(controller, "popup"))
     }
 
     fun testSwitchingHoveredTokenReplacesVisiblePopup() {

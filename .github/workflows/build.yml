@@ -117,31 +117,53 @@ jobs:
                           github_output.write(f"{key}_missed={missed}\n")
                           github_output.write(f"{key}_total={total}\n")
 
-                  missed_files = []
+                  uncovered_files = []
+                  partial_files = []
                   for package in root.findall("package"):
                       package_name = package.attrib["name"]
 
                       for source in package.findall("sourcefile"):
-                          lines = [
-                              line.attrib["nr"]
-                              for line in source.findall("line")
-                              if int(line.attrib.get("mi", "0")) > 0
-                          ]
+                          path = f"{package_name}/{source.attrib['name']}"
+                          uncovered_lines = []
+                          partial_lines = []
 
-                          if lines:
-                              missed_files.append(
+                          for line in source.findall("line"):
+                              missed = int(line.attrib.get("mi", "0"))
+                              covered = int(line.attrib.get("ci", "0"))
+
+                              if missed > 0 and covered == 0:
+                                  uncovered_lines.append(line.attrib["nr"])
+                              elif missed > 0 and covered > 0:
+                                  partial_lines.append(line.attrib["nr"])
+
+                          if uncovered_lines:
+                              uncovered_files.append(
                                   (
-                                      len(lines),
-                                      f"{package_name}/{source.attrib['name']}",
-                                      lines,
+                                      len(uncovered_lines),
+                                      path,
+                                      uncovered_lines,
                                   ),
                               )
 
-                  print("TOP MISSED SOURCE FILES:")
-                  for missed, path, lines in sorted(missed_files, reverse=True):
-                      print(f"MISSED {missed:4d} {path}: {','.join(lines)}")
+                          if partial_lines:
+                              partial_files.append(
+                                  (
+                                      len(partial_lines),
+                                      path,
+                                      partial_lines,
+                                  ),
+                              )
 
-                  print(f"MISSED SOURCE FILES: {len(missed_files)}")
+                  print("FULLY UNCOVERED SOURCE LINES:")
+                  for missed, path, lines in sorted(uncovered_files, reverse=True):
+                      print(f"UNCOVERED {missed:4d} {path}: {','.join(lines)}")
+
+                  print(f"UNCOVERED SOURCE FILES: {len(uncovered_files)}")
+                  print("PARTIALLY COVERED SOURCE LINES:")
+                  for partial, path, lines in sorted(partial_files, reverse=True):
+                      print(f"PARTIAL {partial:4d} {path}: {','.join(lines)}")
+
+                  print(f"PARTIAL SOURCE FILES: {len(partial_files)}")
                   PY
 
             - name: Publish JaCoCo coverage to pull request

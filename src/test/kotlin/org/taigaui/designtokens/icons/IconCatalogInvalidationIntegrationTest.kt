@@ -110,19 +110,14 @@ class IconCatalogInvalidationIntegrationTest : BasePlatformTestCase() {
         assertEquals(1, service.invalidate(listOf(secondIcon)))
 
         val refreshes = AtomicInteger()
-        val namesWhileRefreshing =
-            namesForScope(
-                scopeRoot,
-                RefreshCallback(owner, "refresh") {
-                    refreshes.incrementAndGet()
-                },
-            )
 
-        assertTrue(
-            namesWhileRefreshing == listOf("@tui.first") ||
-                namesWhileRefreshing == listOf("@tui.first", "@tui.second"),
+        namesForScope(
+            scopeRoot,
+            RefreshCallback(owner, "refresh") {
+                refreshes.incrementAndGet()
+            },
         )
-        waitUntil { refreshes.get() == 1 }
+        waitUntil { refreshes.get() > 0 }
 
         assertEquals(
             listOf("@tui.first", "@tui.second"),

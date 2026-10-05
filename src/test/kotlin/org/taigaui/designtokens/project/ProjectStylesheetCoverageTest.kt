@@ -85,6 +85,92 @@ class ProjectStylesheetCoverageTest : BasePlatformTestCase() {
         )
     }
 
+    fun testImportParserExtractsQuotedUseForwardAndUrlForms() {
+        assertEquals(
+            listOf(
+                "./base.css",
+                "./theme.less",
+                "./tokens.scss",
+                "./forwarded",
+                "./url-theme.css",
+            ),
+            ProjectStylesheetImportParser.parse(
+                """
+                @import "./base.css", './theme.less';
+                @use "./tokens.scss";
+                @forward './forwarded';
+                @import url(./url-theme.css);
+                """.trimIndent(),
+            ),
+        )
+    }
+
+    fun testImportResolverResolvesLocalProjectAndWorkspaceStylesAndFiltersInvalidImports() {
+        val projectRoot = workspaceRoot.resolve("apps/demo")
+        val sourceFile = projectRoot.resolve("src/component.scss")
+        val localPartial = projectRoot.resolve("src/_local.scss")
+        val projectStyle = projectRoot.resolve("styles/project.css")
+        val workspaceStyle = workspaceRoot.resolve("shared/_theme.less")
+        val nodeModulesStyle = workspaceRoot.resolve("node_modules/pkg/styles.css")
+
+        Files.createDirectories(sourceFile.parent)
+        Files.writeString(sourceFile, ".demo {}")
+        Files.writeString(localPartial, ":root {}")
+        Files.createDirectories(projectStyle.parent)
+        Files.writeString(projectStyle, ":root {}")
+        Files.createDirectories(workspaceStyle.parent)
+        Files.writeString(workspaceStyle, ":root {}")
+        Files.createDirectories(nodeModulesStyle.parent)
+        Files.writeString(nodeModulesStyle, ":root {}")
+
+        val resolver =
+            ProjectStylesheetImportResolver {
+                listOf(
+                    "./local",
+                    "/styles/project.css?raw",
+                    "/shared/theme#palette",
+                    "",
+                    "https://example.com/theme.css",
+                    "sass:color",
+                    "~@taiga-ui/core/styles",
+                    "../../../outside.css",
+                    "../../../node_modules/pkg/styles.css",
+                )
+            }
+
+        assertEquals(
+            listOf(
+                localPartial.toAbsolutePath().normalize(),
+                projectStyle.toAbsolutePath().normalize(),
+                workspaceStyle.toAbsolutePath().normalize(),
+            ),
+            resolver.resolveImports(
+                sourceFile = sourceFile,
+                projectRoot = projectRoot,
+                workspaceRoot = workspaceRoot,
+            ),
+        )
+    }
+
+    fun testCurrentFileEntrypointProviderAcceptsOnlyWorkspaceStylesheets() {
+        val provider = CurrentFileProjectStylesheetEntrypointProvider()
+        val projectRoot = workspaceRoot.resolve("apps/demo")
+        val style = projectRoot.resolve("src/styles.scss")
+        val script = projectRoot.resolve("src/app.ts")
+        val dependencyStyle = workspaceRoot.resolve("node_modules/pkg/styles.css")
+
+        fun context(sourceFile: Path) =
+            ProjectStylesheetEntrypointContext(
+                sourceFile = sourceFile,
+                projectRoot = projectRoot,
+                workspaceRoot = workspaceRoot,
+            )
+
+        assertEquals(listOf(style), provider.find(context(style)))
+        assertEmpty(provider.find(context(script)))
+        assertEmpty(provider.find(context(dependencyStyle)))
+    }
+
     fun testJsonParserHandlesEmptyNestedAndMixedStyleArrays() {
         val parser = ProjectStylesheetJsonPsiParser(project)
 

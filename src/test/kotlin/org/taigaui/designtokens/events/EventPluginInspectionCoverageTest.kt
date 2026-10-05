@@ -117,6 +117,67 @@ class EventPluginInspectionCoverageTest : LightPlatformCodeInsightFixture4TestCa
     }
 
     @Test
+    fun testTypeScriptHostInspectionSuppressorCoversPluginGlobalAndNegativePaths() {
+        val file =
+            myFixture.addFileToProject(
+                "src/suppressor.ts",
+                """
+                import {Directive} from '@angular/core';
+
+                @Directive({
+                    selector: '[example]',
+                    host: {
+                        '(click.stop)': 'onClick()',
+                        '(visualViewport>resize)': 'onResize()',
+                    },
+                })
+                export class ExampleDirective {}
+                """.trimIndent(),
+            )
+
+        myFixture.configureFromExistingVirtualFile(file.virtualFile)
+
+        val suppressor = TypeScriptHostEventPluginInspectionSuppressor()
+
+        listOf("click.stop", "visualViewport>resize").forEach { binding ->
+            val element =
+                requireNotNull(
+                    file.findElementAt(file.text.indexOf(binding) + 2),
+                )
+
+            assertTrue(
+                suppressor.isSuppressedFor(
+                    element,
+                    "SpellCheckingInspection",
+                ),
+            )
+            assertFalse(
+                suppressor.isSuppressedFor(
+                    element,
+                    "DifferentInspection",
+                ),
+            )
+        }
+
+        val ordinaryElement =
+            requireNotNull(
+                file.findElementAt(file.text.indexOf("ExampleDirective")),
+            )
+
+        assertFalse(
+            suppressor.isSuppressedFor(
+                ordinaryElement,
+                "SpellCheckingInspection",
+            ),
+        )
+        assertTrue(
+            suppressor
+                .getSuppressActions(null, "SpellCheckingInspection")
+                .isEmpty(),
+        )
+    }
+
+    @Test
     fun testFindersIgnorePlainEventsAndDetectModifierLikeTyposAfterTaigaModifier() {
         assertTrue(EventPluginUnknownModifierFinder.findInEventName("click", 10).isEmpty())
         assertTrue(EventPluginUnknownModifierFinder.findInEventName("click.custom", 10).isEmpty())
