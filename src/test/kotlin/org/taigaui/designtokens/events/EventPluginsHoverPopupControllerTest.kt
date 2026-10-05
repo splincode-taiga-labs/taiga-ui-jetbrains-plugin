@@ -35,6 +35,24 @@ class EventPluginsHoverPopupControllerTest : BasePlatformTestCase() {
         assertNull(readPrivateField(controller, "hoverJob"))
     }
 
+    fun testValidHoverShowsPopupAfterDelay() {
+        myFixture.configureByText(
+            "event-plugin-popup.html",
+            """<button (click.stop.prevent)="submit()">Save</button>""",
+        )
+        val editor = myFixture.editor
+        val offset = editor.document.text.indexOf("stop") + 2
+        val controller = project.service<EventPluginsHoverPopupController>()
+
+        controller.mouseMoved(editorMouseEvent(offset, EditorMouseEventArea.EDITING_AREA))
+
+        try {
+            assertNotNull(waitForPrivateField(controller, "popup"))
+        } finally {
+            controller.dismissHover(editor)
+        }
+    }
+
     fun testHoverRequestBecomesStaleAfterDocumentChange() {
         myFixture.configureByText(
             "event-plugin-stale.html",
@@ -168,7 +186,8 @@ class EventPluginsHoverPopupControllerTest : BasePlatformTestCase() {
         target: Any,
         fieldName: String,
     ): Any? {
-        repeat(200) {
+        repeat(500) {
+            UIUtil.dispatchAllInvocationEvents()
             readPrivateField(target, fieldName)?.let { return it }
             Thread.sleep(10)
         }
