@@ -134,6 +134,24 @@ class DesignTokenHoverPopupModelTest {
     }
 
     @Test
+    fun `orders styles package between design tokens and core`() {
+        val model =
+            DesignTokenHoverPopupModel.create(
+                TOKEN,
+                listOf(
+                    group(resolved("#333", "#333"), packageName = CORE_PACKAGE),
+                    group(resolved("#222", "#222"), packageName = STYLES_PACKAGE),
+                    group(resolved("#111", "#111"), packageName = DESIGN_TOKENS_PACKAGE),
+                ),
+            )
+
+        assertEquals(
+            listOf(DESIGN_TOKENS_PACKAGE, STYLES_PACKAGE, CORE_PACKAGE),
+            model.sections.map { section -> section.packageName },
+        )
+    }
+
+    @Test
     fun `collapses a complete equivalent context set`() {
         val model =
             DesignTokenHoverPopupModel.create(
@@ -264,6 +282,7 @@ class DesignTokenHoverPopupModelTest {
     private companion object {
         const val TOKEN = "--tui-text-secondary"
         const val DESIGN_TOKENS_PACKAGE = "@taiga-ui/design-tokens"
+        const val STYLES_PACKAGE = "@taiga-ui/styles"
         const val CORE_PACKAGE = "@taiga-ui/core"
         val LIGHT_DESKTOP = DesignTokenContext(DesignTokenPlatform.DESKTOP, DesignTokenTheme.LIGHT)
         val DARK_DESKTOP = DesignTokenContext(DesignTokenPlatform.DESKTOP, DesignTokenTheme.DARK)

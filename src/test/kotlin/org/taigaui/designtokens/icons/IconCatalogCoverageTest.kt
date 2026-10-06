@@ -211,6 +211,32 @@ class IconCatalogCoverageTest {
     }
 
     @Test
+    fun `catalog context falls back to cache paths when virtual packages are absent`() {
+        val root = Files.createTempDirectory("icon-context-virtual-fallback")
+
+        try {
+            val scope =
+                TaigaUiPackageScope(
+                    workspaceRoot = root,
+                    discoveryRoot = root.resolve(".pnp.cjs"),
+                    packages = emptyMap(),
+                    identity = "virtual-fallback",
+                    contentVersion = "1",
+                )
+            val context = IconCatalogContext.from(scope)
+            val cacheKey = scope.cacheKey.toAbsolutePath().normalize()
+
+            assertEquals(cacheKey, context.scopeRoot)
+            assertNull(context.physicalScopeRoot)
+            assertEquals(cacheKey.resolve("icons/src"), context.publicIconsRoot)
+            assertEquals(cacheKey.resolve("tds-icons/src"), context.tdsIconsRoot)
+            assertEquals(cacheKey.resolve("proprietary"), context.proprietaryPackageRoot)
+        } finally {
+            root.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
     fun `source support switches between public local tds and cdn`() {
         val root = Files.createTempDirectory("icon-source-support")
 
