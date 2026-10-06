@@ -86,6 +86,7 @@ jobs:
                   path: |
                       build/distributions/*.zip
                       build/reports/quick-documentation/*.png
+                      build/test-results/test/TEST-*Documentation*.xml
 
             - name: Verify packaged plugin icons
               run: bash scripts/verify-plugin-icons.sh

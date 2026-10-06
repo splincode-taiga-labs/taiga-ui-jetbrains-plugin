@@ -52,7 +52,7 @@ internal class TaigaQuickDocumentationPopupPanel(
     init {
         border = JBUI.Borders.empty(16, 18)
         background = DESIGN_TOKEN_POPUP_BACKGROUND
-        accessibleContext.accessibleName = "Taiga UI documentation for ${resolved.presentationName}"
+        getAccessibleContext().accessibleName = "Taiga UI documentation for ${resolved.presentationName}"
 
         content.add(header())
         content.add(Box.createVerticalStrut(JBUI.scale(4)))
