@@ -153,6 +153,38 @@ class DesignTokenHoverCoverageTest {
     }
 
     @Test
+    fun `project local override reports generic message without comparable cascade order`() {
+        val active =
+            resolution(
+                origins =
+                    listOf(
+                        origin(
+                            "local.css",
+                            packageName = PROJECT_STYLES_PACKAGE,
+                            localOverride = true,
+                        ),
+                    ),
+            )
+        val overridden =
+            resolution(
+                origins =
+                    listOf(
+                        origin(
+                            "global.css",
+                            packageName = PROJECT_STYLES_PACKAGE,
+                        ),
+                    ),
+            )
+
+        val decorated = listOf(overridden, active).withOverrideState()
+
+        assertEquals(
+            "Overridden by another declaration",
+            decorated.single { item -> item.resolution == overridden }.overrideMessage,
+        )
+    }
+
+    @Test
     fun `row and reference comparators keep fallback labels after known platforms`() {
         val rows =
             listOf(
@@ -227,6 +259,7 @@ class DesignTokenHoverCoverageTest {
         line: Int = 1,
         packageName: String? = "@taiga-ui/design-tokens",
         cascadeOrder: Int? = null,
+        localOverride: Boolean = false,
     ): DesignTokenOrigin =
         DesignTokenOrigin(
             sourceFile = Path.of(fileName),
@@ -234,6 +267,7 @@ class DesignTokenHoverCoverageTest {
             format = DesignTokenSourceFormat.CSS,
             packageName = packageName,
             cascadeOrder = cascadeOrder,
+            localOverride = localOverride,
         )
 
     private fun row(platform: String): DesignTokenHoverValueRow =
