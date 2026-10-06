@@ -13,6 +13,7 @@ import org.taigaui.designtokens.project.DesignTokenIndexService
 import java.awt.BorderLayout
 import java.nio.file.Files
 import java.nio.file.Path
+import javax.swing.JLayeredPane
 import javax.swing.JRootPane
 
 class CompletionPreviewUiCoverageTest : BasePlatformTestCase() {
@@ -135,6 +136,10 @@ class CompletionPreviewUiCoverageTest : BasePlatformTestCase() {
         val rootPane = JRootPane()
 
         runInEdtAndGet {
+            rootPane.layeredPane =
+                object : JLayeredPane() {
+                    override fun isShowing(): Boolean = true
+                }
             component.parent?.remove(component)
             rootPane.contentPane.layout = BorderLayout()
             rootPane.contentPane.add(component, BorderLayout.CENTER)

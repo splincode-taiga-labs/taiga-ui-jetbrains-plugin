@@ -13,6 +13,7 @@ import java.awt.image.BufferedImage
 import java.nio.file.Files
 import java.nio.file.Path
 import javax.swing.ImageIcon
+import javax.swing.JLayeredPane
 import javax.swing.JRootPane
 
 class IconCompletionPreviewUiCoverageTest : BasePlatformTestCase() {
@@ -117,6 +118,10 @@ class IconCompletionPreviewUiCoverageTest : BasePlatformTestCase() {
         val rootPane = JRootPane()
 
         runInEdtAndGet {
+            rootPane.layeredPane =
+                object : JLayeredPane() {
+                    override fun isShowing(): Boolean = true
+                }
             component.parent?.remove(component)
             rootPane.contentPane.layout = BorderLayout()
             rootPane.contentPane.add(component, BorderLayout.CENTER)

@@ -74,7 +74,7 @@ class RemInlayHintsProviderCoverageTest : BasePlatformTestCase() {
                 @Component({
                     selector: 'demo',
                     template: `<div [style.gap.rem]="1"></div>`,
-                    styles: [`.demo { padding: 2rem; }`],
+                    styles: ['.demo { padding: 2rem; }'],
                     host: {'[style.margin.rem]': '3'},
                 })
                 export class Demo {}
