@@ -11,7 +11,9 @@ class DesignTokenCompletionAutoPopupHandlerCoverageTest : BasePlatformTestCase()
                 ".demo { color: var(--tui-text); }",
             )
         val token = "--tui-text"
-        val caretOffset = myFixture.editor.document.text.indexOf(token) + token.length
+        val caretOffset =
+            myFixture.editor.document.text
+                .indexOf(token) + token.length
 
         myFixture.editor.caretModel.moveToOffset(caretOffset)
 
