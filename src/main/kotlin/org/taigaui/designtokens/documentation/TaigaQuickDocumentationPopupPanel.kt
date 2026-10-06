@@ -44,7 +44,7 @@ internal class TaigaQuickDocumentationPopupPanel(
         when (resolved) {
             is TaigaResolvedDocumentation.Entity -> content.add(createEntityTabs(resolved))
             is TaigaResolvedDocumentation.Member -> {
-                content.add(separator())
+                content.add(quickDocsSeparator())
                 content.add(Box.createVerticalStrut(JBUI.scale(8)))
                 content.add(createMemberContent(resolved))
             }
@@ -253,18 +253,18 @@ internal class TaigaQuickDocumentationPopupPanel(
             alignmentX = LEFT_ALIGNMENT
         }
 
-    private fun separator(): JComponent =
-        JSeparator().apply {
-            alignmentX = LEFT_ALIGNMENT
-            maximumSize = java.awt.Dimension(Int.MAX_VALUE, preferredSize.height)
-        }
-
     private fun String.html(): String = StringUtil.escapeXmlEntities(this)
 
     private companion object {
         const val MAX_VISIBLE_API_PROPERTIES = 6
     }
 }
+
+private fun quickDocsSeparator(): JComponent =
+    JSeparator().apply {
+        alignmentX = JComponent.LEFT_ALIGNMENT
+        maximumSize = java.awt.Dimension(Int.MAX_VALUE, preferredSize.height)
+    }
 
 private fun quickDocsBadge(text: String): JComponent =
     JBLabel(text).apply {
