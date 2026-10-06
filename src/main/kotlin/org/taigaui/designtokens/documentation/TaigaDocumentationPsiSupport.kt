@@ -39,11 +39,12 @@ internal fun PsiElement.candidateReferences(
 internal fun PsiElement.resolveTaigaDeclaration(
     file: PsiFile,
     offset: Int,
+    incompleteCode: Boolean = false,
 ): PsiElement? {
     val resolved =
         candidateReferences(file, offset)
             .asSequence()
-            .flatMap(PsiReference::resolutionCandidates)
+            .flatMap { reference -> reference.resolutionCandidates(incompleteCode) }
             .toList()
 
     return resolved
@@ -58,10 +59,10 @@ internal fun PsiElement.resolveTaigaDeclaration(
         .firstOrNull { element -> element.taigaPackageName() != null }
 }
 
-private fun PsiReference.resolutionCandidates(): Sequence<PsiElement> =
+private fun PsiReference.resolutionCandidates(incompleteCode: Boolean): Sequence<PsiElement> =
     when (this) {
         is PsiPolyVariantReference ->
-            multiResolve(false)
+            multiResolve(incompleteCode)
                 .asSequence()
                 .mapNotNull { result -> result.element }
 
