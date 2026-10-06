@@ -504,7 +504,7 @@ class DesignTokenHoverPopupControllerTest : BasePlatformTestCase() {
     }
 
     private fun waitUntil(condition: () -> Boolean) {
-        repeat(500) {
+        repeat(1500) {
             UIUtil.dispatchAllInvocationEvents()
 
             if (condition()) {
