@@ -123,7 +123,7 @@ internal class TaigaQuickDocumentationHoverController(
     ) {
         cancelScheduledHide()
 
-        if (cachedResolved != null || request.documentationRequest is TaigaDocumentationRequest.Entity) {
+        if (request.documentationRequest.shouldUnderline) {
             underline.show(
                 request.editor,
                 request.documentationRequest.startOffset,
@@ -164,11 +164,15 @@ internal class TaigaQuickDocumentationHoverController(
                     }
                 } else {
                     hoverJob = null
-                    underline.show(
-                        request.editor,
-                        request.documentationRequest.startOffset,
-                        request.documentationRequest.endOffset,
-                    )
+                    if (request.documentationRequest.shouldUnderline) {
+                        underline.show(
+                            request.editor,
+                            request.documentationRequest.startOffset,
+                            request.documentationRequest.endOffset,
+                        )
+                    } else {
+                        underline.clear()
+                    }
                     showPopup(request, resolved)
                 }
             }
@@ -369,5 +373,10 @@ private data class TaigaQuickDocumentationHoverKey(
     val endOffset: Int,
     val modificationStamp: Long,
 )
+
+private val TaigaDocumentationRequest.shouldUnderline: Boolean
+    get() =
+        this is TaigaDocumentationRequest.Entity &&
+            subjects.any { subject -> subject.selector != null }
 
 private val HOVER_HIDE_GRACE_PERIOD = 250.milliseconds
