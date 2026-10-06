@@ -14,7 +14,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 internal class ProjectStylesheetIndexProvider(
-    project: Project,
+    private val project: Project,
     private val packageResolver: DesignTokensPackageResolver,
     sourceExtractor: DesignTokenSourceExtractor,
 ) {
@@ -122,32 +122,39 @@ internal class ProjectStylesheetIndexProvider(
 
     private fun modificationStamp(path: Path): Long? {
         val normalizedPath = path.toAbsolutePath().normalize()
-        val localFileSystem = LocalFileSystem.getInstance()
-        val virtualFile =
-            localFileSystem.findFileByNioFile(normalizedPath)
-                ?: localFileSystem.refreshAndFindFileByNioFile(normalizedPath)
-                ?: return null
+        val virtualFile = findVirtualFile(normalizedPath)
 
-        return FileDocumentManager
-            .getInstance()
-            .getCachedDocument(virtualFile)
-            ?.modificationStamp
-            ?: virtualFile.modificationStamp
+        return virtualFile
+            ?.let { file ->
+                FileDocumentManager
+                    .getInstance()
+                    .getCachedDocument(file)
+                    ?.modificationStamp
+                    ?: file.modificationStamp
+            } ?: runCatching { Files.getLastModifiedTime(normalizedPath).toMillis() }.getOrNull()
     }
 
     private fun readProjectText(path: Path): String? {
         val normalizedPath = path.toAbsolutePath().normalize()
-        val localFileSystem = LocalFileSystem.getInstance()
-        val virtualFile =
-            localFileSystem.findFileByNioFile(normalizedPath)
-                ?: localFileSystem.refreshAndFindFileByNioFile(normalizedPath)
         val documentText =
-            virtualFile
+            findVirtualFile(normalizedPath)
                 ?.let { file -> FileDocumentManager.getInstance().getCachedDocument(file) }
                 ?.text
 
         return documentText ?: runCatching { Files.readString(normalizedPath) }.getOrNull()
     }
+
+    private fun findVirtualFile(path: Path) =
+        LocalFileSystem
+            .getInstance()
+            .let { fileSystem ->
+                fileSystem.findFileByNioFile(path)
+                    ?: if (project.isInitialized) {
+                        fileSystem.refreshAndFindFileByNioFile(path)
+                    } else {
+                        null
+                    }
+            }
 
     private fun isInstalledTaigaUiSource(
         sourceFile: Path,
