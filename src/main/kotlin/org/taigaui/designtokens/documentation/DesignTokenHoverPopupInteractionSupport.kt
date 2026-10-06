@@ -8,7 +8,6 @@ import com.intellij.openapi.ui.popup.JBPopupFactory
 import java.awt.MouseInfo
 import java.awt.Point
 import javax.swing.JComponent
-import javax.swing.SwingUtilities
 
 internal fun Project.hasActiveCompletionLookup(): Boolean =
     LookupManager.getInstance(this).activeLookup?.isCompletion == true
@@ -50,9 +49,12 @@ internal fun containsScreenPointer(
         return false
     }
 
-    val localPointer = Point(screenPointer)
-
-    SwingUtilities.convertPointFromScreen(localPointer, content)
+    val contentLocation = content.locationOnScreen
+    val localPointer =
+        Point(
+            screenPointer.x - contentLocation.x,
+            screenPointer.y - contentLocation.y,
+        )
 
     return content.contains(localPointer)
 }
