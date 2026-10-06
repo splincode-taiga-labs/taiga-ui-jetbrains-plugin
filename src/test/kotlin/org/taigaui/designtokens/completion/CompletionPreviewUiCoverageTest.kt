@@ -8,6 +8,7 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.testFramework.runInEdtAndGet
 import com.intellij.ui.LightweightHint
+import com.intellij.util.ui.UIUtil
 import org.taigaui.designtokens.documentation.DesignTokenHoverPopupModel
 import org.taigaui.designtokens.project.DesignTokenIndexService
 import java.awt.BorderLayout
@@ -61,14 +62,14 @@ class CompletionPreviewUiCoverageTest : BasePlatformTestCase() {
             showPreview(controller, lookup)
             val hint = requireNotNull(readPrivateField(controller, "previewHint")) as LightweightHint
 
-            assertTrue(hint.isVisible)
+            waitUntil { hint.isVisible }
 
             showPreview(controller, lookup)
-            assertTrue(hint.isVisible)
+            waitUntil { hint.isVisible }
 
             runInEdtAndGet { LookupManager.getInstance(project).hideActiveLookup() }
 
-            assertFalse(hint.isVisible)
+            waitUntil { !hint.isVisible }
         }
     }
 
@@ -82,11 +83,11 @@ class CompletionPreviewUiCoverageTest : BasePlatformTestCase() {
             showPreview(controller, lookup)
             val hint = requireNotNull(readPrivateField(controller, "previewHint")) as LightweightHint
 
-            assertTrue(hint.isVisible)
+            waitUntil { hint.isVisible }
 
             myFixture.finishLookup('\n')
 
-            assertFalse(hint.isVisible)
+            waitUntil { !hint.isVisible }
         }
     }
 
@@ -160,6 +161,20 @@ class CompletionPreviewUiCoverageTest : BasePlatformTestCase() {
                 rootPane.contentPane.remove(component)
             }
         }
+    }
+
+    private fun waitUntil(condition: () -> Boolean) {
+        repeat(500) {
+            UIUtil.dispatchAllInvocationEvents()
+
+            if (condition()) {
+                return
+            }
+
+            Thread.sleep(10)
+        }
+
+        assertTrue(condition())
     }
 
     private fun invokePrivate(
