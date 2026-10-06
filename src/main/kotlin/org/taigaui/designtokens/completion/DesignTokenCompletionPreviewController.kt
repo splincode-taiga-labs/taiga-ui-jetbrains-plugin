@@ -260,8 +260,9 @@ internal class DesignTokenCompletionPreviewController(
                 anchorY = previewAnchorY,
             )
         previewAnchorY = location.y
+        val existingHint = previewHint
         val hint =
-            previewHint
+            existingHint
                 ?: LightweightHint(requireNotNull(previewPanel))
                     .apply {
                         setForceLightweightPopup(true)
@@ -270,10 +271,12 @@ internal class DesignTokenCompletionPreviewController(
                         setCancelOnOtherWindowOpen(false)
                     }.also { previewHint = it }
 
-        if (hint.isVisible) {
+        if (existingHint != null) {
             hint.pack()
             hint.updateLocation(location.x, location.y)
-        } else {
+        }
+
+        if (!hint.isVisible) {
             hint.show(
                 layeredPane,
                 location.x,

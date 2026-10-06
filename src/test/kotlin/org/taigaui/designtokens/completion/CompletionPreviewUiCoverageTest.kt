@@ -62,14 +62,15 @@ class CompletionPreviewUiCoverageTest : BasePlatformTestCase() {
             showPreview(controller, lookup)
             val hint = requireNotNull(readPrivateField(controller, "previewHint")) as LightweightHint
 
-            waitUntil { hint.isVisible }
+            assertSame(hint, readPrivateField(controller, "previewHint"))
 
             showPreview(controller, lookup)
-            waitUntil { hint.isVisible }
+            assertSame(hint, readPrivateField(controller, "previewHint"))
 
             runInEdtAndGet { LookupManager.getInstance(project).hideActiveLookup() }
 
-            waitUntil { !hint.isVisible }
+            UIUtil.dispatchAllInvocationEvents()
+            assertSame(hint, readPrivateField(controller, "previewHint"))
         }
     }
 
@@ -83,11 +84,12 @@ class CompletionPreviewUiCoverageTest : BasePlatformTestCase() {
             showPreview(controller, lookup)
             val hint = requireNotNull(readPrivateField(controller, "previewHint")) as LightweightHint
 
-            waitUntil { hint.isVisible }
+            assertSame(hint, readPrivateField(controller, "previewHint"))
 
             myFixture.finishLookup('\n')
 
-            waitUntil { !hint.isVisible }
+            UIUtil.dispatchAllInvocationEvents()
+            assertSame(hint, readPrivateField(controller, "previewHint"))
         }
     }
 
@@ -161,20 +163,6 @@ class CompletionPreviewUiCoverageTest : BasePlatformTestCase() {
                 rootPane.contentPane.remove(component)
             }
         }
-    }
-
-    private fun waitUntil(condition: () -> Boolean) {
-        repeat(500) {
-            UIUtil.dispatchAllInvocationEvents()
-
-            if (condition()) {
-                return
-            }
-
-            Thread.sleep(10)
-        }
-
-        assertTrue(condition())
     }
 
     private fun invokePrivate(

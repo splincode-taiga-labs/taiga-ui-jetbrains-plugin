@@ -222,8 +222,9 @@ internal class IconCompletionPreviewController(
         val editor = lookup.topLevelEditor
         val layeredPane = editor.contentComponent.rootPane?.layeredPane ?: return
         val location = iconPreviewLocation(lookup, previewSize, layeredPane)
+        val existingHint = previewHint
         val hint =
-            previewHint
+            existingHint
                 ?: LightweightHint(requireNotNull(previewPanel))
                     .apply {
                         setForceLightweightPopup(true)
@@ -232,10 +233,12 @@ internal class IconCompletionPreviewController(
                         setCancelOnOtherWindowOpen(false)
                     }.also { previewHint = it }
 
-        if (hint.isVisible) {
+        if (existingHint != null) {
             hint.pack()
             hint.updateLocation(location.x, location.y)
-        } else {
+        }
+
+        if (!hint.isVisible) {
             hint.show(
                 layeredPane,
                 location.x,
