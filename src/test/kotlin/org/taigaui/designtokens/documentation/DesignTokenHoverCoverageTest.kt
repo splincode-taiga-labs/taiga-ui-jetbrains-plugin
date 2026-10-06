@@ -6,6 +6,7 @@ import org.junit.Assert.assertSame
 import org.junit.Test
 import org.taigaui.designtokens.index.DesignTokenContext
 import org.taigaui.designtokens.index.DesignTokenOrigin
+import org.taigaui.designtokens.index.PROJECT_STYLES_PACKAGE
 import org.taigaui.designtokens.index.DesignTokenSourceFormat
 import org.taigaui.designtokens.index.DesignTokenVariant
 import org.taigaui.designtokens.resolution.DesignTokenColorFormat
