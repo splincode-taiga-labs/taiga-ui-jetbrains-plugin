@@ -2,6 +2,7 @@ package org.taigaui.designtokens.documentation
 
 import com.intellij.codeInsight.lookup.LookupElement
 import com.intellij.lang.injection.InjectedLanguageManager
+import com.intellij.openapi.util.TextRange
 import com.intellij.polySymbols.PolySymbol
 import com.intellij.polySymbols.completion.PolySymbolCodeCompletionItem
 import com.intellij.polySymbols.html.attributes.HtmlAttributeSymbolDescriptor
@@ -138,21 +139,25 @@ internal object TaigaDocumentationResolver {
         element: PsiElement,
         offset: Int,
     ): TaigaDocumentationRequest.Entity? {
-        val manager = InjectedLanguageManager.getInstance(file.project)
-        if (!file.isTaigaTemplateFile() && !manager.isInjectedFragment(file)) return null
         val reference = findTaigaPipeReference(file.viewProvider.contents, offset) ?: return null
+        val manager = InjectedLanguageManager.getInstance(file.project)
         val candidate = manager.findInjectedElementAt(file, offset) ?: element
         val candidateFile = candidate.containingFile
+        val templateContext =
+            file.isTaigaTemplateFile() ||
+                manager.isInjectedFragment(file) ||
+                candidateFile.isTaigaTemplateFile() ||
+                manager.isInjectedFragment(candidateFile)
+        if (!templateContext) return null
         val candidateOffset = if (candidateFile == file) offset else candidate.textOffset
         val declaration = candidate.resolveTaigaDeclaration(candidateFile, candidateOffset) ?: return null
         val subject = declaration.toLocalSubject(selector = null) ?: return null
         val pipe = subject.localDocumentation.pipe ?: return null
         val range =
-            if (candidateFile == file) {
-                com.intellij.openapi.util
-                    .TextRange(reference.startOffset, reference.endOffset)
-            } else {
+            if (manager.isInjectedFragment(candidateFile)) {
                 manager.injectedToHost(candidate, candidate.textRange)
+            } else {
+                TextRange(reference.startOffset, reference.endOffset)
             }
 
         return if (reference.name == pipe.name) {

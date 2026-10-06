@@ -32,8 +32,10 @@ import kotlinx.coroutines.withContext
 import org.taigaui.designtokens.icons.ICON_PREVIEW_LOGICAL_SIZE
 import org.taigaui.designtokens.icons.IconCompletionService
 import org.taigaui.designtokens.icons.IconSvgPreviewRenderer
+import java.awt.MouseInfo
 import java.awt.Point
 import java.nio.file.Path
+import javax.swing.JComponent
 import javax.swing.SwingUtilities
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -439,6 +441,15 @@ internal class TaigaQuickDocumentationHoverController(
         }
     }
 }
+
+private fun JComponent.containsPointer(): Boolean =
+    isShowing &&
+        MouseInfo
+            .getPointerInfo()
+            ?.location
+            ?.let(::Point)
+            ?.also { SwingUtilities.convertPointFromScreen(it, this) }
+            ?.let(::contains) ?: false
 
 @Suppress("ReturnCount")
 private fun EditorMouseEvent.toTaigaDocumentationHoverCandidate(project: Project): TaigaDocumentationHoverCandidate? {
