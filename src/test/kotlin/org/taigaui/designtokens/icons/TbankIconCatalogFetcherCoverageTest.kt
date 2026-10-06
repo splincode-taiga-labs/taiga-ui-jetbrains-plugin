@@ -95,8 +95,7 @@ class TbankIconCatalogFetcherCoverageTest {
             request: HttpRequest,
             responseBodyHandler: HttpResponse.BodyHandler<T>,
             pushPromiseHandler: HttpResponse.PushPromiseHandler<T>?,
-        ): CompletableFuture<HttpResponse<T>> =
-            CompletableFuture.completedFuture(send(request, responseBodyHandler))
+        ): CompletableFuture<HttpResponse<T>> = CompletableFuture.completedFuture(send(request, responseBodyHandler))
 
         override fun newWebSocketBuilder(): WebSocket.Builder = throw UnsupportedOperationException()
     }
