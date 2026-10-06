@@ -65,7 +65,7 @@ class CompletionPreviewUiCoverageTest : BasePlatformTestCase() {
             showPreview(controller, lookup)
             assertTrue(hint.isVisible)
 
-            runInEdtAndGet { lookup.hideLookup(true) }
+            runInEdtAndGet { LookupManager.getInstance(project).hideActiveLookup() }
 
             assertFalse(hint.isVisible)
         }
