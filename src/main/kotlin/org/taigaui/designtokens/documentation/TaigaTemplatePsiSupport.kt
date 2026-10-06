@@ -15,7 +15,6 @@ internal fun String.fallbackSubject(): TaigaDocumentationSubject =
         packageName = null,
     )
 
-
 internal fun XmlTag.compactUsage(): String =
     text
         .replace(TEMPLATE_WHITESPACE, " ")
