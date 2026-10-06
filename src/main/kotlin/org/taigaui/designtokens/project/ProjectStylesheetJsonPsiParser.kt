@@ -18,8 +18,7 @@ internal class ProjectStylesheetJsonPsiParser(
             val jsonFile =
                 PsiFileFactory
                     .getInstance(project)
-                    .createFileFromText(CONFIG_FILE_NAME, JsonFileType.INSTANCE, content) as? JsonFile
-                    ?: return@compute emptyList()
+                    .createFileFromText(CONFIG_FILE_NAME, JsonFileType.INSTANCE, content) as JsonFile
 
             buildList {
                 jsonFile.topLevelValue?.collectStyleGroups(this)

@@ -149,22 +149,18 @@ internal data class EventPluginModifier(
             val kind = match.groupValues[1]
             val delay = match.groupValues[2]
 
-            return when (kind) {
-                "debounce" ->
-                    EventPluginModifier(
-                        source = source,
-                        description = "Invokes the handler after events stop arriving for $delay.",
-                        behavior = "debounces the handler by $delay",
-                    )
-
-                "throttle" ->
-                    EventPluginModifier(
-                        source = source,
-                        description = "Invokes the handler at most once per $delay interval.",
-                        behavior = "throttles the handler to once per $delay",
-                    )
-
-                else -> null
+            return if (kind == "debounce") {
+                EventPluginModifier(
+                    source = source,
+                    description = "Invokes the handler after events stop arriving for $delay.",
+                    behavior = "debounces the handler by $delay",
+                )
+            } else {
+                EventPluginModifier(
+                    source = source,
+                    description = "Invokes the handler at most once per $delay interval.",
+                    behavior = "throttles the handler to once per $delay",
+                )
             }
         }
 
