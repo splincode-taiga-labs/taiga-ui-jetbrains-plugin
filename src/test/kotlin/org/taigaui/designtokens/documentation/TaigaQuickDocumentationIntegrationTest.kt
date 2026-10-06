@@ -20,7 +20,7 @@ import org.junit.runners.JUnit4
 import java.nio.file.Path
 
 @RunWith(JUnit4::class)
-class TaigaQuickDocumentationIntegrationTest : CodeInsightFixtureTestCase<EmptyModuleFixtureBuilder>() {
+class TaigaQuickDocumentationIntegrationTest : CodeInsightFixtureTestCase<EmptyModuleFixtureBuilder<*>>() {
     private val docsSource = requireNotNull(TaigaDocsSources.forMajor(5))
     private val docsCache = TaigaDocsCache()
     private lateinit var workspaceRoot: Path
