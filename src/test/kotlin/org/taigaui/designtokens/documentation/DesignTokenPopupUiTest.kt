@@ -7,11 +7,13 @@ import java.awt.Color
 import java.awt.Component
 import java.awt.Container
 import java.awt.Dimension
+import java.awt.Point
 import java.awt.event.ActionEvent
 import java.awt.image.BufferedImage
 import java.nio.file.Path
 import javax.swing.AbstractButton
 import javax.swing.JComponent
+import javax.swing.JPanel
 import javax.swing.Timer
 
 class DesignTokenPopupUiTest : BasePlatformTestCase() {
@@ -118,6 +120,23 @@ class DesignTokenPopupUiTest : BasePlatformTestCase() {
 
         assertEquals(1, reportBugClicks)
         assertTrue(preferredSizes.size >= 2)
+    }
+
+    fun testPointerHitTestingHandlesVisibilityMissingPointerAndBounds() {
+        val panel =
+            object : JPanel() {
+                override fun getLocationOnScreen(): Point = Point(100, 100)
+            }.apply {
+                setSize(40, 30)
+            }
+
+        assertFalse(containsScreenPointer(null, isShowing = true, screenPointer = Point(110, 110)))
+        assertFalse(containsScreenPointer(panel, isShowing = false, screenPointer = Point(110, 110)))
+        assertFalse(containsScreenPointer(panel, isShowing = true, screenPointer = null))
+        assertTrue(containsScreenPointer(panel, isShowing = true, screenPointer = Point(110, 110)))
+        assertFalse(containsScreenPointer(panel, isShowing = true, screenPointer = Point(200, 200)))
+
+        assertFalse((null as DesignTokenHoverPopupPanel?).containsPointer())
     }
 
     fun testCopyButtonShowsFeedbackAndResetsIt() {
