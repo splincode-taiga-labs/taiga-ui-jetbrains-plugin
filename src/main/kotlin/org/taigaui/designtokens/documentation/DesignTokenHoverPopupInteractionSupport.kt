@@ -6,6 +6,8 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import java.awt.MouseInfo
+import java.awt.Point
+import javax.swing.JComponent
 import javax.swing.SwingUtilities
 
 internal fun Project.hasActiveCompletionLookup(): Boolean =
@@ -32,19 +34,25 @@ internal fun createDesignTokenPopup(
         .setResizable(false)
         .createPopup()
 
-internal fun DesignTokenHoverPopupPanel?.containsPointer(): Boolean {
-    val content = this?.takeIf { component -> component.isShowing }
+internal fun DesignTokenHoverPopupPanel?.containsPointer(): Boolean =
+    containsScreenPointer(
+        content = this,
+        isShowing = this?.isShowing == true,
+        screenPointer = runCatching { MouseInfo.getPointerInfo()?.location }.getOrNull(),
+    )
 
-    return if (content == null) {
-        false
-    } else {
-        val pointer = MouseInfo.getPointerInfo()?.location
-
-        if (pointer == null) {
-            false
-        } else {
-            SwingUtilities.convertPointFromScreen(pointer, content)
-            content.contains(pointer)
-        }
+internal fun containsScreenPointer(
+    content: JComponent?,
+    isShowing: Boolean,
+    screenPointer: Point?,
+): Boolean {
+    if (content == null || !isShowing || screenPointer == null) {
+        return false
     }
+
+    val localPointer = Point(screenPointer)
+
+    SwingUtilities.convertPointFromScreen(localPointer, content)
+
+    return content.contains(localPointer)
 }
