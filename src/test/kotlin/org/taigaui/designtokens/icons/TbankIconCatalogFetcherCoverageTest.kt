@@ -89,8 +89,7 @@ class TbankIconCatalogFetcherCoverageTest {
         override fun <T : Any?> sendAsync(
             request: HttpRequest,
             responseBodyHandler: HttpResponse.BodyHandler<T>,
-        ): CompletableFuture<HttpResponse<T>> =
-            CompletableFuture.completedFuture(send(request, responseBodyHandler))
+        ): CompletableFuture<HttpResponse<T>> = CompletableFuture.completedFuture(send(request, responseBodyHandler))
 
         override fun <T : Any?> sendAsync(
             request: HttpRequest,
@@ -99,8 +98,7 @@ class TbankIconCatalogFetcherCoverageTest {
         ): CompletableFuture<HttpResponse<T>> =
             CompletableFuture.completedFuture(send(request, responseBodyHandler))
 
-        override fun newWebSocketBuilder(): WebSocket.Builder =
-            throw UnsupportedOperationException()
+        override fun newWebSocketBuilder(): WebSocket.Builder = throw UnsupportedOperationException()
     }
 
     private class StubResponse<T>(

@@ -36,7 +36,9 @@ class IconCompletionInsertionCoverageTest : BasePlatformTestCase() {
 
         myFixture.configureFromExistingVirtualFile(sourceFile)
         val prefix = "@tui.a"
-        val caretOffset = myFixture.editor.document.text.indexOf(prefix) + prefix.length
+        val caretOffset =
+            myFixture.editor.document.text
+                .indexOf(prefix) + prefix.length
 
         myFixture.editor.caretModel.moveToOffset(caretOffset)
         project.service<IconCompletionService>().loadNow(sourcePath)
@@ -63,13 +65,18 @@ class IconCompletionInsertionCoverageTest : BasePlatformTestCase() {
             )
 
         myFixture.configureFromExistingVirtualFile(sourceFile)
-        val caretOffset = myFixture.editor.document.text.indexOf("@tui.") + "@tui.".length
+        val caretOffset =
+            myFixture.editor.document.text
+                .indexOf("@tui.") + "@tui.".length
 
         myFixture.editor.caretModel.moveToOffset(caretOffset)
 
         myFixture.completeBasic()
 
-        assertTrue(myFixture.editor.document.text.contains("@tui."))
+        assertTrue(
+            myFixture.editor.document.text
+                .contains("@tui."),
+        )
     }
 
     private fun createIcon(relativePath: String) {

@@ -83,7 +83,9 @@ class IconCompletionPreviewUiCoverageTest : BasePlatformTestCase() {
 
         myFixture.configureFromExistingVirtualFile(file)
         val prefix = "@tui."
-        val caretOffset = myFixture.editor.document.text.indexOf(prefix) + prefix.length
+        val caretOffset =
+            myFixture.editor.document.text
+                .indexOf(prefix) + prefix.length
 
         myFixture.editor.caretModel.moveToOffset(caretOffset)
         project.service<IconCompletionService>().loadNow(sourcePath)
