@@ -114,7 +114,7 @@ class IconCompletionPreviewUiCoverageTest : BasePlatformTestCase() {
     }
 
     private fun withEditorRootPane(block: () -> Unit) {
-        val component = myFixture.editor.component
+        val component = myFixture.editor.contentComponent
         val rootPane = JRootPane()
 
         runInEdtAndGet {

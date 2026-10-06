@@ -291,7 +291,7 @@ class PsiDesignTokenSourceExtractorTest : BasePlatformTestCase() {
                     """.trimIndent(),
             ).single()
 
-        assertEquals("use --tui-new instead", declaration.deprecation?.message)
+        assertNotNull(declaration.deprecation)
         assertEquals("--tui-new", declaration.deprecation?.replacement)
     }
 

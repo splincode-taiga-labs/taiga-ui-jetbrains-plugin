@@ -71,10 +71,14 @@ class RemInlayHintsProviderCoverageTest : BasePlatformTestCase() {
                 """
                 import {Component} from '@angular/core';
 
+                const inlineStyles =
+                    // language=CSS
+                    `.demo { padding: 2rem; }`;
+
                 @Component({
                     selector: 'demo',
                     template: `<div [style.gap.rem]="1"></div>`,
-                    styles: ['.demo { padding: 2rem; }'],
+                    styles: [inlineStyles],
                     host: {'[style.margin.rem]': '3'},
                 })
                 export class Demo {}
