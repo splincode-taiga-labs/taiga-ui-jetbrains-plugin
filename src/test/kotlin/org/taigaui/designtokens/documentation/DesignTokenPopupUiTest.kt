@@ -89,6 +89,12 @@ class DesignTokenPopupUiTest : BasePlatformTestCase() {
                 .any { component -> componentText(component) == "--tui-base" },
         )
 
+        toggle.doClick()
+        assertTrue(toggle.text.startsWith("▸ Reference chain"))
+
+        toggle.doClick()
+        assertTrue(toggle.text.startsWith("▾ Reference chain"))
+
         val navigateButton =
             panel
                 .allComponents()
