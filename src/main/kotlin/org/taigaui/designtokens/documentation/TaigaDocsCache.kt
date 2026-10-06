@@ -6,6 +6,8 @@ import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
+import java.time.Duration
+import java.time.Instant
 
 internal class TaigaDocsCache(
     private val cacheRoot: Path =
@@ -48,6 +50,16 @@ internal class TaigaDocsCache(
             true
         }.getOrDefault(false)
     }
+
+    fun isFresh(
+        source: TaigaDocsSource,
+        maxAge: Duration,
+    ): Boolean =
+        runCatching {
+            val modifiedAt = Files.getLastModifiedTime(cacheFile(source)).toInstant()
+
+            modifiedAt.isAfter(Instant.now().minus(maxAge))
+        }.getOrDefault(false)
 
     fun invalidate(source: TaigaDocsSource): Boolean =
         runCatching { Files.deleteIfExists(cacheFile(source)) }.getOrDefault(false)
