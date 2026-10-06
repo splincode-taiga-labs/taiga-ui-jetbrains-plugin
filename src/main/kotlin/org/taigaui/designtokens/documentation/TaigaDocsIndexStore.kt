@@ -85,7 +85,7 @@ internal class TaigaDocsIndexStore(
             val result = repository.load(source) ?: return@async null
             val published = publish(source, expectedGeneration, result.index)
 
-            if (published && result.origin == TaigaDocsLoadOrigin.DISK_CACHE) {
+            if (published && result.refreshRecommended) {
                 refreshLoad(source, allowCachedFallback = false)
             }
 
