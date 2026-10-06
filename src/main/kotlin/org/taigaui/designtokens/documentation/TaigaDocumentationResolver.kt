@@ -35,14 +35,6 @@ internal object TaigaDocumentationResolver {
             findCodeRequest(file, offset)
         }
 
-    fun findSubject(
-        file: PsiFile,
-        offset: Int,
-    ): TaigaDocumentationSubject? =
-        (findRequest(file, offset) as? TaigaDocumentationRequest.Entity)
-            ?.subjects
-            ?.firstOrNull()
-
     @Suppress("ReturnCount")
     fun findSubject(
         file: PsiFile,
@@ -119,6 +111,7 @@ internal object TaigaDocumentationResolver {
         if (element.text != tagName) {
             return null
         }
+
         val subject =
             (tag.descriptor as? HtmlElementSymbolDescriptor)
                 ?.symbol
@@ -140,13 +133,8 @@ internal object TaigaDocumentationResolver {
         val element = file.elementAt(offset) ?: return null
         val publicSymbol = element.text.takeIf(::isTaigaPublicSymbol) ?: return null
         val declaration =
-            buildList {
-                add(file.findReferenceAt(offset))
-                add(element.reference)
-                add(element.parent?.reference)
-                addAll(element.references)
-                addAll(element.parent?.references.orEmpty())
-            }.filterNotNull()
+            element
+                .candidateReferences(file, offset)
                 .asSequence()
                 .mapNotNull(PsiReference::resolve)
                 .firstOrNull { resolved -> resolved.taigaPackageName() != null }
@@ -167,171 +155,171 @@ internal object TaigaDocumentationResolver {
             typeDefinition = declaration.typeDefinition(publicSymbol),
         )
     }
+}
 
-    private fun XmlTag.taigaSubjects(): List<TaigaDocumentationSubject> =
-        buildList {
-            name
-                .takeIf(::isTaigaSelector)
-                ?.let { selector ->
-                    (descriptor as? HtmlElementSymbolDescriptor)
-                        ?.symbol
-                        ?.toLocalSubject(selector)
-                        ?.let(::add)
-                }
+private fun PsiElement.candidateReferences(
+    file: PsiFile,
+    offset: Int,
+): List<PsiReference> =
+    buildList {
+        add(file.findReferenceAt(offset))
+        add(reference)
+        add(parent?.reference)
+        addAll(references)
+        addAll(parent?.references.orEmpty())
+    }.filterNotNull()
 
-            attributes.forEach { attribute ->
-                val selector = attribute.name.takeIf(::isTaigaSelector) ?: return@forEach
-
-                (attribute.descriptor as? HtmlAttributeSymbolDescriptor)
+private fun XmlTag.taigaSubjects(): List<TaigaDocumentationSubject> =
+    buildList {
+        name
+            .takeIf(::isTaigaSelector)
+            ?.let { selector ->
+                (descriptor as? HtmlElementSymbolDescriptor)
                     ?.symbol
                     ?.toLocalSubject(selector)
                     ?.let(::add)
             }
-        }.distinctBy { subject ->
-            listOf(subject.selector, subject.publicSymbol, subject.packageName)
+
+        attributes.forEach { attribute ->
+            val selector = attribute.name.takeIf(::isTaigaSelector) ?: return@forEach
+
+            (attribute.descriptor as? HtmlAttributeSymbolDescriptor)
+                ?.symbol
+                ?.toLocalSubject(selector)
+                ?.let(::add)
         }
-
-    private fun XmlTag.memberUsage(
-        member: MemberBinding,
-        ownerSelector: String?,
-    ): String {
-        val selector =
-            ownerSelector
-                ?.takeUnless { value -> value == name }
-                ?.let { value -> " $value" }
-                .orEmpty()
-        val binding =
-            when (member.kind) {
-                TaigaApiMemberKind.INPUT -> "[${member.name}]=\"value\""
-                TaigaApiMemberKind.OUTPUT -> "(${member.name})=\"handler(\$event)\""
-            }
-
-        return "<$name$selector $binding>...</$name>"
+    }.distinctBy { subject ->
+        listOf(subject.selector, subject.publicSymbol, subject.packageName)
     }
 
-    private fun PolySymbol.toLocalSubject(
-        selector: String?,
-        requestedSymbol: String? = null,
-    ): TaigaDocumentationSubject? =
-        localContexts()
-            .mapNotNull { context -> context.toLocalSubject(selector, requestedSymbol) }
-            .firstOrNull()
+private fun XmlTag.memberUsage(
+    member: MemberBinding,
+    ownerSelector: String?,
+): String {
+    val selector =
+        ownerSelector
+            ?.takeUnless { value -> value == name }
+            ?.let { value -> " $value" }
+            .orEmpty()
+    val binding =
+        when (member.kind) {
+            TaigaApiMemberKind.INPUT -> "[${member.name}]=\"value\""
+            TaigaApiMemberKind.OUTPUT -> "(${member.name})=\"handler(\$event)\""
+        }
 
-    private fun PolySymbol.localContexts(): List<PsiElement> =
-        unwrapMatchedSymbols()
-            .mapNotNull { symbol -> symbol.psiContext }
-            .toList()
-            .ifEmpty { listOfNotNull(psiContext) }
+    return "<$name$selector $binding>...</$name>"
+}
 
-    private fun PsiElement.toLocalSubject(
-        selector: String?,
-        requestedSymbol: String? = null,
-    ): TaigaDocumentationSubject? {
-        val packageName = taigaPackageName() ?: return null
-        val publicSymbol = requestedSymbol ?: taigaPublicSymbol()
+private fun PolySymbol.toLocalSubject(
+    selector: String?,
+    requestedSymbol: String? = null,
+): TaigaDocumentationSubject? =
+    localContexts()
+        .mapNotNull { context -> context.toLocalSubject(selector, requestedSymbol) }
+        .firstOrNull()
 
-        return TaigaDocumentationSubject(
+private fun PolySymbol.localContexts(): List<PsiElement> =
+    unwrapMatchedSymbols()
+        .mapNotNull { symbol -> symbol.psiContext }
+        .toList()
+        .ifEmpty { listOfNotNull(psiContext) }
+
+private fun PsiElement.toLocalSubject(
+    selector: String?,
+    requestedSymbol: String? = null,
+): TaigaDocumentationSubject? =
+    taigaPackageName()?.let { packageName ->
+        TaigaDocumentationSubject(
             selector = selector,
-            publicSymbol = publicSymbol,
+            publicSymbol = requestedSymbol ?: taigaPublicSymbol(),
             packageName = packageName,
         )
     }
 
-    private fun PsiElement.taigaPublicSymbol(): String? =
-        generateSequence(this as PsiElement?) { element -> element.parent }
-            .filterIsInstance<PsiNamedElement>()
-            .mapNotNull(PsiNamedElement::getName)
-            .firstOrNull(::isTaigaPublicSymbol)
+private fun PsiElement.taigaPublicSymbol(): String? =
+    generateSequence<PsiElement?>(this) { element -> element?.parent }
+        .filterIsInstance<PsiNamedElement>()
+        .mapNotNull(PsiNamedElement::getName)
+        .firstOrNull(::isTaigaPublicSymbol)
 
-    internal fun PsiElement.taigaPackageName(): String? {
-        val path =
-            containingFile
-                ?.originalFile
-                ?.virtualFile
-                ?.path
-                ?.replace('\\', '/')
-                ?: return null
-        val match = TAIGA_PACKAGE_PATH.find(path) ?: return null
+internal fun PsiElement.taigaPackageName(): String? =
+    containingFile
+        ?.originalFile
+        ?.virtualFile
+        ?.path
+        ?.replace('\\', '/')
+        ?.let(TAIGA_PACKAGE_PATH::find)
+        ?.groupValues
+        ?.getOrNull(1)
+        ?.let { packageName -> "@taiga-ui/$packageName" }
 
-        return "@taiga-ui/" + match.groupValues[1]
-    }
+private fun PsiElement.typeDefinition(symbol: String): String? =
+    generateSequence<PsiElement?>(this) { element -> element?.parent }
+        .take(TYPE_DEFINITION_PARENT_LIMIT)
+        .mapNotNull { element -> element?.text?.take(MAX_DECLARATION_TEXT) }
+        .mapNotNull { text ->
+            Regex(
+                """\btype\s+${Regex.escape(symbol)}(?:<[^>]+>)?\s*=\s*(.+?);""",
+                RegexOption.DOT_MATCHES_ALL,
+            ).find(text)
+                ?.groupValues
+                ?.get(1)
+        }.map { definition -> definition.replace(WHITESPACE, " ").trim() }
+        .firstOrNull()
+        ?.take(MAX_TYPE_DEFINITION)
 
-    private fun PsiElement.typeDefinition(symbol: String): String? =
-        generateSequence(this as PsiElement?) { element -> element.parent }
-            .take(TYPE_DEFINITION_PARENT_LIMIT)
-            .map { element -> element.text.take(MAX_DECLARATION_TEXT) }
-            .mapNotNull { text ->
-                Regex(
-                    """\btype\s+${Regex.escape(symbol)}(?:<[^>]+>)?\s*=\s*(.+?);""",
-                    RegexOption.DOT_MATCHES_ALL,
-                ).find(text)
-                    ?.groupValues
-                    ?.get(1)
-            }.map { definition -> definition.replace(WHITESPACE, " ").trim() }
-            .firstOrNull()
-            ?.take(MAX_TYPE_DEFINITION)
-
-    private fun PsiFile.elementAt(offset: Int): PsiElement? {
-        if (textLength == 0 || offset !in 0..textLength) {
-            return null
+private fun PsiFile.elementAt(offset: Int): PsiElement? =
+    takeIf { file -> file.textLength > 0 && offset in 0..file.textLength }
+        ?.let { file ->
+            file.findElementAt(offset.coerceAtMost(file.textLength - 1))
+                ?: offset
+                    .takeIf { value -> value > 0 }
+                    ?.let { value -> file.findElementAt(value - 1) }
         }
 
-        return findElementAt(offset.coerceAtMost(textLength - 1))
-            ?: offset.takeIf { value -> value > 0 }?.let { value -> findElementAt(value - 1) }
-    }
+private fun String.toMemberBinding(): MemberBinding? =
+    MEMBER_BINDING_PATTERNS.firstNotNullOfOrNull { pattern -> pattern.parse(this) }
 
-    private fun String.toMemberBinding(): MemberBinding? =
-        when {
-            startsWith("[(") && endsWith(")]") && length > 4 ->
-                MemberBinding(
-                    name = removePrefix("[(").removeSuffix(")]"),
-                    kind = TaigaApiMemberKind.INPUT,
-                )
+private fun isTaigaPublicSymbol(value: String): Boolean =
+    value.startsWith("Tui") &&
+        value.length > 3 &&
+        value[3].isUpperCase()
 
-            startsWith("[") && endsWith("]") && length > 2 ->
-                MemberBinding(
-                    name = removePrefix("[").removeSuffix("]"),
-                    kind = TaigaApiMemberKind.INPUT,
-                )
+private fun isTaigaSelector(value: String): Boolean =
+    value.startsWith("tui-") ||
+        (value.startsWith("tui") && value.length > 3 && (value[3].isUpperCase() || value[3].isDigit()))
 
-            startsWith("(") && endsWith(")") && length > 2 ->
-                MemberBinding(
-                    name = removePrefix("(").removeSuffix(")"),
-                    kind = TaigaApiMemberKind.OUTPUT,
-                )
+private data class MemberBinding(
+    val name: String,
+    val kind: TaigaApiMemberKind,
+)
 
-            startsWith("bind-") && length > 5 ->
-                MemberBinding(
-                    name = removePrefix("bind-"),
-                    kind = TaigaApiMemberKind.INPUT,
-                )
-
-            startsWith("on-") && length > 3 ->
-                MemberBinding(
-                    name = removePrefix("on-"),
-                    kind = TaigaApiMemberKind.OUTPUT,
-                )
-
-            else -> null
-        }
-
-    private fun isTaigaPublicSymbol(value: String): Boolean =
-        value.startsWith("Tui") &&
-            value.length > 3 &&
-            value[3].isUpperCase()
-
-    private fun isTaigaSelector(value: String): Boolean =
-        value.startsWith("tui-") ||
-            (value.startsWith("tui") && value.length > 3 && (value[3].isUpperCase() || value[3].isDigit()))
-
-    private data class MemberBinding(
-        val name: String,
-        val kind: TaigaApiMemberKind,
-    )
-
-    private val TAIGA_PACKAGE_PATH = Regex("""(?:^|/)node_modules/@taiga-ui/([^/]+)(?:/|$)""")
-    private val WHITESPACE = Regex("\\s+")
-    private const val TYPE_DEFINITION_PARENT_LIMIT = 6
-    private const val MAX_DECLARATION_TEXT = 8_000
-    private const val MAX_TYPE_DEFINITION = 800
+private data class MemberBindingPattern(
+    val prefix: String,
+    val suffix: String,
+    val kind: TaigaApiMemberKind,
+) {
+    fun parse(value: String): MemberBinding? =
+        value
+            .takeIf { candidate ->
+                candidate.startsWith(prefix) &&
+                    candidate.endsWith(suffix) &&
+                    candidate.length > prefix.length + suffix.length
+            }?.removePrefix(prefix)
+            ?.removeSuffix(suffix)
+            ?.let { name -> MemberBinding(name, kind) }
 }
+
+private val MEMBER_BINDING_PATTERNS =
+    listOf(
+        MemberBindingPattern("[(", ")]", TaigaApiMemberKind.INPUT),
+        MemberBindingPattern("[", "]", TaigaApiMemberKind.INPUT),
+        MemberBindingPattern("(", ")", TaigaApiMemberKind.OUTPUT),
+        MemberBindingPattern("bind-", "", TaigaApiMemberKind.INPUT),
+        MemberBindingPattern("on-", "", TaigaApiMemberKind.OUTPUT),
+    )
+private val TAIGA_PACKAGE_PATH = Regex("""(?:^|/)node_modules/@taiga-ui/([^/]+)(?:/|$)""")
+private val WHITESPACE = Regex("\s+")
+private const val TYPE_DEFINITION_PARENT_LIMIT = 6
+private const val MAX_DECLARATION_TEXT = 8_000
+private const val MAX_TYPE_DEFINITION = 800
