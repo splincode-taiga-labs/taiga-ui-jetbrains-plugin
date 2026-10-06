@@ -245,7 +245,6 @@ private fun wrappedLabel(text: String): JComponent =
 
 private const val POPUP_TEXT_WIDTH = 520
 
-
 internal fun JComponent.containsPointer(): Boolean =
     isShowing &&
         MouseInfo
