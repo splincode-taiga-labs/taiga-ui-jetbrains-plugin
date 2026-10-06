@@ -28,7 +28,7 @@ internal object TaigaDocumentationResolver {
         file: PsiFile,
         offset: Int,
     ): TaigaDocumentationRequest? =
-        if (file is HtmlCompatibleFile) {
+        if (file.isHtmlLike()) {
             findTemplateRequest(file, offset)
         } else {
             findCodeRequest(file, offset)
@@ -39,7 +39,7 @@ internal object TaigaDocumentationResolver {
         file: PsiFile,
         element: LookupElement,
     ): TaigaDocumentationSubject? {
-        if (file !is HtmlCompatibleFile) {
+        if (!file.isHtmlLike()) {
             return null
         }
 
@@ -87,15 +87,12 @@ internal object TaigaDocumentationResolver {
                 )
             }
 
-            val selector = rawName.takeIf(::isTaigaSelector)
+            val selector = rawName.takeIf(::isTaigaSelector) ?: return null
             val subject =
-                selector
-                    ?.let { name ->
-                        (attribute.descriptor as? HtmlAttributeSymbolDescriptor)
-                            ?.symbol
-                            ?.toLocalSubject(selector = name)
-                    }
-                    ?: return null
+                (attribute.descriptor as? HtmlAttributeSymbolDescriptor)
+                    ?.symbol
+                    ?.toLocalSubject(selector = selector)
+                    ?: selector.fallbackSubject()
 
             return TaigaDocumentationRequest.Entity(
                 subjects = listOf(subject),
@@ -115,7 +112,7 @@ internal object TaigaDocumentationResolver {
             (tag.descriptor as? HtmlElementSymbolDescriptor)
                 ?.symbol
                 ?.toLocalSubject(selector = tagName)
-                ?: return null
+                ?: tagName.fallbackSubject()
 
         return TaigaDocumentationRequest.Entity(
             subjects = listOf(subject),
@@ -158,19 +155,23 @@ private fun XmlTag.taigaSubjects(): List<TaigaDocumentationSubject> =
         name
             .takeIf(::isTaigaSelector)
             ?.let { selector ->
-                (descriptor as? HtmlElementSymbolDescriptor)
-                    ?.symbol
-                    ?.toLocalSubject(selector)
-                    ?.let(::add)
+                add(
+                    (descriptor as? HtmlElementSymbolDescriptor)
+                        ?.symbol
+                        ?.toLocalSubject(selector)
+                        ?: selector.fallbackSubject(),
+                )
             }
 
         attributes.forEach { attribute ->
             val selector = attribute.name.takeIf(::isTaigaSelector) ?: return@forEach
 
-            (attribute.descriptor as? HtmlAttributeSymbolDescriptor)
-                ?.symbol
-                ?.toLocalSubject(selector)
-                ?.let(::add)
+            add(
+                (attribute.descriptor as? HtmlAttributeSymbolDescriptor)
+                    ?.symbol
+                    ?.toLocalSubject(selector)
+                    ?: selector.fallbackSubject(),
+            )
         }
     }.distinctBy { subject ->
         listOf(subject.selector, subject.publicSymbol, subject.packageName)
@@ -242,6 +243,17 @@ private fun PsiFile.elementAt(offset: Int): PsiElement? =
 
 private fun String.toMemberBinding(): MemberBinding? =
     MEMBER_BINDING_PATTERNS.firstNotNullOfOrNull { pattern -> pattern.parse(this) }
+
+private fun PsiFile.isHtmlLike(): Boolean =
+    this is HtmlCompatibleFile ||
+        viewProvider.allFiles.any { candidate -> candidate is HtmlCompatibleFile }
+
+private fun String.fallbackSubject(): TaigaDocumentationSubject =
+    TaigaDocumentationSubject(
+        selector = this,
+        publicSymbol = null,
+        packageName = null,
+    )
 
 private fun isTaigaPublicSymbol(value: String): Boolean =
     value.startsWith("Tui") &&
