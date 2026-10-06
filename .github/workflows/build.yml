@@ -67,13 +67,6 @@ jobs:
                   -Djava.net.useSystemProxies=false
                   --stacktrace
 
-            - name: Save Kotlin formatting patch on failure
-              if: failure()
-              run: |
-                  ./gradlew ktlintFormat -Djava.net.useSystemProxies=false || true
-                  mkdir -p build/reports/quick-documentation
-                  git diff -- '*.kt' '*.kts' > build/reports/quick-documentation/kotlin-formatting.patch
-
             - name: Upload coverage to Codecov
               uses: codecov/codecov-action@v5
               with:
@@ -93,7 +86,6 @@ jobs:
                   path: |
                       build/distributions/*.zip
                       build/reports/quick-documentation/*.png
-                      build/reports/quick-documentation/*.patch
 
             - name: Verify packaged plugin icons
               run: bash scripts/verify-plugin-icons.sh

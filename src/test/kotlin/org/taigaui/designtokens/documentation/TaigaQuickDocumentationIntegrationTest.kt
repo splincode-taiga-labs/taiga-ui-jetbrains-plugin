@@ -220,7 +220,8 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
 
         assertEquals("@tui.eye", (request as? TaigaDocumentationRequest.Entity)?.icons?.singleOrNull()?.name)
 
-        val dynamic = configureTemplate("<button tuiButton [iconEnd]=\"shown ? '@tui.eye' : '@tui.eye-off'\">Save</button>")
+        val dynamic =
+            configureTemplate("<button tuiButton [iconEnd]=\"shown ? '@tui.eye' : '@tui.eye-off'\">Save</button>")
         val dynamicRequest = TaigaDocumentationResolver.findRequest(dynamic, dynamic.text.indexOf("tuiButton") + 2)
 
         assertTrue((dynamicRequest as? TaigaDocumentationRequest.Entity)?.icons?.isEmpty() == true)
@@ -314,10 +315,12 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
             export interface ComponentMetadata {
                 selector?: string;
                 templateUrl?: string;
+                standalone?: boolean;
+                imports?: unknown[];
             }
 
             export declare function Component(metadata: ComponentMetadata): ClassDecorator;
-            export declare function Pipe(metadata: {name: string; pure?: boolean}): ClassDecorator;
+            export declare function Pipe(metadata: {name: string; pure?: boolean; standalone?: boolean}): ClassDecorator;
             """.trimIndent(),
         )
         createFile(
@@ -346,7 +349,7 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
             workspaceRoot.resolve("node_modules/@taiga-ui/cdk/index.ts"),
             """
             import {Pipe} from '@angular/core';
-            @Pipe({name: 'tuiMapper'})
+            @Pipe({name: 'tuiMapper', standalone: true})
             export class TuiMapperPipe {
                 transform<T extends unknown[], U, G>(value: U, mapper: (value: U, ...args: T) => G, ...args: T): G {
                     return mapper(value, ...args);
