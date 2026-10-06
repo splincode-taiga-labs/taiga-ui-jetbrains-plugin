@@ -117,26 +117,14 @@ class DesignTokenContextClassifier {
         const val LIGHT_MARKER = "light"
         const val DARK_MARKER = "dark"
 
-        val IOS_PLATFORM_SELECTOR =
-            attributeSelector(
-                attribute = "(?:tuiPlatform|data-platform)",
-                value = "ios",
-            )
-        val ANDROID_PLATFORM_SELECTOR =
-            attributeSelector(
-                attribute = "(?:tuiPlatform|data-platform)",
-                value = "android",
-            )
+        val IOS_PLATFORM_SELECTOR = attributeSelector(attribute = "(?:tuiPlatform|data-platform)", value = "ios")
+        val ANDROID_PLATFORM_SELECTOR = attributeSelector(attribute = "(?:tuiPlatform|data-platform)", value = "android")
         val LIGHT_THEME_SELECTOR = attributeSelector(attribute = "tuiTheme", value = "light")
         val DARK_THEME_SELECTOR = attributeSelector(attribute = "tuiTheme", value = "dark")
-        val LIGHT_THEME_MIXIN =
-            Regex("""\.(?:tui-theme-)?light\s*\(""", RegexOption.IGNORE_CASE)
-        val DARK_THEME_MIXIN =
-            Regex("""\.(?:tui-theme-)?dark\s*\(""", RegexOption.IGNORE_CASE)
-        val SHARED_VARIABLES_MIXIN =
-            Regex("""\.tui-theme-variables\s*\(""", RegexOption.IGNORE_CASE)
-        val GLOBAL_ROOT_SELECTOR =
-            Regex("""(?:&?:root|:host|\bhtml\b|\bbody\b)""", RegexOption.IGNORE_CASE)
+        val LIGHT_THEME_MIXIN = Regex("""\.(?:tui-theme-)?light\s*\(""", RegexOption.IGNORE_CASE)
+        val DARK_THEME_MIXIN = Regex("""\.(?:tui-theme-)?dark\s*\(""", RegexOption.IGNORE_CASE)
+        val SHARED_VARIABLES_MIXIN = Regex("""\.tui-theme-variables\s*\(""", RegexOption.IGNORE_CASE)
+        val GLOBAL_ROOT_SELECTOR = Regex("""(?:&?:root|:host|\bhtml\b|\bbody\b)""", RegexOption.IGNORE_CASE)
 
         fun attributeSelector(
             attribute: String,
