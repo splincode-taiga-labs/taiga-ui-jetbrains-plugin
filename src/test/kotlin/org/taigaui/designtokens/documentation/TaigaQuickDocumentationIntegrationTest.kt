@@ -8,32 +8,26 @@ import com.intellij.platform.backend.documentation.impl.computeDocumentationBloc
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiPolyVariantReference
-import com.intellij.testFramework.PsiTestUtil
-import com.intellij.testFramework.fixtures.LightPlatformCodeInsightFixture4TestCase
-import com.intellij.testFramework.fixtures.TempDirTestFixture
-import com.intellij.testFramework.fixtures.impl.TempDirTestFixtureImpl
+import com.intellij.testFramework.builders.EmptyModuleFixtureBuilder
+import com.intellij.testFramework.fixtures.CodeInsightFixtureTestCase
 import com.intellij.testFramework.runInEdtAndWait
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.JUnit4
 import java.nio.file.Path
 
-class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4TestCase() {
+@RunWith(JUnit4::class)
+class TaigaQuickDocumentationIntegrationTest : CodeInsightFixtureTestCase<EmptyModuleFixtureBuilder>() {
     private val docsSource = requireNotNull(TaigaDocsSources.forMajor(5))
     private val docsCache = TaigaDocsCache()
     private lateinit var workspaceRoot: Path
-    private lateinit var workspaceDirectory: VirtualFile
-
-    override fun createTempDirTestFixture(): TempDirTestFixture = TempDirTestFixtureImpl()
 
     override fun setUp() {
         super.setUp()
         workspaceRoot = Path.of(myFixture.tempDirPath)
-        workspaceDirectory = requireNotNull(myFixture.tempDirFixture.getFile(""))
-        runInEdtAndWait {
-            PsiTestUtil.addContentRoot(module, workspaceDirectory)
-        }
         docsCache.invalidate(docsSource)
         configureAngularProject()
         configureTaigaPackage()
@@ -43,9 +37,6 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
         try {
             docsCache.invalidate(docsSource)
             project.service<TaigaDocsService>().clearMemory()
-            runInEdtAndWait {
-                PsiTestUtil.removeContentEntry(module, workspaceDirectory)
-            }
         } finally {
             super.tearDown()
         }
