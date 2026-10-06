@@ -65,7 +65,7 @@ internal object TaigaDocumentationResolver {
 
         if (attribute != null && attribute.nameElement?.textRange?.containsOffset(offset) == true) {
             val nameElement = attribute.nameElement ?: return null
-            val rawName = nameElement.text
+            val rawName = attribute.bindingName()
             val member = rawName.toMemberBinding()
 
             if (member != null) {
