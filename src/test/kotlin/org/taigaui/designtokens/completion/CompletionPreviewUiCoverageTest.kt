@@ -57,7 +57,7 @@ class CompletionPreviewUiCoverageTest : BasePlatformTestCase() {
 
         invokePrivate(controller, "attach", lookup)
 
-        withEditorRootPane {
+        withEditorRootPane(lookup) {
             showPreview(controller, lookup)
             val hint = requireNotNull(readPrivateField(controller, "previewHint")) as LightweightHint
 
@@ -78,7 +78,7 @@ class CompletionPreviewUiCoverageTest : BasePlatformTestCase() {
 
         invokePrivate(controller, "attach", lookup)
 
-        withEditorRootPane {
+        withEditorRootPane(lookup) {
             showPreview(controller, lookup)
             val hint = requireNotNull(readPrivateField(controller, "previewHint")) as LightweightHint
 
@@ -131,8 +131,11 @@ class CompletionPreviewUiCoverageTest : BasePlatformTestCase() {
         )
     }
 
-    private fun withEditorRootPane(block: () -> Unit) {
-        val component = myFixture.editor.contentComponent
+    private fun withEditorRootPane(
+        lookup: Lookup,
+        block: () -> Unit,
+    ) {
+        val component = lookup.topLevelEditor.contentComponent
         val rootPane = JRootPane()
 
         runInEdtAndGet {

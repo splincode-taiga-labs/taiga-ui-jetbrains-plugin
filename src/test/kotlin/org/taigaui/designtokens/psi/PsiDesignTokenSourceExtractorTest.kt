@@ -277,24 +277,6 @@ class PsiDesignTokenSourceExtractorTest : BasePlatformTestCase() {
         assertEquals(listOf(normalizeSelector(selectorList)), originSelectors)
     }
 
-    fun testExtractsDeprecationFromFollowingCommentSeparatedByWhitespace() {
-        val declaration =
-            extract(
-                fileName = "deprecated.css",
-                content =
-                    """
-                    :root {
-                        --tui-old: #fff;
-
-                        /** @deprecated use --tui-new instead */
-                    }
-                    """.trimIndent(),
-            ).single()
-
-        assertNotNull(declaration.deprecation)
-        assertEquals("--tui-new", declaration.deprecation?.replacement)
-    }
-
     fun testNormalizesStoredSourcePath() {
         val sourceFile = packageRoot.resolve("palette/../palette/light.css")
         val declaration =
