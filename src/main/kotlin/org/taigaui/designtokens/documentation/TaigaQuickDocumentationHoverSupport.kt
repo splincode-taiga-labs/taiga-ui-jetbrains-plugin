@@ -276,29 +276,32 @@ internal class TaigaQuickDocumentationHoverController(
 
 private fun EditorMouseEvent.toTaigaQuickDocumentationHoverRequest(
     project: Project,
-): TaigaQuickDocumentationHoverRequest? =
-    takeIf { event -> event.canStartTaigaDocumentationHover(project) }
-        ?.let { event ->
-            PsiDocumentManager
-                .getInstance(project)
-                .getPsiFile(event.editor.document)
-                ?.let { file ->
-                    ReadAction
-                        .compute<TaigaDocumentationRequest?, RuntimeException> {
-                            TaigaDocumentationResolver.findRequest(file, event.offset)
-                        }?.let { request ->
-                            file.sourcePath()?.let { sourceFile ->
-                                TaigaQuickDocumentationHoverRequest(
-                                    editor = event.editor,
-                                    anchor = Point(event.mouseEvent.point),
-                                    sourceFile = sourceFile,
-                                    documentationRequest = request,
-                                    modificationStamp = event.editor.document.modificationStamp,
-                                )
-                            }
-                        }
-                }
+): TaigaQuickDocumentationHoverRequest? {
+    if (!canStartTaigaDocumentationHover(project)) {
+        return null
+    }
+
+    val file = PsiDocumentManager.getInstance(project).getPsiFile(editor.document)
+    val request =
+        file?.let { psiFile ->
+            ReadAction.compute<TaigaDocumentationRequest?, RuntimeException> {
+                TaigaDocumentationResolver.findRequest(psiFile, offset)
+            }
         }
+    val sourceFile = file?.sourcePath()
+
+    return if (request != null && sourceFile != null) {
+        TaigaQuickDocumentationHoverRequest(
+            editor = editor,
+            anchor = Point(mouseEvent.point),
+            sourceFile = sourceFile,
+            documentationRequest = request,
+            modificationStamp = editor.document.modificationStamp,
+        )
+    } else {
+        null
+    }
+}
 
 private fun EditorMouseEvent.canStartTaigaDocumentationHover(project: Project): Boolean {
     val projectState =
