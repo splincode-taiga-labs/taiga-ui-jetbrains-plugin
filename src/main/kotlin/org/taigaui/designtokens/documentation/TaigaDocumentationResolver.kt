@@ -10,7 +10,6 @@ import com.intellij.polySymbols.utils.unwrapMatchedSymbols
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiNamedElement
-import com.intellij.psi.PsiReference
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.psi.xml.XmlAttribute
 import com.intellij.psi.xml.XmlTag
@@ -157,18 +156,6 @@ internal object TaigaDocumentationResolver {
     }
 }
 
-private fun PsiElement.candidateReferences(
-    file: PsiFile,
-    offset: Int,
-): List<PsiReference> =
-    buildList {
-        add(file.findReferenceAt(offset))
-        add(reference)
-        add(parent?.reference)
-        addAll(references)
-        addAll(parent?.references.orEmpty())
-    }.filterNotNull()
-
 private fun XmlTag.taigaSubjects(): List<TaigaDocumentationSubject> =
     buildList {
         name
@@ -242,32 +229,6 @@ private fun PsiElement.taigaPublicSymbol(): String? =
         .mapNotNull(PsiNamedElement::getName)
         .firstOrNull(::isTaigaPublicSymbol)
 
-internal fun PsiElement.taigaPackageName(): String? =
-    containingFile
-        ?.originalFile
-        ?.virtualFile
-        ?.path
-        ?.replace('\\', '/')
-        ?.let(TAIGA_PACKAGE_PATH::find)
-        ?.groupValues
-        ?.getOrNull(1)
-        ?.let { packageName -> "@taiga-ui/$packageName" }
-
-private fun PsiElement.typeDefinition(symbol: String): String? =
-    generateSequence<PsiElement?>(this) { element -> element?.parent }
-        .take(TYPE_DEFINITION_PARENT_LIMIT)
-        .map { element -> element.text.take(MAX_DECLARATION_TEXT) }
-        .mapNotNull { text ->
-            Regex(
-                """\btype\s+${Regex.escape(symbol)}(?:<[^>]+>)?\s*=\s*(.+?);""",
-                RegexOption.DOT_MATCHES_ALL,
-            ).find(text)
-                ?.groupValues
-                ?.get(1)
-        }.map { definition -> definition.replace(WHITESPACE, " ").trim() }
-        .firstOrNull()
-        ?.take(MAX_TYPE_DEFINITION)
-
 private fun PsiFile.elementAt(offset: Int): PsiElement? =
     takeIf { file -> file.textLength > 0 && offset in 0..file.textLength }
         ?.let { file ->
@@ -318,8 +279,3 @@ private val MEMBER_BINDING_PATTERNS =
         MemberBindingPattern("bind-", "", TaigaApiMemberKind.INPUT),
         MemberBindingPattern("on-", "", TaigaApiMemberKind.OUTPUT),
     )
-private val TAIGA_PACKAGE_PATH = Regex("""(?:^|/)node_modules/@taiga-ui/([^/]+)(?:/|$)""")
-private val WHITESPACE = Regex("\\s+")
-private const val TYPE_DEFINITION_PARENT_LIMIT = 6
-private const val MAX_DECLARATION_TEXT = 8_000
-private const val MAX_TYPE_DEFINITION = 800
