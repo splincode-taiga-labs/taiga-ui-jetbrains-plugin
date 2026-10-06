@@ -7,12 +7,18 @@ import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.editor.Editor
+import com.intellij.openapi.editor.colors.EditorColors
 import com.intellij.openapi.editor.event.EditorMouseEvent
 import com.intellij.openapi.editor.event.EditorMouseEventArea
 import com.intellij.openapi.editor.event.EditorMouseListener
 import com.intellij.openapi.editor.event.EditorMouseMotionListener
 import com.intellij.openapi.editor.ex.EditorSettingsExternalizable
 import com.intellij.openapi.editor.impl.EditorMouseHoverPopupControl
+import com.intellij.openapi.editor.markup.EffectType
+import com.intellij.openapi.editor.markup.HighlighterLayer
+import com.intellij.openapi.editor.markup.HighlighterTargetArea
+import com.intellij.openapi.editor.markup.RangeHighlighter
+import com.intellij.openapi.editor.markup.TextAttributes
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.ui.popup.JBPopupFactory
@@ -78,11 +84,14 @@ internal class TaigaQuickDocumentationHoverController(
     private var popup: JBPopup? = null
     private var popupContent: TaigaQuickDocumentationPopupPanel? = null
     private var nativeHoverSuppressedEditor: Editor? = null
+    private var hoverUnderline: HoverUnderline? = null
 
     fun mouseMoved(event: EditorMouseEvent) {
         val request = event.toTaigaQuickDocumentationHoverRequest(project)
 
         if (request == null) {
+            clearHoverUnderline()
+
             if (popup?.isVisible == true) {
                 scheduleHide()
             } else {
@@ -93,6 +102,7 @@ internal class TaigaQuickDocumentationHoverController(
         }
 
         cancelScheduledHide()
+        showHoverUnderline(request)
 
         if (request.key == activeKey) {
             suppressNativeHover(request.editor)
@@ -231,7 +241,62 @@ internal class TaigaQuickDocumentationHoverController(
         activeKey = null
         hoverJob?.cancel()
         hoverJob = null
+        clearHoverUnderline()
         hidePopup(restoreNativeHover = true)
+    }
+
+    private fun showHoverUnderline(request: TaigaQuickDocumentationHoverRequest) {
+        val current = hoverUnderline
+
+        if (
+            current?.editor === request.editor &&
+            current.startOffset == request.startOffset &&
+            current.endOffset == request.endOffset
+        ) {
+            return
+        }
+
+        clearHoverUnderline()
+
+        val effectColor =
+            request.editor.colorsScheme
+                .getAttributes(EditorColors.REFERENCE_HYPERLINK_COLOR)
+                ?.foregroundColor
+                ?: request.editor.colorsScheme.defaultForeground
+        val attributes =
+            TextAttributes(
+                null,
+                null,
+                effectColor,
+                EffectType.LINE_UNDERSCORE,
+                Font.PLAIN,
+            )
+        val highlighter =
+            request.editor.markupModel.addRangeHighlighter(
+                request.startOffset,
+                request.endOffset,
+                HighlighterLayer.HYPERLINK,
+                attributes,
+                HighlighterTargetArea.EXACT_RANGE,
+            )
+
+        hoverUnderline =
+            HoverUnderline(
+                editor = request.editor,
+                highlighter = highlighter,
+                startOffset = request.startOffset,
+                endOffset = request.endOffset,
+            )
+    }
+
+    private fun clearHoverUnderline() {
+        val underline = hoverUnderline ?: return
+
+        hoverUnderline = null
+
+        if (!underline.editor.isDisposed) {
+            underline.editor.markupModel.removeHighlighter(underline.highlighter)
+        }
     }
 
     private fun hidePopup(restoreNativeHover: Boolean) {
@@ -342,6 +407,13 @@ private data class TaigaQuickDocumentationHoverKey(
     val startOffset: Int,
     val endOffset: Int,
     val modificationStamp: Long,
+)
+
+private data class HoverUnderline(
+    val editor: Editor,
+    val highlighter: RangeHighlighter,
+    val startOffset: Int,
+    val endOffset: Int,
 )
 
 private class TaigaQuickDocumentationPopupPanel(
