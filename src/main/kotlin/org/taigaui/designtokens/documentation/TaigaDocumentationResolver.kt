@@ -135,7 +135,7 @@ internal object TaigaDocumentationResolver {
             element
                 .candidateReferences(file, offset)
                 .asSequence()
-                .mapNotNull(PsiReference::resolve)
+                .mapNotNull { reference -> reference.resolve() }
                 .firstOrNull { resolved -> resolved.taigaPackageName() != null }
                 ?: return null
         val packageName = declaration.taigaPackageName() ?: return null
