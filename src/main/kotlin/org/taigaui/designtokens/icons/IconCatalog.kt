@@ -109,11 +109,10 @@ internal class IconCatalogLoader(
     }
 
     private companion object {
-        val EMPTY_CATALOG =
-            IconCatalogLoadResult(
-                catalog = IconCatalog(emptyList()),
-                cachePolicy = IconCatalogCachePolicy.LOCAL,
-            )
+        val EMPTY_CATALOG = IconCatalogLoadResult(
+            catalog = IconCatalog(emptyList()),
+            cachePolicy = IconCatalogCachePolicy.LOCAL,
+        )
     }
 }
 
