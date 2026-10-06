@@ -121,6 +121,9 @@ intellijPlatform {
 
 tasks.test {
     finalizedBy(tasks.jacocoTestReport)
+    testLogging {
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+    }
 }
 
 tasks.jacocoTestReport {

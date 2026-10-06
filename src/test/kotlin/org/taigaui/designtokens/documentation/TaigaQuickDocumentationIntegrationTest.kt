@@ -7,6 +7,7 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.platform.backend.documentation.impl.computeDocumentationBlocking
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiFile
+import com.intellij.psi.PsiPolyVariantReference
 import com.intellij.testFramework.fixtures.LightPlatformCodeInsightFixture4TestCase
 import com.intellij.testFramework.fixtures.TempDirTestFixture
 import com.intellij.testFramework.fixtures.impl.TempDirTestFixtureImpl
@@ -264,12 +265,21 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
                 .findInjectedElementAt(file, offset) ?: element
         val candidateFile = candidate.containingFile
         val candidateOffset = if (candidateFile == file) offset else candidate.textOffset
-        val declaration = candidate.resolveTaigaDeclaration(candidateFile, candidateOffset)
+        val declaration = candidate.resolveTaigaDeclaration(candidateFile, candidateOffset, incompleteCode = true)
+        val resolved =
+            candidate.candidateReferences(candidateFile, candidateOffset).flatMap { reference ->
+                if (reference is PsiPolyVariantReference) {
+                    reference.multiResolve(true).mapNotNull { it.element }
+                } else {
+                    listOfNotNull(reference.resolve())
+                }
+            }
 
         return "Host=${element.javaClass.name}, candidate=${candidate.javaClass.name}, " +
             "references=${candidate.candidateReferences(candidateFile, candidateOffset)}, " +
             "declaration=${declaration?.javaClass?.name}: ${declaration?.text?.take(1_500)}, " +
-            "local=${declaration?.localDocumentation(null)}"
+            "local=${declaration?.localDocumentation(null)}, " +
+            "resolved=${resolved.map { it.containingFile?.virtualFile?.path to it.text.take(500) }}"
     }
 
     @Test
