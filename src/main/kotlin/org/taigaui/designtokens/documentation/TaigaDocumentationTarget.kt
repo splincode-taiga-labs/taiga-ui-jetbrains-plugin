@@ -120,7 +120,10 @@ internal val TaigaResolvedDocumentation.documentationUri: java.net.URI
 internal val TaigaResolvedDocumentation.presentationName: String
     get() =
         when (this) {
-            is TaigaResolvedDocumentation.Entity -> subject.publicSymbol ?: entity.publicSymbols.firstOrNull() ?: entity.title
+            is TaigaResolvedDocumentation.Entity ->
+                subject.publicSymbol
+                    ?: entity.publicSymbols.firstOrNull()
+                    ?: entity.title
             is TaigaResolvedDocumentation.Member -> property.name
         }
 
@@ -200,7 +203,8 @@ internal fun TaigaResolvedDocumentation.possibleValues(): List<String> =
                 .map { match -> match.groupValues[1] }
                 .distinct()
                 .toList()
-        }.orEmpty()
+        }
+        .orEmpty()
         .takeIf { values -> values.size > 1 }
         .orEmpty()
 
