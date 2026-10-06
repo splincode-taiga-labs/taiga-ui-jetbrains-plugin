@@ -13,10 +13,12 @@ import com.intellij.testFramework.runInEdtAndGet
 import com.intellij.util.ui.UIUtil
 import org.taigaui.designtokens.project.DesignTokenIndexService
 import org.taigaui.designtokens.settings.TaigaDesignTokensSettings
+import java.awt.Container
 import java.awt.event.MouseEvent
 import java.lang.reflect.Proxy
 import java.nio.file.Files
 import java.nio.file.Path
+import javax.swing.JLabel
 
 class DesignTokenHoverPopupControllerTest : BasePlatformTestCase() {
     private lateinit var tempRoot: Path
@@ -93,8 +95,17 @@ class DesignTokenHoverPopupControllerTest : BasePlatformTestCase() {
         controller.mouseMoved(editorMouseEvent(offset))
 
         try {
-            assertNotNull(waitForPrivateField(controller, "popupContent"))
+            val panel =
+                requireNotNull(
+                    waitForPrivateField(controller, "popupContent"),
+                ) as DesignTokenHoverPopupPanel
+
+            waitUntil {
+                !panel.containsLabel("Loading design token graph…")
+            }
+
             assertNotNull(readPrivateField(controller, "popupKey"))
+            assertFalse(panel.containsLabel("Loading design token graph…"))
         } finally {
             controller.dismissHover(editor)
         }
@@ -287,8 +298,17 @@ class DesignTokenHoverPopupControllerTest : BasePlatformTestCase() {
         controller.mouseMoved(editorMouseEvent(offset))
 
         try {
-            assertNotNull(waitForPrivateField(controller, "popupContent"))
+            val panel =
+                requireNotNull(
+                    waitForPrivateField(controller, "popupContent"),
+                ) as DesignTokenHoverPopupPanel
+
+            waitUntil {
+                !panel.containsLabel("Loading design token graph…")
+            }
+
             assertNotNull(readPrivateField(controller, "popupKey"))
+            assertFalse(panel.containsLabel("Loading design token graph…"))
         } finally {
             controller.dismissHover(editor)
         }
@@ -388,6 +408,12 @@ class DesignTokenHoverPopupControllerTest : BasePlatformTestCase() {
         assertNull(readPrivateField(controller, "activeHoverKey"))
         assertNull(readPrivateField(controller, "latestHoverRequest"))
     }
+
+    private fun Container.containsLabel(text: String): Boolean =
+        components.any { component ->
+            (component as? JLabel)?.text == text ||
+                (component as? Container)?.containsLabel(text) == true
+        }
 
     private fun configureCss(content: String) {
         val path = tempRoot.resolve("component.css")
