@@ -1,6 +1,5 @@
 package org.taigaui.designtokens.documentation
 
-import com.intellij.lang.documentation.ide.IdeDocumentationTargetProvider
 import com.intellij.openapi.components.service
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
@@ -178,21 +177,12 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
 
         var html: String? = null
         runInEdtAndWait {
-            val targets =
-                IdeDocumentationTargetProvider
-                    .getInstance(project)
-                    .documentationTargets(myFixture.editor, file, offset)
-            val documentation =
-                targets
-                    .asSequence()
-                    .mapNotNull { target -> computeDocumentationBlocking(target.createPointer()) }
-                    .firstOrNull { data ->
-                        needle.trim('[', ']', '(', ')') in data.html ||
-                            "TuiButton" in data.html ||
-                            "TuiAppearance" in data.html
-                    }
+            val target =
+                TaigaQuickDocumentationTargetProvider()
+                    .documentationTargets(file, offset)
+                    .singleOrNull()
 
-            html = documentation?.html
+            html = target?.let { value -> computeDocumentationBlocking(value.createPointer())?.html }
         }
 
         return html
