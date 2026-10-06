@@ -174,12 +174,14 @@ internal val TaigaResolvedDocumentation.typeText: String?
 
 internal val TaigaResolvedDocumentation.effectiveUsage: String?
     get() =
-        usage
-            ?: (this as? TaigaResolvedDocumentation.Entity)
-                ?.entity
-                ?.example
-                ?.code
-                ?.takeIf { code -> code.length <= MAX_INLINE_USAGE_LENGTH }
+        when (this) {
+            is TaigaResolvedDocumentation.Entity ->
+                entity.example
+                    ?.code
+                    ?.takeIf { code -> code.length <= MAX_INLINE_USAGE_LENGTH }
+
+            is TaigaResolvedDocumentation.Member -> usage
+        }
 
 internal fun TaigaResolvedDocumentation.canonicalImport(): String? {
     if (this !is TaigaResolvedDocumentation.Entity) {
