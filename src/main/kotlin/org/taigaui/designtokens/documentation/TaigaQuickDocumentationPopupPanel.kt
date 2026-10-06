@@ -223,13 +223,6 @@ internal class TaigaQuickDocumentationPopupPanel(
         add(Box.createVerticalStrut(JBUI.scale(5)))
     }
 
-    private fun wrappedLabel(text: String): JComponent =
-        JBLabel(
-            "<html><div width='$POPUP_TEXT_WIDTH'>${text.html()}</div></html>",
-        ).apply {
-            alignmentX = LEFT_ALIGNMENT
-        }
-
     private fun separator(): JComponent =
         JSeparator().apply {
             alignmentX = LEFT_ALIGNMENT
@@ -239,10 +232,18 @@ internal class TaigaQuickDocumentationPopupPanel(
     private fun String.html(): String = StringUtil.escapeXmlEntities(this)
 
     private companion object {
-        const val POPUP_TEXT_WIDTH = 520
         const val MAX_VISIBLE_API_PROPERTIES = 6
     }
 }
+
+private fun wrappedLabel(text: String): JComponent =
+    JBLabel(
+        "<html><div width='$POPUP_TEXT_WIDTH'>${StringUtil.escapeXmlEntities(text)}</div></html>",
+    ).apply {
+        alignmentX = JComponent.LEFT_ALIGNMENT
+    }
+
+private const val POPUP_TEXT_WIDTH = 520
 
 
 internal fun JComponent.containsPointer(): Boolean =
