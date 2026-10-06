@@ -67,13 +67,9 @@ class HttpTaigaDocsFetcherCoverageTest {
                     server.accept().use { socket ->
                         val reader = socket.getInputStream().bufferedReader()
 
-                        while (true) {
-                            val line = reader.readLine() ?: break
-
-                            if (line.isEmpty()) {
-                                break
-                            }
-                        }
+                        generateSequence(reader::readLine)
+                            .takeWhile(String::isNotEmpty)
+                            .forEach { }
 
                         val bytes = body.toByteArray()
                         val reason = if (status in 200..299) "OK" else "Service Unavailable"
