@@ -100,7 +100,7 @@ internal object DesignTokenValueParser {
             val name = input.substring(contentStart, nameEnd).trim()
 
             if (!name.isCustomPropertyName()) {
-                fail(contentStart, "var() must reference a CSS custom property name.")
+                throw parseFailure(contentStart, "var() must reference a CSS custom property name.")
             }
 
             val fallback = comma?.let { parseRange(it + 1, contentEnd, trim = true) }
@@ -172,7 +172,7 @@ internal object DesignTokenValueParser {
                 }
             }
 
-            return closingParenthesis ?: fail(openParenthesis, "Unterminated var() expression.")
+            return closingParenthesis ?: throw parseFailure(openParenthesis, "Unterminated var() expression.")
         }
 
         private fun findQuotedEnd(
@@ -196,7 +196,7 @@ internal object DesignTokenValueParser {
                 index++
             }
 
-            return quotedEnd ?: fail(quoteStart, "Unterminated quoted string in token value.")
+            return quotedEnd ?: throw parseFailure(quoteStart, "Unterminated quoted string in token value.")
         }
 
         private fun findCommentEnd(
@@ -206,7 +206,7 @@ internal object DesignTokenValueParser {
             val commentEnd = input.indexOf("*/", startIndex = commentStart + 2)
 
             if (commentEnd < 0 || commentEnd + 2 > end) {
-                fail(commentStart, "Unterminated comment in token value.")
+                throw parseFailure(commentStart, "Unterminated comment in token value.")
             }
 
             return commentEnd + 2
@@ -268,10 +268,10 @@ internal object DesignTokenValueParser {
 
     private const val VAR_FUNCTION_NAME = "var"
 
-    private fun fail(
+    private fun parseFailure(
         offset: Int,
         message: String,
-    ): Nothing = throw ParseFailure(offset, message)
+    ): ParseFailure = ParseFailure(offset, message)
 
     private fun Char.isQuote(): Boolean = this == '\'' || this == '"'
 
