@@ -182,12 +182,6 @@ private fun XmlTag.taigaSubjects(): List<TaigaDocumentationSubject> =
         listOf(subject.selector, subject.publicSymbol, subject.packageName)
     }
 
-private fun XmlTag.compactUsage(): String =
-    text
-        .replace(WHITESPACE, " ")
-        .trim()
-        .take(MAX_TEMPLATE_USAGE_LENGTH)
-
 private fun XmlTag.memberUsage(
     member: MemberBinding,
     ownerSelector: String?,
@@ -284,9 +278,6 @@ private data class MemberBindingPattern(
             ?.removeSuffix(suffix)
             ?.let { name -> MemberBinding(name, kind) }
 }
-
-private val WHITESPACE = Regex("\\s+")
-private const val MAX_TEMPLATE_USAGE_LENGTH = 260
 
 private val MEMBER_BINDING_PATTERNS =
     listOf(
