@@ -6,18 +6,11 @@ import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.editor.Editor
-import com.intellij.openapi.editor.colors.EditorColors
 import com.intellij.openapi.editor.event.EditorMouseEvent
 import com.intellij.openapi.editor.event.EditorMouseEventArea
 import com.intellij.openapi.editor.event.EditorMouseListener
 import com.intellij.openapi.editor.event.EditorMouseMotionListener
 import com.intellij.openapi.editor.ex.EditorSettingsExternalizable
-import com.intellij.openapi.editor.impl.EditorMouseHoverPopupControl
-import com.intellij.openapi.editor.markup.EffectType
-import com.intellij.openapi.editor.markup.HighlighterLayer
-import com.intellij.openapi.editor.markup.HighlighterTargetArea
-import com.intellij.openapi.editor.markup.RangeHighlighter
-import com.intellij.openapi.editor.markup.TextAttributes
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.ui.popup.JBPopupFactory
@@ -31,7 +24,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.awt.Font
 import java.awt.Point
 import java.nio.file.Path
 import javax.swing.SwingUtilities
@@ -74,59 +66,36 @@ internal class TaigaQuickDocumentationHoverController(
     private val project: Project,
     private val coroutineScope: CoroutineScope,
 ) {
+    private val nativeHoverSuppression = DesignTokenNativeHoverPopupSuppression()
+    private val underline = TaigaQuickDocumentationUnderline()
     private var activeKey: TaigaQuickDocumentationHoverKey? = null
     private var hoverJob: Job? = null
     private var hideJob: Job? = null
     private var popup: JBPopup? = null
     private var popupContent: TaigaQuickDocumentationPopupPanel? = null
-    private var nativeHoverSuppressedEditor: Editor? = null
-    private var hoverUnderline: HoverUnderline? = null
 
     fun mouseMoved(event: EditorMouseEvent) {
         val request = event.toTaigaQuickDocumentationHoverRequest(project)
 
         if (request == null) {
-            clearHoverUnderline()
+            underline.clear()
 
             if (popup?.isVisible == true) {
                 scheduleHide()
             } else {
                 clearHover()
             }
-
-            return
-        }
-
-        val service = project.service<TaigaDocsService>()
-        val cachedSnapshot = service.cachedSnapshotFor(request.sourceFile)
-        val cachedResolved = cachedSnapshot?.resolve(request.documentationRequest)
-
-        if (cachedSnapshot != null && cachedResolved == null) {
-            clearHover()
-            return
-        }
-
-        cancelScheduledHide()
-
-        if (
-            cachedResolved != null ||
-            request.documentationRequest is TaigaDocumentationRequest.Entity
-        ) {
-            showHoverUnderline(request)
         } else {
-            clearHoverUnderline()
-        }
+            val service = project.service<TaigaDocsService>()
+            val snapshot = service.cachedSnapshotFor(request.sourceFile)
+            val resolved = snapshot?.resolve(request.documentationRequest)
 
-        if (request.key == activeKey) {
-            suppressNativeHover(request.editor)
-            return
+            if (snapshot != null && resolved == null) {
+                clearHover()
+            } else {
+                handleRequest(request, resolved)
+            }
         }
-
-        hoverJob?.cancel()
-        hidePopup(restoreNativeHover = false)
-        activeKey = request.key
-        suppressNativeHover(request.editor)
-        hoverJob = scheduleHover(request, cachedResolved)
     }
 
     fun dismissHover(editor: Editor? = null) {
@@ -137,16 +106,40 @@ internal class TaigaQuickDocumentationHoverController(
     }
 
     fun mouseExited(editor: Editor) {
-        if (editor.project != project) {
-            return
+        if (editor.project == project) {
+            underline.clear()
+
+            if (popup?.isVisible == true) {
+                scheduleHide()
+            } else {
+                clearHover()
+            }
+        }
+    }
+
+    private fun handleRequest(
+        request: TaigaQuickDocumentationHoverRequest,
+        cachedResolved: TaigaResolvedDocumentation?,
+    ) {
+        cancelScheduledHide()
+
+        if (cachedResolved != null || request.documentationRequest is TaigaDocumentationRequest.Entity) {
+            underline.show(
+                request.editor,
+                request.documentationRequest.startOffset,
+                request.documentationRequest.endOffset,
+            )
+        } else {
+            underline.clear()
         }
 
-        clearHoverUnderline()
+        nativeHoverSuppression.suppress(request.editor)
 
-        if (popup?.isVisible == true) {
-            scheduleHide()
-        } else {
-            clearHover()
+        if (request.key != activeKey) {
+            hoverJob?.cancel()
+            hidePopup(restoreNativeHover = false)
+            activeKey = request.key
+            hoverJob = scheduleHover(request, cachedResolved)
         }
     }
 
@@ -165,18 +158,17 @@ internal class TaigaQuickDocumentationHoverController(
                         ?.resolve(request.documentationRequest)
 
             withContext(Dispatchers.EDT) {
-                if (
-                    resolved == null ||
-                    activeKey != request.key ||
-                    !request.isStillCurrent(project)
-                ) {
+                if (resolved == null || activeKey != request.key || !request.isStillCurrent(project)) {
                     clearIfCurrent(request.key)
-                    return@withContext
+                } else {
+                    hoverJob = null
+                    underline.show(
+                        request.editor,
+                        request.documentationRequest.startOffset,
+                        request.documentationRequest.endOffset,
+                    )
+                    showPopup(request, resolved)
                 }
-
-                hoverJob = null
-                showHoverUnderline(request)
-                showPopup(request, resolved)
             }
         }
 
@@ -184,72 +176,74 @@ internal class TaigaQuickDocumentationHoverController(
         request: TaigaQuickDocumentationHoverRequest,
         resolved: TaigaResolvedDocumentation,
     ) {
-        if (activeKey != request.key || project.isDisposed || request.editor.isDisposed) {
-            return
-        }
+        val canShow =
+            activeKey == request.key &&
+                !project.isDisposed &&
+                !request.editor.isDisposed
 
-        suppressNativeHover(request.editor)
+        if (canShow) {
+            nativeHoverSuppression.suppress(request.editor)
 
-        val panel =
-            TaigaQuickDocumentationPopupPanel(
-                resolved = resolved,
-                onClose = { dismissHover(request.editor) },
-            )
-        val createdPopup =
-            JBPopupFactory
-                .getInstance()
-                .createComponentPopupBuilder(panel, panel)
-                .setProject(project)
-                .setRequestFocus(false)
-                .setFocusable(false)
-                .setCancelOnClickOutside(true)
-                .setCancelOnOtherWindowOpen(true)
-                .setCancelOnWindowDeactivation(true)
-                .setMovable(false)
-                .setResizable(false)
-                .createPopup()
+            val panel =
+                TaigaQuickDocumentationPopupPanel(
+                    resolved = resolved,
+                    onClose = { dismissHover(request.editor) },
+                )
+            val createdPopup =
+                JBPopupFactory
+                    .getInstance()
+                    .createComponentPopupBuilder(panel, panel)
+                    .setProject(project)
+                    .setRequestFocus(false)
+                    .setFocusable(false)
+                    .setCancelOnClickOutside(true)
+                    .setCancelOnOtherWindowOpen(true)
+                    .setCancelOnWindowDeactivation(true)
+                    .setMovable(false)
+                    .setResizable(false)
+                    .createPopup()
 
-        createdPopup.addListener(
-            object : JBPopupListener {
-                override fun onClosed(event: LightweightWindowEvent) {
-                    if (popup === createdPopup) {
-                        popup = null
-                        popupContent = null
-                        activeKey = null
-                        hoverJob = null
-                        cancelScheduledHide()
-                        clearHoverUnderline()
-                        restoreNativeHover()
+            createdPopup.addListener(
+                object : JBPopupListener {
+                    override fun onClosed(event: LightweightWindowEvent) {
+                        if (popup === createdPopup) {
+                            popup = null
+                            popupContent = null
+                            activeKey = null
+                            hoverJob = null
+                            cancelScheduledHide()
+                            underline.clear()
+                            nativeHoverSuppression.restore()
+                        }
                     }
-                }
-            },
-        )
+                },
+            )
 
-        popup = createdPopup
-        popupContent = panel
-        createdPopup.showInScreenCoordinates(
-            request.editor.contentComponent,
-            request.popupLocation(),
-        )
-        createdPopup.moveToFitScreen()
+            popup = createdPopup
+            popupContent = panel
+            createdPopup.showInScreenCoordinates(
+                request.editor.contentComponent,
+                request.popupLocation(),
+            )
+            createdPopup.moveToFitScreen()
+        }
     }
 
     private fun scheduleHide() {
-        if (popup?.isVisible != true) {
-            clearHover()
-            return
-        }
+        if (popup?.isVisible == true) {
+            hideJob?.cancel()
+            hideJob =
+                coroutineScope.launch(Dispatchers.EDT + CoroutineName("Taiga UI quick documentation hover hide")) {
+                    delay(HOVER_HIDE_GRACE_PERIOD)
+                    hideJob = null
 
-        hideJob?.cancel()
-        hideJob =
-            coroutineScope.launch(Dispatchers.EDT + CoroutineName("Taiga UI quick documentation hover hide")) {
-                delay(HOVER_HIDE_GRACE_PERIOD)
-                hideJob = null
-
-                if (popupContent?.containsPointer() != true) {
-                    clearHover()
+                    if (popupContent?.containsPointer() != true) {
+                        clearHover()
+                    }
                 }
-            }
+        } else {
+            clearHover()
+        }
     }
 
     private fun cancelScheduledHide() {
@@ -267,62 +261,8 @@ internal class TaigaQuickDocumentationHoverController(
         activeKey = null
         hoverJob?.cancel()
         hoverJob = null
-        clearHoverUnderline()
+        underline.clear()
         hidePopup(restoreNativeHover = true)
-    }
-
-    private fun showHoverUnderline(request: TaigaQuickDocumentationHoverRequest) {
-        val current = hoverUnderline
-
-        if (
-            current?.editor === request.editor &&
-            current.startOffset == request.documentationRequest.startOffset &&
-            current.endOffset == request.documentationRequest.endOffset
-        ) {
-            return
-        }
-
-        clearHoverUnderline()
-
-        val effectColor =
-            request.editor.colorsScheme
-                .getAttributes(EditorColors.REFERENCE_HYPERLINK_COLOR)
-                ?.foregroundColor
-                ?: request.editor.colorsScheme.defaultForeground
-        val attributes =
-            TextAttributes(
-                null,
-                null,
-                effectColor,
-                EffectType.LINE_UNDERSCORE,
-                Font.PLAIN,
-            )
-        val highlighter =
-            request.editor.markupModel.addRangeHighlighter(
-                request.documentationRequest.startOffset,
-                request.documentationRequest.endOffset,
-                HighlighterLayer.HYPERLINK,
-                attributes,
-                HighlighterTargetArea.EXACT_RANGE,
-            )
-
-        hoverUnderline =
-            HoverUnderline(
-                editor = request.editor,
-                highlighter = highlighter,
-                startOffset = request.documentationRequest.startOffset,
-                endOffset = request.documentationRequest.endOffset,
-            )
-    }
-
-    private fun clearHoverUnderline() {
-        val underline = hoverUnderline ?: return
-
-        hoverUnderline = null
-
-        if (!underline.editor.isDisposed) {
-            underline.editor.markupModel.removeHighlighter(underline.highlighter)
-        }
     }
 
     private fun hidePopup(restoreNativeHover: Boolean) {
@@ -333,71 +273,70 @@ internal class TaigaQuickDocumentationHoverController(
         currentPopup?.cancel()
 
         if (restoreNativeHover) {
-            restoreNativeHover()
-        }
-    }
-
-    private fun suppressNativeHover(editor: Editor) {
-        if (nativeHoverSuppressedEditor === editor) {
-            return
-        }
-
-        restoreNativeHover()
-        EditorMouseHoverPopupControl.disablePopups(editor)
-        nativeHoverSuppressedEditor = editor
-    }
-
-    private fun restoreNativeHover() {
-        val editor = nativeHoverSuppressedEditor ?: return
-
-        nativeHoverSuppressedEditor = null
-
-        if (!editor.isDisposed) {
-            EditorMouseHoverPopupControl.enablePopups(editor)
+            nativeHoverSuppression.restore()
         }
     }
 }
 
 private fun EditorMouseEvent.toTaigaQuickDocumentationHoverRequest(
     project: Project,
-): TaigaQuickDocumentationHoverRequest? {
-    if (
-        area != EditorMouseEventArea.EDITING_AREA ||
-        editor.project != project ||
-        project.isDisposed ||
-        editor.isDisposed ||
-        editor.selectionModel.hasSelection() ||
-        LookupManager.getInstance(project).activeLookup != null ||
-        !EditorSettingsExternalizable.getInstance().isShowQuickDocOnMouseOverElement
-    ) {
-        return null
-    }
+): TaigaQuickDocumentationHoverRequest? =
+    takeIf { event -> event.canStartTaigaDocumentationHover(project) }
+        ?.let { event ->
+            PsiDocumentManager
+                .getInstance(project)
+                .getPsiFile(event.editor.document)
+                ?.let { file ->
+                    ReadAction
+                        .compute<TaigaDocumentationRequest?, RuntimeException> {
+                            TaigaDocumentationResolver.findRequest(file, event.offset)
+                        }?.let { request ->
+                            file.sourcePath()?.let { sourceFile ->
+                                TaigaQuickDocumentationHoverRequest(
+                                    editor = event.editor,
+                                    anchor = Point(event.mouseEvent.point),
+                                    sourceFile = sourceFile,
+                                    documentationRequest = request,
+                                    modificationStamp = event.editor.document.modificationStamp,
+                                )
+                            }
+                        }
+                }
+        }
 
-    val file = PsiDocumentManager.getInstance(project).getPsiFile(editor.document) ?: return null
-    val documentationRequest =
-        ReadAction.compute<TaigaDocumentationRequest?, RuntimeException> {
-            TaigaDocumentationResolver.findRequest(file, offset)
-        } ?: return null
-    val sourceFile = file.sourcePath() ?: return null
+private fun EditorMouseEvent.canStartTaigaDocumentationHover(project: Project): Boolean {
+    val projectState =
+        area == EditorMouseEventArea.EDITING_AREA &&
+            editor.project == project &&
+            !project.isDisposed &&
+            !editor.isDisposed
+    val editorState =
+        !editor.selectionModel.hasSelection() &&
+            LookupManager.getInstance(project).activeLookup == null
+    val settingEnabled =
+        EditorSettingsExternalizable
+            .getInstance()
+            .isShowQuickDocOnMouseOverElement
 
-    return TaigaQuickDocumentationHoverRequest(
-        editor = editor,
-        event = this,
-        anchor = Point(mouseEvent.point),
-        sourceFile = sourceFile,
-        documentationRequest = documentationRequest,
-        modificationStamp = editor.document.modificationStamp,
-    )
+    return projectState && editorState && settingEnabled
 }
 
-private fun TaigaQuickDocumentationHoverRequest.isStillCurrent(project: Project): Boolean =
-    editor.project == project &&
-        !project.isDisposed &&
-        !editor.isDisposed &&
+private fun TaigaQuickDocumentationHoverRequest.isStillCurrent(project: Project): Boolean {
+    val projectState =
+        editor.project == project &&
+            !project.isDisposed &&
+            !editor.isDisposed
+    val documentState =
         !editor.selectionModel.hasSelection() &&
-        editor.document.modificationStamp == modificationStamp &&
+            editor.document.modificationStamp == modificationStamp
+    val uiState =
         LookupManager.getInstance(project).activeLookup == null &&
-        EditorSettingsExternalizable.getInstance().isShowQuickDocOnMouseOverElement
+            EditorSettingsExternalizable
+                .getInstance()
+                .isShowQuickDocOnMouseOverElement
+
+    return projectState && documentState && uiState
+}
 
 private fun TaigaQuickDocumentationHoverRequest.popupLocation(): Point {
     val point = Point(anchor)
@@ -419,7 +358,6 @@ private val TaigaQuickDocumentationHoverRequest.key: TaigaQuickDocumentationHove
 
 private data class TaigaQuickDocumentationHoverRequest(
     val editor: Editor,
-    val event: EditorMouseEvent,
     val anchor: Point,
     val sourceFile: Path,
     val documentationRequest: TaigaDocumentationRequest,
@@ -431,13 +369,6 @@ private data class TaigaQuickDocumentationHoverKey(
     val startOffset: Int,
     val endOffset: Int,
     val modificationStamp: Long,
-)
-
-private data class HoverUnderline(
-    val editor: Editor,
-    val highlighter: RangeHighlighter,
-    val startOffset: Int,
-    val endOffset: Int,
 )
 
 private val HOVER_HIDE_GRACE_PERIOD = 250.milliseconds
