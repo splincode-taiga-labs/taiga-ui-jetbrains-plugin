@@ -65,7 +65,7 @@ internal class TaigaQuickDocumentationPopupPanel(
                 },
             )
             add(Box.createHorizontalStrut(JBUI.scale(7)))
-            add(createBadge(resolved.badge))
+            add(quickDocsBadge(resolved.badge))
             add(Box.createHorizontalGlue())
             add(
                 LinkLabel<Any>("View documentation ↗", null) { _, _ ->
@@ -73,16 +73,6 @@ internal class TaigaQuickDocumentationPopupPanel(
                     onClose()
                 },
             )
-        }
-
-    private fun createBadge(text: String): JComponent =
-        JBLabel(text).apply {
-            isOpaque = true
-            background = UIUtil.getTextFieldBackground()
-            foreground = UIUtil.getContextHelpForeground()
-            border = JBUI.Borders.empty(2, 6)
-            font = font.deriveFont((font.size2D - 1F).coerceAtLeast(10F))
-            alignmentY = CENTER_ALIGNMENT
         }
 
     private fun createMetaLabel(): JComponent? {
@@ -275,6 +265,16 @@ internal class TaigaQuickDocumentationPopupPanel(
         const val MAX_VISIBLE_API_PROPERTIES = 6
     }
 }
+
+private fun quickDocsBadge(text: String): JComponent =
+    JBLabel(text).apply {
+        isOpaque = true
+        background = UIUtil.getTextFieldBackground()
+        foreground = UIUtil.getContextHelpForeground()
+        border = JBUI.Borders.empty(2, 6)
+        font = font.deriveFont((font.size2D - 1F).coerceAtLeast(10F))
+        alignmentY = JComponent.CENTER_ALIGNMENT
+    }
 
 private fun wrappedLabel(text: String): JComponent =
     JBLabel(
