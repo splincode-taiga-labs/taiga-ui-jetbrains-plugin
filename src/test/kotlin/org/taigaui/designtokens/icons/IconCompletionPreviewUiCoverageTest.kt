@@ -8,6 +8,7 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.testFramework.runInEdtAndGet
 import com.intellij.ui.LightweightHint
+import com.intellij.util.ui.UIUtil
 import java.awt.BorderLayout
 import java.awt.image.BufferedImage
 import java.nio.file.Files
@@ -45,14 +46,14 @@ class IconCompletionPreviewUiCoverageTest : BasePlatformTestCase() {
             showPreview(controller, lookup)
             val hint = requireNotNull(readPrivateField(controller, "previewHint")) as LightweightHint
 
-            assertTrue(hint.isVisible)
+            waitUntil { hint.isVisible }
 
             showPreview(controller, lookup)
-            assertTrue(hint.isVisible)
+            waitUntil { hint.isVisible }
 
             runInEdtAndGet { LookupManager.getInstance(project).hideActiveLookup() }
 
-            assertFalse(hint.isVisible)
+            waitUntil { !hint.isVisible }
         }
     }
 
@@ -66,11 +67,11 @@ class IconCompletionPreviewUiCoverageTest : BasePlatformTestCase() {
             showPreview(controller, lookup)
             val hint = requireNotNull(readPrivateField(controller, "previewHint")) as LightweightHint
 
-            assertTrue(hint.isVisible)
+            waitUntil { hint.isVisible }
 
             myFixture.finishLookup('\n')
 
-            assertFalse(hint.isVisible)
+            waitUntil { !hint.isVisible }
         }
     }
 
@@ -142,6 +143,20 @@ class IconCompletionPreviewUiCoverageTest : BasePlatformTestCase() {
                 rootPane.contentPane.remove(component)
             }
         }
+    }
+
+    private fun waitUntil(condition: () -> Boolean) {
+        repeat(500) {
+            UIUtil.dispatchAllInvocationEvents()
+
+            if (condition()) {
+                return
+            }
+
+            Thread.sleep(10)
+        }
+
+        assertTrue(condition())
     }
 
     private fun invokePrivate(
