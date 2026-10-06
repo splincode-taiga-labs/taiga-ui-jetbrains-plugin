@@ -147,9 +147,10 @@ internal class DesignTokenPackageImportGraph {
         const val PACKAGE_PATH_SEGMENTS = 3
         const val TAIGA_UI_PACKAGE_PREFIX = "@taiga-ui/"
         val SUPPORTED_EXTENSIONS = listOf("less", "css", "scss")
-        val IMPORT_PATTERN = Regex(
-            pattern = """@import\s*(?:\([^)]*\)\s*)?(?:url\(\s*)?['\"]([^'\"]+)['\"]\s*\)?""",
-            option = RegexOption.IGNORE_CASE,
-        )
+        val IMPORT_PATTERN =
+            Regex(
+                pattern = """@import\s*(?:\([^)]*\)\s*)?(?:url\(\s*)?['\"]([^'\"]+)['\"]\s*\)?""",
+                option = RegexOption.IGNORE_CASE,
+            )
     }
 }

@@ -118,7 +118,11 @@ class DesignTokenContextClassifier {
         const val DARK_MARKER = "dark"
 
         val IOS_PLATFORM_SELECTOR = attributeSelector(attribute = "(?:tuiPlatform|data-platform)", value = "ios")
-        val ANDROID_PLATFORM_SELECTOR = attributeSelector(attribute = "(?:tuiPlatform|data-platform)", value = "android")
+        val ANDROID_PLATFORM_SELECTOR =
+            attributeSelector(
+                attribute = "(?:tuiPlatform|data-platform)",
+                value = "android",
+            )
         val LIGHT_THEME_SELECTOR = attributeSelector(attribute = "tuiTheme", value = "light")
         val DARK_THEME_SELECTOR = attributeSelector(attribute = "tuiTheme", value = "dark")
         val LIGHT_THEME_MIXIN = Regex("""\.(?:tui-theme-)?light\s*\(""", RegexOption.IGNORE_CASE)

@@ -330,10 +330,11 @@ internal class TaigaDocsParser {
         const val CODE_FENCE = "\u0060\u0060\u0060"
         val ENTITY_HEADING = Regex("^# ([A-Za-z][A-Za-z0-9-]*)/(.+?)\\s*$")
         val CATEGORY_HEADING = Regex("^\\*\\*([A-Za-z][A-Za-z ]+):\\*\\*$")
-        val METADATA_LINE = Regex(
-            "^- \\*\\*(Package|Type|Version)\\*\\*:\\s*(.+?)\\s*$",
-            RegexOption.IGNORE_CASE,
-        )
+        val METADATA_LINE =
+            Regex(
+                "^- \\*\\*(Package|Type|Version)\\*\\*:\\s*(.+?)\\s*$",
+                RegexOption.IGNORE_CASE,
+            )
         val EXPORT_SYMBOL = Regex("[A-Za-z_$][A-Za-z0-9_$]*")
         val TABLE_SEPARATOR = Regex(":?-{3,}:?")
         val PACKAGE_NAME = Regex("[a-z0-9-]+")
