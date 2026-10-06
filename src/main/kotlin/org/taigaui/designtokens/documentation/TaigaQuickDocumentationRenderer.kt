@@ -4,25 +4,11 @@ import com.intellij.lang.documentation.DocumentationMarkup
 import com.intellij.openapi.util.text.StringUtil
 
 internal object TaigaQuickDocumentationRenderer {
-    fun render(
-        entity: TaigaEntityDoc,
-        subject: TaigaDocumentationSubject,
-    ): String =
+    fun render(resolved: TaigaResolvedDocumentation): String =
         buildString {
-            append(DocumentationMarkup.DEFINITION_START)
-            append("<b>")
-            append((subject.publicSymbol ?: entity.displaySymbol()).html())
-            append("</b>")
+            appendDefinition(resolved)
 
-            (subject.packageName ?: entity.packageNames.singleOrNull())?.let { packageName ->
-                append("<br><code>")
-                append(packageName.html())
-                append("</code>")
-            }
-
-            append(DocumentationMarkup.DEFINITION_END)
-
-            entity.description?.takeIf(String::isNotBlank)?.let { description ->
+            resolved.description?.takeIf(String::isNotBlank)?.let { description ->
                 append(DocumentationMarkup.CONTENT_START)
                 append(description.html())
                 append(DocumentationMarkup.CONTENT_END)
@@ -30,33 +16,78 @@ internal object TaigaQuickDocumentationRenderer {
 
             append(DocumentationMarkup.SECTIONS_START)
 
-            (subject.selector ?: entity.selectors.singleOrNull())?.let { selector ->
-                addSection("Selector:", "<code>${selector.html()}</code>")
+            when (resolved) {
+                is TaigaResolvedDocumentation.Entity -> appendEntitySections(resolved)
+                is TaigaResolvedDocumentation.Member -> appendMemberSections(resolved)
             }
-
-            subject.canonicalImport()?.let { statement ->
-                addSection("Import:", "<code>${statement.html()}</code>")
-            }
-
-            addApiSection("Inputs:", entity.inputs)
-            addApiSection("Outputs:", entity.outputs)
-
-            entity.example
-                ?.code
-                ?.takeIf(::isCompactExample)
-                ?.let { code ->
-                    val content =
-                        if ('\n' in code) {
-                            "<pre><code>${code.html()}</code></pre>"
-                        } else {
-                            "<code>${code.html()}</code>"
-                        }
-
-                    addSection("Example:", content)
-                }
 
             append(DocumentationMarkup.SECTIONS_END)
         }
+
+    private fun StringBuilder.appendDefinition(resolved: TaigaResolvedDocumentation) {
+        append(DocumentationMarkup.DEFINITION_START)
+        append("<b>")
+        append(resolved.presentationName.html())
+        append("</b>")
+        append("&nbsp;&nbsp;<i>")
+        append(resolved.badge.html())
+        append("</i>")
+
+        val meta =
+            listOfNotNull(
+                resolved.ownerName?.let { owner -> "of $owner" },
+                resolved.packageName,
+            ).joinToString(" · ")
+
+        if (meta.isNotBlank()) {
+            append("<br><code>")
+            append(meta.html())
+            append("</code>")
+        }
+
+        append(DocumentationMarkup.DEFINITION_END)
+    }
+
+    private fun StringBuilder.appendEntitySections(resolved: TaigaResolvedDocumentation.Entity) {
+        resolved.typeText?.takeIf(String::isNotBlank)?.let { type ->
+            addSection("Type:", "<code>${type.html()}</code>")
+        }
+
+        resolved.effectiveUsage?.takeIf(String::isNotBlank)?.let { usage ->
+            addSection("Usage:", usage.asCodeBlock())
+        }
+
+        resolved.canonicalImport()?.let { statement ->
+            addSection("Import:", "<code>${statement.html()}</code>")
+        }
+
+        addApiSection("Inputs:", resolved.entity.inputs)
+        addApiSection("Outputs:", resolved.entity.outputs)
+    }
+
+    private fun StringBuilder.appendMemberSections(resolved: TaigaResolvedDocumentation.Member) {
+        resolved.typeText?.takeIf(String::isNotBlank)?.let { type ->
+            addSection("Type:", "<code>${type.html()}</code>")
+        }
+
+        resolved.effectiveUsage?.takeIf(String::isNotBlank)?.let { usage ->
+            addSection("Usage:", usage.asCodeBlock())
+        }
+
+        resolved.possibleValues().takeIf(List<String>::isNotEmpty)?.let { values ->
+            addSection(
+                "Possible values:",
+                values.joinToString("&nbsp; ") { value -> "<code>${value.html()}</code>" },
+            )
+        }
+
+        resolved.relatedMembers().takeIf(List<String>::isNotEmpty)?.let { related ->
+            addSection(
+                "See also:",
+                related.joinToString("&nbsp; ") { value -> "<code>${value.html()}</code>" },
+            )
+        }
+    }
 
     private fun StringBuilder.addApiSection(
         title: String,
@@ -71,21 +102,26 @@ internal object TaigaQuickDocumentationRenderer {
         val content =
             buildString {
                 append(
-                    visible.joinToString(",&nbsp; ") { property ->
+                    visible.joinToString("<br>") { property ->
                         buildString {
                             append("<code>")
                             append(property.name.html())
                             property.documentedType?.let { type ->
-                                append(": ")
+                                append("</code>&nbsp;&nbsp;<code>")
                                 append(type.html())
                             }
                             append("</code>")
+
+                            property.description?.takeIf(String::isNotBlank)?.let { description ->
+                                append("&nbsp;&nbsp;—&nbsp;")
+                                append(description.html())
+                            }
                         }
                     },
                 )
 
                 if (remaining > 0) {
-                    append("&nbsp; <span style='color:gray'>+$remaining more</span>")
+                    append("<br><i>+$remaining more in full documentation</i>")
                 }
             }
 
@@ -107,26 +143,14 @@ internal object TaigaQuickDocumentationRenderer {
         append(DocumentationMarkup.SECTION_END)
     }
 
-    private fun TaigaEntityDoc.displaySymbol(): String = publicSymbols.firstOrNull() ?: title
-
-    private fun TaigaDocumentationSubject.canonicalImport(): String? {
-        val symbol = publicSymbol
-        val resolvedPackageName = packageName
-
-        return if (symbol != null && resolvedPackageName != null) {
-            "import {$symbol} from '$resolvedPackageName';"
+    private fun String.asCodeBlock(): String =
+        if ('\n' in this) {
+            "<pre><code>${html()}</code></pre>"
         } else {
-            null
+            "<code>${html()}</code>"
         }
-    }
-
-    private fun isCompactExample(code: String): Boolean =
-        code.length <= MAX_EXAMPLE_LENGTH &&
-            code.lineSequence().take(MAX_EXAMPLE_LINES + 1).count() <= MAX_EXAMPLE_LINES
 
     private fun String.html(): String = StringUtil.escapeXmlEntities(this)
 
-    private const val MAX_VISIBLE_API_PROPERTIES = 5
-    private const val MAX_EXAMPLE_LENGTH = 220
-    private const val MAX_EXAMPLE_LINES = 3
+    private const val MAX_VISIBLE_API_PROPERTIES = 6
 }
