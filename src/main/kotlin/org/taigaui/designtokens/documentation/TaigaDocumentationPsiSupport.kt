@@ -4,6 +4,7 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiPolyVariantReference
 import com.intellij.psi.PsiReference
+import com.intellij.psi.PsiManager
 
 internal fun PsiElement.candidateReferences(
     file: PsiFile,
@@ -73,15 +74,35 @@ internal fun PsiElement.taigaPackageName(): String? =
 internal fun PsiElement.typeDefinition(symbol: String): String? =
     ancestors(TYPE_DEFINITION_PARENT_LIMIT)
         .map { element -> element.text.take(MAX_DECLARATION_TEXT) }
-        .mapNotNull { text ->
-            Regex(
-                """\btype\s+${Regex.escape(symbol)}(?:<[^>]+>)?\s*=\s*(.+?);""",
-                RegexOption.DOT_MATCHES_ALL,
-            ).find(text)
-                ?.groupValues
-                ?.get(1)
-        }.map { definition -> definition.replace(WHITESPACE, " ").trim() }
+        .mapNotNull { text -> text.extractTypeDefinition(symbol) }
         .firstOrNull()
+
+internal fun PsiFile.taigaImportedTypeDefinition(
+    symbol: String,
+    packageName: String,
+): String? {
+    val relativePath = "node_modules/$packageName/index.d.ts"
+    val declarationFile =
+        generateSequence(originalFile.virtualFile?.parent) { directory -> directory.parent }
+            .mapNotNull { directory -> directory.findFileByRelativePath(relativePath) }
+            .firstOrNull()
+            ?.let { virtualFile -> PsiManager.getInstance(project).findFile(virtualFile) }
+            ?: return null
+
+    return declarationFile.text
+        .take(MAX_DECLARATION_TEXT)
+        .extractTypeDefinition(symbol)
+}
+
+private fun String.extractTypeDefinition(symbol: String): String? =
+    Regex(
+        """\btype\s+${Regex.escape(symbol)}(?:<[^>]+>)?\s*=\s*(.+?);""",
+        RegexOption.DOT_MATCHES_ALL,
+    ).find(this)
+        ?.groupValues
+        ?.get(1)
+        ?.replace(WHITESPACE, " ")
+        ?.trim()
         ?.take(MAX_TYPE_DEFINITION)
 
 private fun PsiElement.ancestors(limit: Int): Sequence<PsiElement> =
