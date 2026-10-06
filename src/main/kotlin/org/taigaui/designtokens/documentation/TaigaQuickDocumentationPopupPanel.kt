@@ -124,6 +124,7 @@ internal class TaigaQuickDocumentationPopupPanel(
         ).apply {
             foreground = CARD_MUTED_FOREGROUND
             alignmentX = LEFT_ALIGNMENT
+            font = font.deriveFont(Font.PLAIN)
         }
 
     private fun entityContent(entity: TaigaResolvedDocumentation.Entity): JComponent =
@@ -191,7 +192,7 @@ internal class TaigaQuickDocumentationPopupPanel(
                     add(
                         table(
                             pipe.parameters.map { parameter ->
-                                (parameter.name + if (parameter.optional) "?" else "") to
+                                parameter.presentationName to
                                     listOfNotNull(parameter.type, parameter.description).joinToString(" — ")
                             },
                         ),
@@ -445,7 +446,7 @@ private class TaigaDocumentationBadge(
                 else -> UIUtil.getContextHelpForeground()
             }
         border = JBUI.Borders.empty(3, 8)
-        font = font.deriveFont(font.size2D - 1F)
+        font = font.deriveFont(Font.PLAIN, font.size2D - 1F)
     }
 
     override fun paintComponent(graphics: Graphics) {
@@ -475,6 +476,7 @@ private fun link(
 ): LinkLabel<Any> =
     LinkLabel<Any>(title, null) { _, _ -> action() }.apply {
         foreground = DESIGN_TOKEN_POPUP_LINK_COLOR
+        font = font.deriveFont(Font.PLAIN)
     }
 
 private fun wrappedLabel(
@@ -486,6 +488,7 @@ private fun wrappedLabel(
     ).apply {
         foreground = CARD_FOREGROUND
         alignmentX = JComponent.LEFT_ALIGNMENT
+        font = font.deriveFont(Font.PLAIN)
     }
 
 private fun codeFont(): Font = Font(Font.MONOSPACED, Font.PLAIN, UIUtil.getLabelFont().size)

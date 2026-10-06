@@ -55,6 +55,17 @@ jobs:
                   distribution: temurin
                   java-version: 21
 
+            - name: Verify contextual documentation
+              env:
+                  JAVA_TOOL_OPTIONS: -Djava.io.tmpdir=${{ runner.temp }}
+              run: >-
+                  ./gradlew
+                  test
+                  --tests 'org.taigaui.designtokens.documentation.TaigaQuickDocumentation*'
+                  --tests 'org.taigaui.designtokens.documentation.TaigaLocalDocumentationTest'
+                  -Djava.net.useSystemProxies=false
+                  --stacktrace
+
             - name: Check and build plugin
               env:
                   JAVA_TOOL_OPTIONS: -Djava.io.tmpdir=${{ runner.temp }}

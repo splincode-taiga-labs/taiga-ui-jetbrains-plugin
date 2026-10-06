@@ -25,6 +25,8 @@ class TaigaLocalDocumentationTest {
 
         assertEquals("tuiMapper", pipe.name)
         assertEquals(listOf("value", "mapper", "args"), pipe.parameters.map(TaigaPipeParameter::name))
+        assertTrue(pipe.parameters.last().variadic)
+        assertEquals("...args", pipe.parameters.last().presentationName)
         assertEquals("TuiMapper<[U, ...T], G>", pipe.parameters[1].type)
         assertEquals("a mapping function", pipe.parameters[1].description)
         assertEquals("G", pipe.resultType)
