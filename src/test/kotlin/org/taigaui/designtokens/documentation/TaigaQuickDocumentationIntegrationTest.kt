@@ -8,6 +8,7 @@ import com.intellij.platform.backend.documentation.impl.computeDocumentationBloc
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiPolyVariantReference
+import com.intellij.testFramework.PsiTestUtil
 import com.intellij.testFramework.fixtures.LightPlatformCodeInsightFixture4TestCase
 import com.intellij.testFramework.fixtures.TempDirTestFixture
 import com.intellij.testFramework.fixtures.impl.TempDirTestFixtureImpl
@@ -22,12 +23,17 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
     private val docsSource = requireNotNull(TaigaDocsSources.forMajor(5))
     private val docsCache = TaigaDocsCache()
     private lateinit var workspaceRoot: Path
+    private lateinit var workspaceDirectory: VirtualFile
 
     override fun createTempDirTestFixture(): TempDirTestFixture = TempDirTestFixtureImpl()
 
     override fun setUp() {
         super.setUp()
         workspaceRoot = Path.of(myFixture.tempDirPath)
+        workspaceDirectory = requireNotNull(myFixture.tempDirFixture.getFile(""))
+        runInEdtAndWait {
+            PsiTestUtil.addContentRoot(module, workspaceDirectory)
+        }
         docsCache.invalidate(docsSource)
         configureAngularProject()
         configureTaigaPackage()
@@ -37,6 +43,9 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
         try {
             docsCache.invalidate(docsSource)
             project.service<TaigaDocsService>().clearMemory()
+            runInEdtAndWait {
+                PsiTestUtil.removeContentEntry(module, workspaceDirectory)
+            }
         } finally {
             super.tearDown()
         }
