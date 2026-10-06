@@ -22,7 +22,7 @@ class TaigaQuickDocumentationRendererTest {
                     ),
                 startOffset = 0,
                 endOffset = 9,
-                usage = null,
+                usage = "<button appearance=\"secondary\" tuiButton>Current</button>",
                 typeDefinition = null,
             )
 
@@ -38,6 +38,8 @@ class TaigaQuickDocumentationRendererTest {
         )
         assertTrue(html.contains("iconEnd"))
         assertTrue(html.contains("valueChange"))
+        assertTrue(html.contains(StringUtil.escapeXmlEntities("<button tuiButton>Save</button>")))
+        assertFalse(html.contains("Current"))
         assertFalse(html.contains("Open full Taiga UI documentation"))
         assertFalse(html.contains("taiga-ui.dev"))
     }
