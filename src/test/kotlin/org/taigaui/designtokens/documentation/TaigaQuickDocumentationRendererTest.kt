@@ -72,8 +72,8 @@ class TaigaQuickDocumentationRendererTest {
         assertTrue(html.contains("Possible values"))
         assertTrue(html.contains("xs"))
         assertTrue(html.contains("xl"))
-        assertTrue(html.contains("See also"))
-        assertTrue(html.contains("iconEnd"))
+        assertFalse(html.contains("See also"))
+        assertFalse(html.contains("iconEnd"))
     }
 
     @Test

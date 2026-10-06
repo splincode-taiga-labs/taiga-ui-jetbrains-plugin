@@ -1,6 +1,7 @@
 package org.taigaui.designtokens.documentation
 
 import com.intellij.codeInsight.lookup.LookupElement
+import com.intellij.lang.injection.InjectedLanguageManager
 import com.intellij.polySymbols.PolySymbol
 import com.intellij.polySymbols.completion.PolySymbolCodeCompletionItem
 import com.intellij.polySymbols.html.attributes.HtmlAttributeSymbolDescriptor
@@ -17,6 +18,7 @@ internal data class TaigaDocumentationSubject(
     val selector: String?,
     val publicSymbol: String?,
     val packageName: String?,
+    val localDocumentation: TaigaLocalDocumentation = TaigaLocalDocumentation(),
 ) {
     val presentationName: String
         get() = publicSymbol ?: selector ?: packageName.orEmpty()
@@ -26,12 +28,16 @@ internal object TaigaDocumentationResolver {
     fun findRequest(
         file: PsiFile,
         offset: Int,
-    ): TaigaDocumentationRequest? =
-        if (file.isTaigaTemplateFile()) {
+    ): TaigaDocumentationRequest? {
+        val element = file.elementAt(offset) ?: return null
+        findPipeRequest(file, element, offset)?.let { return it }
+
+        return if (file.isTaigaTemplateFile()) {
             findTemplateRequest(file, offset)
         } else {
             findCodeRequest(file, offset)
         }
+    }
 
     @Suppress("ReturnCount")
     fun findSubject(
@@ -83,6 +89,10 @@ internal object TaigaDocumentationResolver {
                     startOffset = nameElement.textRange.startOffset,
                     endOffset = nameElement.textRange.endOffset,
                     usage = tag.memberUsage(member, owners.firstOrNull()?.selector),
+                    declaration =
+                        (attribute.descriptor as? HtmlAttributeSymbolDescriptor)
+                            ?.symbol
+                            ?.toLocalSubject(selector = null),
                 )
             }
 
@@ -98,6 +108,7 @@ internal object TaigaDocumentationResolver {
                 startOffset = nameElement.textRange.startOffset,
                 endOffset = nameElement.textRange.endOffset,
                 usage = attribute.parent.compactUsage(),
+                icons = attribute.parent.documentationIcons(),
             )
         }
 
@@ -119,7 +130,40 @@ internal object TaigaDocumentationResolver {
             startOffset = element.textRange.startOffset,
             endOffset = element.textRange.endOffset,
             usage = tag.compactUsage(),
+            icons = tag.documentationIcons(),
         )
+    }
+
+    private fun findPipeRequest(
+        file: PsiFile,
+        element: PsiElement,
+        offset: Int,
+    ): TaigaDocumentationRequest.Entity? {
+        val manager = InjectedLanguageManager.getInstance(file.project)
+        if (!file.isTaigaTemplateFile() && !manager.isInjectedFragment(file)) return null
+        val reference = findTaigaPipeReference(file.viewProvider.contents, offset) ?: return null
+        val candidate = manager.findInjectedElementAt(file, offset) ?: element
+        val candidateFile = candidate.containingFile
+        val candidateOffset = if (candidateFile == file) offset else candidate.textOffset
+        val declaration = candidate.resolveTaigaDeclaration(candidateFile, candidateOffset) ?: return null
+        val subject = declaration.toLocalSubject(selector = null) ?: return null
+        val pipe = subject.localDocumentation.pipe ?: return null
+        val range =
+            if (candidateFile == file) {
+                com.intellij.openapi.util.TextRange(reference.startOffset, reference.endOffset)
+            } else {
+                manager.injectedToHost(candidate, candidate.textRange)
+            }
+
+        return if (reference.name == pipe.name) {
+            TaigaDocumentationRequest.Entity(
+                subjects = listOf(subject.copy(selector = pipe.name)),
+                startOffset = range.startOffset,
+                endOffset = range.endOffset,
+            )
+        } else {
+            null
+        }
     }
 
     @Suppress("ReturnCount")
@@ -142,6 +186,7 @@ internal object TaigaDocumentationResolver {
                         selector = null,
                         publicSymbol = publicSymbol,
                         packageName = packageName,
+                        localDocumentation = declaration?.localDocumentation(publicSymbol) ?: TaigaLocalDocumentation(),
                     ),
                 ),
             startOffset = element.textRange.startOffset,
@@ -228,6 +273,7 @@ private fun PsiElement.toLocalSubject(
             selector = selector,
             publicSymbol = requestedSymbol ?: taigaPublicSymbol(),
             packageName = packageName,
+            localDocumentation = localDocumentation(requestedSymbol ?: taigaPublicSymbol()),
         )
     }
 

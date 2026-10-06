@@ -16,6 +16,14 @@ This project is **not an official Taiga UI or T-Bank product**. Contributions, b
 
 The plugin reads the Taiga UI packages installed in the current project, so completion and previews match the version the project actually uses.
 
+## Contextual documentation
+
+Hover a Taiga UI component, directive, pipe, or input/output to see its purpose and relevant API directly in the editor. Component and directive cards show parameters immediately; clicking a parameter opens its focused description. Directive cards can explain applicable elements and documented local defaults. Pipe cards show their arguments, result, and recalculation behavior when that information is available.
+
+When an element has a static `@tui.*` icon value, its card can show an SVG preview and a **Choose icon** action. The chooser searches the project's existing icon catalog and replaces the selected literal with undo support. Dynamic expressions remain untouched.
+
+Cards link to full documentation and locally resolved source definitions. Examples are opened on demand. Standard Quick Documentation and completion documentation remain available.
+
 ## Design tokens
 
 ### Completion

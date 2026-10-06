@@ -194,6 +194,18 @@ The project-level docs store:
 
 Cache bookkeeping stays behind small synchronized sections; network requests and parsing remain outside cache locks.
 
+### Contextual documentation cards
+
+Hover cards share a header, semantic kind badge, package metadata, and working documentation/source actions. Their bodies are specific to components, directives, pipes, and individual bindings. Parameters are visible immediately; complete examples are opened explicitly. Current application markup and canonical imports do not occupy the hover summary.
+
+Locally resolved declarations contribute bounded, immutable presentation facts: source location, Angular selector, signal-input types, literal or injected input defaults, and a pipe's transform signature. Purity is shown only when local `@Pipe`/`definePipe` metadata establishes it. The standalone argument of `PipeDeclaration` is never interpreted as purity. Unknown defaults and dynamic expressions remain unknown; no JavaScript is evaluated.
+
+Angular template pipes are resolved through host/injected PSI references into installed Taiga packages before documentation enrichment. Ordinary pipes and unrelated local symbols remain owned by the IDE.
+
+The documentation UI may consume the existing icon catalog and renderer through an editor-level adapter. It introduces no independent icon discovery or source precedence. SVG loading/rendering runs separately on IO workers, so documentation can appear before a preview is ready. Late results are applied only to the still-current card and document.
+
+The icon chooser replaces only an already-present, complete static `@tui.*` literal, in one undoable write command. It checks the document generation and original literal before writing. Dynamic bindings are never evaluated or overwritten by the chooser.
+
 ## CSS unit helpers
 
 CSS unit helpers are intentionally stateless editor features. They do not participate in token discovery, project graphs, caches, or package resolution.
