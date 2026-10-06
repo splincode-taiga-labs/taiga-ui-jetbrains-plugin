@@ -112,6 +112,7 @@ internal class GenerationAwareSingleFlight<K, V, M>(
         publish: (V) -> Unit,
     ): BuildOutcome<V> {
         val result = runCatching(build)
+        val failure = result.exceptionOrNull()
         val outcome =
             synchronized(lock) {
                 val isCurrentGeneration =
@@ -119,9 +120,9 @@ internal class GenerationAwareSingleFlight<K, V, M>(
 
                 when {
                     !isCurrentGeneration -> BuildOutcome.Stale
-                    result.isFailure -> {
+                    failure != null -> {
                         pendingBuilds.remove(key)
-                        BuildOutcome.Failure(requireNotNull(result.exceptionOrNull()))
+                        BuildOutcome.Failure(failure)
                     }
                     !isCurrent(pending.metadata, result.getOrThrow()) -> {
                         generations[key] = (generations[key] ?: 0L) + 1L
