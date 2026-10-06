@@ -143,8 +143,8 @@ class CompletionPreviewUiCoverageTest : BasePlatformTestCase() {
                 object : JLayeredPane() {
                     override fun isShowing(): Boolean = true
                 }
+            rootPane.contentPane = javax.swing.JPanel(BorderLayout())
             component.parent?.remove(component)
-            rootPane.contentPane.layout = BorderLayout()
             rootPane.contentPane.add(component, BorderLayout.CENTER)
             rootPane.setSize(1_200, 800)
             rootPane.layeredPane.setSize(1_200, 800)
