@@ -178,8 +178,10 @@ internal class TaigaQuickDocumentationPopupPanel(
             ) {
                 add(detail("Requirement", "Required input"))
             }
-            (member.declaration?.localDocumentation?.defaults?.firstOrNull { it.name == member.property.name }
-                ?: member.localDocumentation.defaults.firstOrNull { it.name == member.property.name })?.let {
+            val default =
+                member.declaration?.localDocumentation?.defaults?.firstOrNull { it.name == member.property.name }
+                    ?: member.localDocumentation.defaults.firstOrNull { it.name == member.property.name }
+            default?.let {
                 add(
                     defaultNote(it),
                 )
