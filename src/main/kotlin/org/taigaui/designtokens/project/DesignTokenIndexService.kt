@@ -170,7 +170,6 @@ class DesignTokenIndexService(
         }
     }
 
-
     private fun contextKeyOrFallback(
         normalizedSourceFile: Path,
         operation: () -> TokenContextKey,
@@ -200,7 +199,6 @@ class DesignTokenIndexService(
 
             packageIndexCached && packageNameCatalogCached && projectIndexCached
         }.getOrDefault(false)
-
 
     internal fun invalidate(changedPaths: Collection<Path>): Int {
         val packageInvalidated = cache.invalidate(changedPaths)
