@@ -26,7 +26,9 @@ import javax.imageio.ImageIO
 import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JTabbedPane
+import javax.swing.JViewport
 import javax.swing.KeyStroke
+import javax.swing.SwingUtilities
 
 class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
     fun testDirectiveCardShowsParametersImmediatelyWithoutDuplicateMarkup() {
@@ -358,6 +360,10 @@ class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
         activate(panel, "F5")
         assertTrue(refreshed)
         renderAndSave(panel, "stale-binding")
+        val value = buttons.first { it.text == "m" }
+        val viewport = descendants(panel).filterIsInstance<JViewport>().first()
+        val position = SwingUtilities.convertPoint(value.parent, value.location, viewport)
+        assertTrue("Literal buttons must remain visible after invalidation", position.y + value.height <= viewport.height)
     }
 
     fun testCardKeyboardActionDoesNotRequireMouseHoverSetting() {

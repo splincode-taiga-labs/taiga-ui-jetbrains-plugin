@@ -45,6 +45,7 @@ internal data class TaigaDocumentationPopupActions(
     val applyTemplateEdit: ((TaigaDocumentationTemplateEdit) -> String)? = null,
     val navigateDeclaration: ((TaigaDocumentationSource) -> Unit)? = null,
     val refresh: (() -> Unit)? = null,
+    val resize: (() -> Unit)? = null,
 )
 
 /** The same compact card structure serves every kind, with kind-specific content. */
@@ -128,13 +129,20 @@ internal class TaigaQuickDocumentationPopupPanel(
         contextStatus.removeAll()
         contextStatus.add(wrappedLabel(message))
         actions.refresh?.let { refresh ->
-            val button = JButton("Refresh").apply { addActionListener { refresh() } }
+            val button =
+                JButton("Refresh").apply {
+                    alignmentX = LEFT_ALIGNMENT
+                    addActionListener { refresh() }
+                }
             contextStatus.add(button)
             keyboardButtons(button)
         }
         contextStatus.isVisible = true
+        scroll.preferredSize =
+            Dimension(JBUI.scale(CONTENT_WIDTH), content.preferredSize.height.coerceAtMost(JBUI.scale(MAX_BODY_HEIGHT)))
         revalidate()
         repaint()
+        actions.resize?.invoke()
     }
 
     fun showRefreshFailure() = invalidateContext("The source target changed. Reopen its card at the caret.")
