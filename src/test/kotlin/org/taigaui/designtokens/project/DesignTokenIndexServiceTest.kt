@@ -299,7 +299,7 @@ class DesignTokenIndexServiceTest : BasePlatformTestCase() {
                     candidate.name == "indexOrNull" &&
                         candidate.parameterCount == 2
                 }.apply { isAccessible = true }
-        val operation = kotlin.jvm.functions.Function0<DesignTokenIndex> { error("broken index") }
+        val operation: () -> DesignTokenIndex = { error("broken index") }
 
         assertNull(method.invoke(service, sourcePath, operation))
     }
@@ -316,7 +316,7 @@ class DesignTokenIndexServiceTest : BasePlatformTestCase() {
                     candidate.name == "contextKeyOrFallback" &&
                         candidate.parameterCount == 2
                 }.apply { isAccessible = true }
-        val operation = kotlin.jvm.functions.Function0<TokenContextKey> { error("broken resolver") }
+        val operation: () -> TokenContextKey = { error("broken resolver") }
         val key = method.invoke(service, sourcePath, operation) as TokenContextKey
 
         assertEquals(sourcePath.parent, key.workspaceRoot)
