@@ -5,6 +5,7 @@ import com.intellij.openapi.command.undo.UndoManager
 import com.intellij.openapi.fileEditor.impl.text.TextEditorProvider
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiFile
+import com.intellij.psi.PsiManager
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 
 class TaigaQuickDocumentationDxTest : BasePlatformTestCase() {
@@ -64,6 +65,17 @@ class TaigaQuickDocumentationDxTest : BasePlatformTestCase() {
         assertFalse(enabled.typeText.orEmpty().contains("InputSignal"))
         assertEquals("boolean", enabled.localMember?.valueType)
         assertTrue(enabled.localValues().isEmpty())
+    }
+
+    fun testEmptyIconInputsExposeChooserRangesWithoutInventingAPreview() {
+        val file = template("""<button tuiButton iconStart="" [iconEnd]="''">Save</button>""")
+        val end = member(file, "iconEnd").documentationIcons.single()
+        assertEquals("", end.name)
+        assertEquals(end.startOffset, end.endOffset)
+        assertEquals(file.text.indexOf("\"''\"") + 2, end.startOffset)
+        val start = member(file, "iconStart").documentationIcons.single()
+        assertEquals(file.text.indexOf("\"\"") + 1, start.startOffset)
+        assertEquals(start.startOffset, start.endOffset)
     }
 
     fun testSelectorThatIsAlsoAnInputHasAnOfflineCard() {
@@ -165,7 +177,7 @@ class TaigaQuickDocumentationDxTest : BasePlatformTestCase() {
     fun testDeprecatedReplacementPreservesDynamicExpressionAndHasSingleUndo() {
         val file = template("""<button tuiButton size="m" [oldSize]="condition ? first : second">Save</button>""")
         val old = member(file, "oldSize")
-        assertNotNull(old.localMember?.deprecated)
+        assertNotNull(if (old.localMember?.deprecated == null) declarationDiagnostics("oldSize") else "", old.localMember?.deprecated)
         val edit = old.templateEdits().single { it.kind == TaigaTemplateEditKind.RENAME_BINDING }
         val document = myFixture.editor.document
         val before = document.text
@@ -272,6 +284,16 @@ class TaigaQuickDocumentationDxTest : BasePlatformTestCase() {
         return requireNotNull(resolveDocumentation(requireNotNull(request)) as? TaigaResolvedDocumentation.Member)
     }
 
+    private fun declarationDiagnostics(name: String): String {
+        val virtual = requireNotNull(myFixture.tempDirFixture.getFile("node_modules/@taiga-ui/core/index.d.ts"))
+        val file = requireNotNull(PsiManager.getInstance(project).findFile(virtual))
+        val token = file.findElementAt(file.text.indexOf("$name:") + 1)
+        return generateSequence(token) { it.parent }.take(5).joinToString("\n") { element ->
+            val sibling = generateSequence(element.prevSibling) { it.prevSibling }.firstOrNull { !it.text.isNullOrBlank() }
+            "${element.javaClass.simpleName}: ${element.text.take(180)}; previous=${sibling?.javaClass?.simpleName}:${sibling?.text?.take(180)}"
+        }
+    }
+
     private fun create(
         path: String,
         text: String,
@@ -304,6 +326,7 @@ class TaigaQuickDocumentationDxTest : BasePlatformTestCase() {
             export declare class TuiButton extends TuiBase {
                 internalSize: TuiSize;
                 enabled: i0.InputSignalWithTransform<boolean, boolean | string>;
+                iconStart: string;
                 /** @deprecated Use newSize instead. */
                 oldSize: string;
                 newSize: string;
@@ -311,7 +334,7 @@ class TaigaQuickDocumentationDxTest : BasePlatformTestCase() {
                 legacyAppearance: string;
                 newAppearance: string;
                 static ɵdir: i0.ɵɵDirectiveDeclaration<TuiButton, "button[tuiButton]", never,
-                    {"internalSize": {"alias": "size"; "required": true}; "enabled": {"alias": "enabled"; "required": false; "isSignal": true}; "oldSize": "oldSize"; "newSize": "newSize"; "legacyAppearance": "legacyAppearance"; "newAppearance": "appearance"}, {}, never, never, true,
+                    {"internalSize": {"alias": "size"; "required": true}; "enabled": {"alias": "enabled"; "required": false; "isSignal": true}; "iconStart": "iconStart"; "oldSize": "oldSize"; "newSize": "newSize"; "legacyAppearance": "legacyAppearance"; "newAppearance": "appearance"}, {}, never, never, true,
                     [{directive: typeof TuiWithIcons; inputs: {"icon": "iconEnd"}; outputs: {}}]>;
             }
             export declare class TuiAux {

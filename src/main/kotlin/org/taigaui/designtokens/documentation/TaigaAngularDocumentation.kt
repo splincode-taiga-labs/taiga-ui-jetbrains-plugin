@@ -3,9 +3,7 @@ package org.taigaui.designtokens.documentation
 import com.intellij.lang.javascript.evaluation.JSTypeEvaluationLocationProvider
 import com.intellij.lang.javascript.psi.JSType
 import com.intellij.lang.javascript.psi.ecma6.TypeScriptClass
-import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiWhiteSpace
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.psi.xml.XmlTag
 import org.angular2.codeInsight.Angular2DeclarationsScope
@@ -94,13 +92,7 @@ private fun Angular2DirectiveProperty.documentationMember(kind: TaigaApiMemberKi
     val declared = source.inputFieldType(fieldName) ?: local.inputTypes[name]
     val presentation = declared?.let(::inputTypePresentation)
     val effective = accepted?.let(::inputTypePresentation)?.writeType ?: presentation?.writeType ?: declared
-    val comment = source.bindingDocComment()
-    val deprecated =
-        DEPRECATED
-            .find(comment)
-            ?.groupValues
-            ?.get(1)
-            ?.trim()
+    val comment = source.bindingComments()
     val projected =
         local.copy(
             source = source.documentationSource() ?: local.source,
@@ -118,9 +110,9 @@ private fun Angular2DirectiveProperty.documentationMember(kind: TaigaApiMemberKi
         expandedType = effective?.let { source.expandedInputType(it) },
         valueType = presentation?.storedType(kind, effective, transformType != null),
         transform = TRANSFORM.find(source.text)?.groupValues?.get(1),
-        description = comment.bindingDescription(),
-        deprecated = deprecated,
-        replacement = deprecated?.let { REPLACEMENT.find(it)?.groupValues?.get(1) },
+        description = comment.description,
+        deprecated = comment.deprecated,
+        replacement = comment.replacement,
     )
 }
 
@@ -136,24 +128,6 @@ private fun TaigaInputTypePresentation.storedType(kind: TaigaApiMemberKind, acce
     return readType.takeIf { kind == TaigaApiMemberKind.INPUT && differentTypes && it != accepted }
 }
 
-private fun PsiElement.bindingDocComment(): String {
-    val embedded = DOC_COMMENT.find(text)?.takeIf { text.substring(0, it.range.first).isBlank() }?.value
-    if (embedded != null) return embedded
-    var sibling = prevSibling
-    while (sibling is PsiWhiteSpace) sibling = sibling.prevSibling
-    return (sibling as? PsiComment)?.text?.takeIf { it.startsWith("/**") }.orEmpty()
-}
-
-private fun String.bindingDescription(): String? =
-    removePrefix("/**")
-        .removeSuffix("*/")
-        .lineSequence()
-        .map { it.trim().removePrefix("*").trim() }
-        .takeWhile { !it.startsWith('@') }
-        .filter(String::isNotBlank)
-        .joinToString(" ")
-        .takeIf(String::isNotBlank)
-
 private fun PsiElement.documentationSource(): TaigaDocumentationSource? =
     containingFile?.originalFile?.virtualFile?.path?.let { path ->
         TaigaDocumentationSource(
@@ -163,9 +137,6 @@ private fun PsiElement.documentationSource(): TaigaDocumentationSource? =
         )
     }
 
-private val DOC_COMMENT = Regex("""/\*\*[\s\S]*?\*/""")
-private val DEPRECATED = Regex("""@deprecated\s+([^\n*]+)""")
-private val REPLACEMENT = Regex("""(?i)\buse\s+(?:\{@link\s+|[`'"])?([A-Za-z_$][\w$]*)(?:}|[`'"])?\s+instead\b""")
 private val TRANSFORM = Regex("""\btransform\s*:\s*([\w$.]+)""")
 private const val MAX_LOCAL_DIRECTIVES = 32
 private const val MAX_LOCAL_API_MEMBERS = 128

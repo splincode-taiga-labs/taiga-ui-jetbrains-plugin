@@ -133,6 +133,8 @@ class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
             )
         val search = descendants(panel).filterIsInstance<JBTextField>().single()
         val results = descendants(panel).filterIsInstance<JBList<*>>().single()
+        val browser = descendants(panel).filterIsInstance<TaigaDocumentationApiBrowser>().single()
+        assertTrue(browser.alignmentX == JComponent.LEFT_ALIGNMENT)
         assertSame(search, panel.preferredFocus)
         assertEquals(1, results.model.size)
         assertEquals("visual", query)
@@ -163,6 +165,20 @@ class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
         panel.actionMap.get(backKey).actionPerformed(ActionEvent(panel, ActionEvent.ACTION_PERFORMED, "back"))
         assertTrue(back)
         renderAndSave(panel, "api-browser")
+        val focused = TaigaQuickDocumentationPopupPanel(requireNotNull(member),
+            actions = TaigaDocumentationPopupActions(goBack = { back = true }))
+        assertEquals("Back", (focused.preferredFocus as? JButton)?.text)
+    }
+
+    fun testEmptyIconInputOffersChooseIconWithoutAnSvgPreview() {
+        val reference = TaigaDocumentationIcon("iconEnd", "", 20, 20)
+        val owner = directive().copy(icons = listOf(reference))
+        val member = owner.focusedMember(owner.entity.inputs.first { it.name == "iconEnd" }, TaigaApiMemberKind.INPUT)
+        var chosen: TaigaDocumentationIcon? = null
+        val panel = TaigaQuickDocumentationPopupPanel(member, actions = TaigaDocumentationPopupActions(chooseIcon = { chosen = it }))
+        descendants(panel).filterIsInstance<JButton>().first { it.text == "Choose icon" }.doClick()
+        assertEquals(reference, chosen)
+        assertFalse(labelText(panel).contains("Icon from current value"))
     }
 
     fun testPinAndCloseActionsAreExplicit() {

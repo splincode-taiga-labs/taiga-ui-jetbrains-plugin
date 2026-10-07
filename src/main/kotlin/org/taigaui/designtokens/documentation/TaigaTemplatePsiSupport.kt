@@ -41,26 +41,26 @@ internal fun findTaigaPipeReference(
 }
 
 internal fun XmlTag.documentationIcons(): List<TaigaDocumentationIcon> =
-    attributes.mapNotNull { attribute ->
-        val name = attribute.bindingName().removeSurrounding("[", "]")
-        val value =
-            attribute.value
-                ?.trim()
-                .orEmpty()
-                .removeSurrounding("'", "'")
-                .removeSurrounding("\"", "\"")
-        if (name !in ICON_ATTRIBUTES || !STATIC_ICON.matches(value)) return@mapNotNull null
-        val element = attribute.valueElement ?: return@mapNotNull null
-        val offset = element.text.indexOf(value)
+    attributes.mapNotNull { it.documentationIcon() }
 
-        if (offset >= 0) {
-            val start = element.textRange.startOffset + offset
-
-            TaigaDocumentationIcon(name, value, start, start + value.length)
-        } else {
-            null
-        }
+@Suppress("ReturnCount")
+private fun XmlAttribute.documentationIcon(): TaigaDocumentationIcon? {
+    val binding = documentationBinding() ?: return null
+    val literal = binding.literal ?: return null
+    if (binding.name !in ICON_ATTRIBUTES) return null
+    if (literal.isNotEmpty() && !STATIC_ICON.matches(literal)) return null
+    val raw = binding.text.substring(binding.valueStart, binding.valueEnd)
+    val relative = if (binding.expression) {
+        val match = ICON_LITERAL.matchEntire(raw.trim()) ?: return null
+        if (match.groupValues[2] != literal) return null
+        raw.length - raw.trimStart().length + 1
+    } else {
+        if (raw != literal) return null
+        0
     }
+    val start = binding.startOffset + binding.valueStart + relative
+    return TaigaDocumentationIcon(binding.name, literal, start, start + literal.length)
+}
 
 internal fun PsiFile.isTaigaTemplateFile(): Boolean =
     this is HtmlCompatibleFile ||
@@ -90,4 +90,5 @@ private val TEMPLATE_WHITESPACE = Regex("\\s+")
 private const val MAX_TEMPLATE_USAGE_LENGTH = 260
 private val ICON_ATTRIBUTES = setOf("icon", "iconStart", "iconEnd", "badge")
 private val STATIC_ICON = Regex("@tui\\.[A-Za-z0-9_.-]+")
+private val ICON_LITERAL = Regex("""(['"])([\w .@/-]*)\1""")
 private val PIPE_NAME = Regex("tui[A-Z][A-Za-z0-9_]*")

@@ -42,6 +42,8 @@ internal class TaigaDocumentationApiBrowser(
 
     init {
         isOpaque = false
+        alignmentX = LEFT_ALIGNMENT
+        search.emptyText.text = "Search inputs, outputs, types and descriptions"
         search.toolTipText = "Search inputs, outputs, types and descriptions"
         search.getAccessibleContext().accessibleName = "Search Taiga API"
         list.getAccessibleContext().accessibleName = "Taiga inputs and outputs"
