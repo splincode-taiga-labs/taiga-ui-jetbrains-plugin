@@ -165,6 +165,8 @@ class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
         panel.actionMap.get(backKey).actionPerformed(ActionEvent(panel, ActionEvent.ACTION_PERFORMED, "back"))
         assertTrue(back)
         renderAndSave(panel, "api-browser")
+        val provider = descendants(panel).filterIsInstance<JBLabel>().first { it.text.orEmpty().contains("Project providers") }
+        assertTrue("Provider explanation must fit the API card", provider.width >= provider.preferredSize.width)
     }
 
     fun testPinAndCloseActionsAreExplicit() {

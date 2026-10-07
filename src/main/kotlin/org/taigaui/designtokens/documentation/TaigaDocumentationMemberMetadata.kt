@@ -12,7 +12,12 @@ internal data class TaigaDocumentationMemberMetadata(
 
 internal fun PsiElement.bindingMetadata(): TaigaDocumentationMemberMetadata {
     val comment = bindingDocComment()
-    val deprecated = DEPRECATED.find(comment)?.groupValues?.get(1)?.trim()
+    val deprecated =
+        DEPRECATED
+            .find(comment)
+            ?.groupValues
+            ?.get(1)
+            ?.trim()
     return TaigaDocumentationMemberMetadata(
         description = comment.bindingDescription(),
         deprecated = deprecated,
@@ -28,7 +33,11 @@ private fun PsiElement.bindingDocComment(): String {
     var sibling = prevSibling
     while (sibling is PsiWhiteSpace) sibling = sibling.prevSibling
     // JavaScript JSDoc is its own PSI element, rather than a platform PsiComment.
-    return sibling?.text?.take(MAX_MEMBER_TEXT)?.takeIf { it.startsWith("/**") }.orEmpty()
+    return sibling
+        ?.text
+        ?.take(MAX_MEMBER_TEXT)
+        ?.takeIf { it.startsWith("/**") }
+        .orEmpty()
 }
 
 private fun String.bindingDescription(): String? =
