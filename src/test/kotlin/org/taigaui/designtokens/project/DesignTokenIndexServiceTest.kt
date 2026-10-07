@@ -7,6 +7,7 @@ import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import org.taigaui.designtokens.index.DesignTokenDeclaration
 import org.taigaui.designtokens.index.DesignTokenIndex
 import org.taigaui.designtokens.index.DesignTokenPlatform
 import org.taigaui.designtokens.index.PROJECT_STYLES_PACKAGE
@@ -253,6 +254,33 @@ class DesignTokenIndexServiceTest : BasePlatformTestCase() {
 
         assertTrue(resolutionIndex.find(CORE_FONT_TOKEN).isEmpty())
         assertTrue(completionNames.contains(CORE_FONT_TOKEN))
+    }
+
+    fun testLocalOverridesResolveWithoutInstalledPackage() {
+        val sourcePath = tempRoot.resolve("local-overrides/src/component.css")
+        createFile(sourcePath, ".demo { color: var(--tui-local-color); }")
+        val override =
+            DesignTokenDeclaration(
+                name = "--tui-local-color",
+                value = "hotpink",
+                sourceFile = sourcePath,
+                line = 1,
+            )
+
+        val resolutions =
+            service
+                .resolveToken(
+                    sourceFile = sourcePath,
+                    tokenName = "--tui-local-color",
+                    localOverrides = listOf(override),
+                ).flatMap { group -> group.resolutions }
+
+        assertTrue(resolutions.isNotEmpty())
+        assertTrue(
+            resolutions.any { resolution ->
+                (resolution.result as? DesignTokenValueResolution.Resolved)?.value == "hotpink"
+            },
+        )
     }
 
     fun testServiceReturnsNullWhenNoInstalledPackageCanBeResolved() {

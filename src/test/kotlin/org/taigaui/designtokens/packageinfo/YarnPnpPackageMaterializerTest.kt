@@ -90,6 +90,24 @@ class YarnPnpPackageMaterializerTest {
     }
 
     @Test
+    fun `returns null when archive path does not exist`() {
+        val root = Files.createTempDirectory("pnp-materializer-missing-archive")
+
+        try {
+            assertNull(
+                YarnPnpPackageMaterializer(root.resolve("cache"))
+                    .materialize(
+                        manifestRoot = root,
+                        packageLocation = "./.yarn/cache/missing.zip/node_modules/pkg",
+                        identity = "missing-archive",
+                    ),
+            )
+        } finally {
+            root.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
     fun `extracts archive package once and reuses completed cache`() {
         val root = Files.createTempDirectory("pnp-materializer-archive")
         val archive = root.resolve(".yarn/cache/core.zip")
@@ -101,6 +119,7 @@ class YarnPnpPackageMaterializerTest {
                 linkedMapOf(
                     "outside.txt" to "ignored",
                     "node_modules/@taiga-ui/core/" to null,
+                    "node_modules/@taiga-ui/core/styles/" to null,
                     "node_modules/@taiga-ui/core/package.json" to """{"name":"@taiga-ui/core"}""",
                     "node_modules/@taiga-ui/core/styles/token.css" to ":root{}",
                 ),

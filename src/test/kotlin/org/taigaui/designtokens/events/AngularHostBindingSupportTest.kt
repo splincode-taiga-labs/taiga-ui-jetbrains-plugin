@@ -97,6 +97,36 @@ class AngularHostBindingSupportTest : LightPlatformCodeInsightFixture4TestCase()
     }
 
     @Test
+    fun `host property helpers handle empty files and PSI elements`() {
+        val emptyFile =
+            configureAngularFile(
+                "empty.ts",
+                "",
+            )
+
+        assertNull(AngularHostBindingSupport.findPropertyContext(emptyFile, 0))
+
+        val hostFile =
+            configureAngularFile(
+                "host-property.ts",
+                """
+                import {Directive} from '@angular/core';
+
+                @Directive({
+                    selector: '[example]',
+                    host: {'(click.stop)': 'onClick()'},
+                })
+                export class ExampleDirective {}
+                """.trimIndent(),
+            )
+        val offset = hostFile.text.indexOf("click") + 1
+        val element = requireNotNull(hostFile.findElementAt(offset))
+
+        assertTrue(AngularHostBindingSupport.isInsideHostProperty(element))
+        assertTrue(AngularHostBindingSupport.isInsideHostProperty(hostFile, offset))
+    }
+
+    @Test
     fun `finds event plugin bindings in directive host metadata`() {
         val file =
             configureAngularFile(

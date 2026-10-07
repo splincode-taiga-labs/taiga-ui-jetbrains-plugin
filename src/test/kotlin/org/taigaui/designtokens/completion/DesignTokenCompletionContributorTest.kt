@@ -248,6 +248,36 @@ class DesignTokenCompletionContributorTest : BasePlatformTestCase() {
         }
     }
 
+    fun testCompletionRemovesExistingTokenSuffixAfterCaret() {
+        val token = "--tui-text-primary"
+        val typedPrefix = "--tui-text-pr"
+        val suffix = "imary"
+        val sourcePath = workspaceRoot.resolve("src/suffix-completion.less")
+        val sourceFile =
+            createFile(
+                sourcePath,
+                ".demo { color: var($typedPrefix$suffix); }",
+            )
+
+        myFixture.configureFromExistingVirtualFile(sourceFile)
+        val caretOffset =
+            myFixture.editor.document.text
+                .indexOf(typedPrefix) + typedPrefix.length
+
+        myFixture.editor.caretModel.moveToOffset(caretOffset)
+        indexService.completionTokenNames(sourcePath)
+        val variants = requireNotNull(myFixture.completeBasic())
+        val item = variants.first { variant -> variant.lookupString == token }
+
+        myFixture.lookup.currentItem = item
+        myFixture.finishLookup('\n')
+
+        assertEquals(
+            ".demo { color: var($token); }",
+            myFixture.editor.document.text,
+        )
+    }
+
     fun testCompletesSingleInstalledTokenMatch() {
         val tokenPrefix = "--tui-text-prima"
         val expectedToken = "--tui-text-primary"
