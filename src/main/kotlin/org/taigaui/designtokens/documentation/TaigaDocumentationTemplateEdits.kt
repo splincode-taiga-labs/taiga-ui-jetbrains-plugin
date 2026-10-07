@@ -96,6 +96,7 @@ internal val TaigaResolvedDocumentation.templateElement: TaigaDocumentationEleme
             is TaigaResolvedDocumentation.Member -> element
         }
 
+@Suppress("ReturnCount")
 internal fun TaigaResolvedDocumentation.templateEdits(): List<TaigaDocumentationTemplateEdit> {
     val element = templateElement ?: return emptyList()
     val names = element.attributes.map(TaigaDocumentationAttributeName::bindingName).toSet()
@@ -123,41 +124,32 @@ internal fun TaigaResolvedDocumentation.templateEdits(): List<TaigaDocumentation
     return required + listOfNotNull(rename)
 }
 
+@Suppress("ReturnCount")
 private fun TaigaResolvedDocumentation.Member.deprecatedEdit(existing: Set<String>): TaigaDocumentationTemplateEdit? {
     if (element?.attributes?.any { it.bindingName == property.name && it.rawName.startsWith("[(") } == true) return null
     val members = receivers.ifEmpty { listOf(this) }
     if (members.any { !it.subject.localDocumentation.receiversComplete }) return null
-    val replacements =
-        members.map { member ->
-            val documentedReplacement = member.localMember?.replacement
-            member.subject.localDocumentation.members
-                .firstOrNull {
-                    (it.name == documentedReplacement || it.fieldName == documentedReplacement) && it.kind == kind
-                }?.name
-        }
+    val replacement = members.compatibleReplacement(kind) ?: return null
+    if (replacement in existing || !PUBLIC_BINDING_NAME.matches(replacement)) return null
+    return TaigaDocumentationTemplateEdit(TaigaTemplateEditKind.RENAME_BINDING, property.name, replacement)
+}
+
+private fun List<TaigaResolvedDocumentation.Member>.compatibleReplacement(kind: TaigaApiMemberKind): String? {
+    val replacements = map { member ->
+        val suggested = member.localMember?.replacement
+        member.subject.localDocumentation.members.firstOrNull {
+            (it.name == suggested || it.fieldName == suggested) && it.kind == kind
+        }?.name
+    }
     val replacement = replacements.firstOrNull() ?: return null
-    if (replacements.any { it != replacement } ||
-        replacement in existing ||
-        !PUBLIC_BINDING_NAME.matches(replacement)
-    ) {
-        return null
-    }
-    val compatible =
-        members.all { member ->
-            val current = member.localMember ?: return@all false
-            member.subject.localDocumentation.members.any {
-                it.name == replacement && it.kind == kind && it.type != null && it.type == current.type
-            }
+    val consistent = replacements.all { it == replacement }
+    val compatible = all { member ->
+        val current = member.localMember ?: return@all false
+        member.subject.localDocumentation.members.any {
+            it.name == replacement && it.kind == kind && it.type != null && it.type == current.type
         }
-    return if (compatible) {
-        TaigaDocumentationTemplateEdit(
-            TaigaTemplateEditKind.RENAME_BINDING,
-            property.name,
-            replacement,
-        )
-    } else {
-        null
     }
+    return replacement.takeIf { consistent && compatible }
 }
 
 /** Each action is one command, verifies the exact opening tag and tracks unrelated document edits. */

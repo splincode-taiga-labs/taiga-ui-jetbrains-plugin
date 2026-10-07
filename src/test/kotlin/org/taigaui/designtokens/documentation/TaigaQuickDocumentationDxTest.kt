@@ -80,8 +80,13 @@ class TaigaQuickDocumentationDxTest : BasePlatformTestCase() {
     }
 
     fun testTypeScriptOwnerApiIsAvailableWithoutOnlineDocumentation() {
-        val virtual = myFixture.tempDirFixture.createFile("src/owner-api.ts", "import {TuiButton} from '@taiga-ui/core';")
-        val file = myFixture.configureFromExistingVirtualFile(virtual)
+        val virtual =
+            myFixture.tempDirFixture.createFile(
+                "src/owner-api.ts",
+                "import {TuiButton} from '@taiga-ui/core';",
+            )
+        myFixture.configureFromExistingVirtualFile(virtual)
+        val file = myFixture.file
         val request = requireNotNull(TaigaDocumentationResolver.findRequest(file, file.text.indexOf("TuiButton") + 3))
         val owner = resolveDocumentation(request) as? TaigaResolvedDocumentation.Entity
         assertTrue(owner?.entity?.inputs?.any { it.name == "iconEnd" } == true)
@@ -93,12 +98,19 @@ class TaigaQuickDocumentationDxTest : BasePlatformTestCase() {
         val request = requireNotNull(TaigaDocumentationResolver.findRequest(file, file.text.indexOf("size") + 1))
         val installed = member(file, "size")
         val source = requireNotNull(TaigaDocsSources.forMajor(5))
-        val documented = installed.entity.copy(inputs = listOf(
-            TaigaApiProperty("size", "[size]", "number", "Remote description"),
-            TaigaApiProperty("removedInput", "[removedInput]", "boolean", "Absent locally")))
-        val snapshot = TaigaDocsSnapshot(
-            TaigaUiProjectContext("5.18.0", 5, "@taiga-ui/core", setOf("@taiga-ui/core"), "fixture"),
-            TaigaDocsIndex(source, listOf(documented)))
+        val documented =
+            installed.entity.copy(
+                inputs =
+                    listOf(
+                        TaigaApiProperty("size", "[size]", "number", "Remote description"),
+                        TaigaApiProperty("removedInput", "[removedInput]", "boolean", "Absent locally"),
+                    ),
+            )
+        val snapshot =
+            TaigaDocsSnapshot(
+                TaigaUiProjectContext("5.18.0", 5, "@taiga-ui/core", setOf("@taiga-ui/core"), "fixture"),
+                TaigaDocsIndex(source, listOf(documented)),
+            )
         val enriched = snapshot.resolve(request) as? TaigaResolvedDocumentation.Member
         assertEquals(installed.typeText, enriched?.typeText)
         assertEquals("Remote description", enriched?.description)
@@ -222,7 +234,8 @@ class TaigaQuickDocumentationDxTest : BasePlatformTestCase() {
                     "template: `<button tuiButton size=\"m\">Save</button>`",
                 ),
             )
-        val file = myFixture.configureFromExistingVirtualFile(virtual)
+        myFixture.configureFromExistingVirtualFile(virtual)
+        val file = myFixture.file
         myFixture.doHighlighting()
         val offset = file.text.indexOf("size=\"m\"")
         val request = requireNotNull(TaigaDocumentationResolver.findRequest(file, offset + 1))
@@ -264,7 +277,7 @@ class TaigaQuickDocumentationDxTest : BasePlatformTestCase() {
     }
 
     private companion object {
-        val CORE_DECLARATIONS = """
+        const val CORE_DECLARATIONS = """
             export interface ComponentMetadata { selector?: string; templateUrl?: string; template?: string; standalone?: boolean; imports?: unknown[]; }
             export declare function Component(metadata: ComponentMetadata): ClassDecorator;
             export declare function Directive(metadata: ComponentMetadata): ClassDecorator;
@@ -274,7 +287,7 @@ class TaigaQuickDocumentationDxTest : BasePlatformTestCase() {
             export interface InputSignalWithTransform<T, W> { [ɵINPUT_SIGNAL_BRAND_WRITE_TYPE]: W; }
             export interface InputSignal<T> extends InputSignalWithTransform<T, T> {}
         """
-        val TAIGA_DECLARATIONS = """
+        const val TAIGA_DECLARATIONS = """
             import * as i0 from '@angular/core';
             export type TuiSize = 's' | 'm' | 'l';
             export declare class TuiBase {
@@ -311,7 +324,7 @@ class TaigaQuickDocumentationDxTest : BasePlatformTestCase() {
                 static ɵdir: i0.ɵɵDirectiveDeclaration<TuiHint, "[tuiHint]", never, {"hint": "tuiHint"}, {}, never, never, true>;
             }
         """
-        val CONSUMER = """
+        const val CONSUMER = """
             import {Component, Directive, Input} from '@angular/core';
             import {TuiButton, TuiAux, TuiHint} from '@taiga-ui/core';
             @Directive({selector: 'button[localSized]', standalone: true})

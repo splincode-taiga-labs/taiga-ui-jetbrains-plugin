@@ -13,30 +13,32 @@ import org.angular2.entities.Angular2Directive
 import org.angular2.entities.Angular2DirectiveProperty
 import org.angular2.entities.Angular2EntitiesProvider
 
-internal data class TaigaAngularDocumentationContext(
+internal data class TaigaAngularDocumentation(
     val subjects: List<TaigaDocumentationSubject>,
     val authoritative: Boolean,
 )
 
 /** Uses Angular's selector matching, import scope, inherited properties and exposed host aliases. */
-internal fun XmlTag.angularDocumentationContext(): TaigaAngularDocumentationContext {
+internal fun XmlTag.angularDocumentationContext(): TaigaAngularDocumentation {
     val scope = Angular2DeclarationsScope(this)
     val declared = Angular2ApplicableDirectivesProvider(this).matched
     if (declared.none { it.sourceElement.taigaPackageName() != null }) {
-        return TaigaAngularDocumentationContext(emptyList(), false)
+        return TaigaAngularDocumentation(emptyList(), false)
     }
     val matched = declared.filter(scope::contains)
-    val subjects = matched
-        .sortedBy { it.sourceElement.taigaPackageName() == null }
-        .asSequence()
-        .take(MAX_LOCAL_DIRECTIVES)
-        .map { it.documentationSubject(matched.size <= MAX_LOCAL_DIRECTIVES) }
-        .toList()
-    return TaigaAngularDocumentationContext(subjects, true)
+    val subjects =
+        matched
+            .sortedBy { it.sourceElement.taigaPackageName() == null }
+            .asSequence()
+            .take(MAX_LOCAL_DIRECTIVES)
+            .map { it.documentationSubject(matched.size <= MAX_LOCAL_DIRECTIVES) }
+            .toList()
+    return TaigaAngularDocumentation(subjects, true)
 }
 
 internal fun PsiElement.angularDocumentationSubject(): TaigaDocumentationSubject? =
-    PsiTreeUtil.getParentOfType(this, TypeScriptClass::class.java, false)
+    PsiTreeUtil
+        .getParentOfType(this, TypeScriptClass::class.java, false)
         ?.let(Angular2EntitiesProvider::getDirective)
         ?.documentationSubject(true)
 
@@ -77,7 +79,8 @@ private fun Angular2DirectiveProperty.documentationMember(kind: TaigaApiMemberKi
     val owner = PsiTreeUtil.getParentOfType(source, TypeScriptClass::class.java, false)
     val ownerName = owner?.name
     val local = source.inputDocumentation(name, source.localDocumentation(ownerName))
-    val accepted = (transformParameterType ?: type)?.getTypeText(JSType.TypeTextFormat.PRESENTABLE)
+    val transformType = transformParameterType
+    val accepted = (transformType ?: type)?.getTypeText(JSType.TypeTextFormat.PRESENTABLE)
     val declared = source.inputFieldType(fieldName) ?: local.inputTypes[name]
     val presentation = declared?.let(::inputTypePresentation)
     val effective = accepted?.let(::inputTypePresentation)?.writeType ?: presentation?.writeType ?: declared
@@ -103,7 +106,10 @@ private fun Angular2DirectiveProperty.documentationMember(kind: TaigaApiMemberKi
         fieldName = fieldName ?: name,
         required = required,
         expandedType = effective?.let { source.expandedInputType(it) },
-        valueType = presentation?.readType?.takeIf { kind == TaigaApiMemberKind.INPUT && it != effective },
+        valueType = presentation?.readType?.takeIf {
+            kind == TaigaApiMemberKind.INPUT && it != effective &&
+                (transformType != null || presentation.readType != presentation.writeType)
+        },
         transform = TRANSFORM.find(source.text)?.groupValues?.get(1),
         description = comment.bindingDescription(),
         deprecated = deprecated,
@@ -144,3 +150,12 @@ private val REPLACEMENT = Regex("""(?i)\buse\s+(?:\{@link\s+|[`'"])?([A-Za-z_$][
 private val TRANSFORM = Regex("""\btransform\s*:\s*([\w$.]+)""")
 private const val MAX_LOCAL_DIRECTIVES = 32
 private const val MAX_LOCAL_API_MEMBERS = 128
+
+internal fun List<TaigaDocumentationSubject>.forSelector(selector: String): List<TaigaDocumentationSubject> =
+    filter { subject ->
+        subject.packageName != null &&
+            subject.localDocumentation.selector?.let { value ->
+                Regex("(?<![\\w-])${Regex.escape(selector)}(?![\\w-])").containsMatchIn(value)
+            } == true
+    }
+

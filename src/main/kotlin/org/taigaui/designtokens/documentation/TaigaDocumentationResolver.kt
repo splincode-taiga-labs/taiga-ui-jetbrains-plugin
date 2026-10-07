@@ -25,6 +25,7 @@ internal data class TaigaDocumentationSubject(
 }
 
 internal object TaigaDocumentationResolver {
+    @Suppress("ReturnCount")
     fun findRequest(
         file: PsiFile,
         offset: Int,
@@ -76,36 +77,7 @@ internal object TaigaDocumentationResolver {
         val attribute = PsiTreeUtil.getParentOfType(element, XmlAttribute::class.java, false)
 
         if (attribute != null && attribute.nameElement?.textRange?.containsOffset(offset) == true) {
-            val nameElement = attribute.nameElement ?: return null
-            val rawName = attribute.bindingName()
-            val member = rawName.toMemberBinding()
-
-            if (member != null) return attribute.findMemberRequest(member)
-
-            val selector = rawName.takeIf(::isTaigaSelector) ?: return null
-            val native = attribute.parent.angularDocumentationContext()
-            val nativeSubjects = native.subjects
-            if (nativeSubjects.any { owner -> owner.localDocumentation.members.any { it.name == selector && it.kind == TaigaApiMemberKind.INPUT } }) {
-                return attribute.findMemberRequest(MemberBinding(selector, TaigaApiMemberKind.INPUT), native)
-            }
-            val applicable = nativeSubjects.forSelector(selector)
-            if (native.authoritative && applicable.isEmpty()) return null
-            val subject =
-                (attribute.descriptor as? HtmlAttributeSymbolDescriptor)
-                    ?.symbol
-                    ?.toLocalSubject(selector = selector)
-                    ?: selector.fallbackSubject()
-
-            return TaigaDocumentationRequest.Entity(
-                subjects = applicable.ifEmpty { listOf(subject) },
-                startOffset = nameElement.textRange.startOffset,
-                endOffset = nameElement.textRange.endOffset,
-                usage = attribute.parent.compactUsage(),
-                icons = attribute.parent.documentationIcons(),
-                bindings = attribute.parent.documentationBindings(),
-                element = attribute.parent.documentationElement(),
-                contextSubjects = nativeSubjects,
-            )
+            return attribute.findAttributeRequest()
         }
 
         val tag = PsiTreeUtil.getParentOfType(element, XmlTag::class.java, false) ?: return null
@@ -137,6 +109,46 @@ internal object TaigaDocumentationResolver {
         )
     }
 
+    @Suppress("ReturnCount")
+    private fun XmlAttribute.findAttributeRequest(): TaigaDocumentationRequest? {
+    val nameElement = this.nameElement ?: return null
+    val rawName = this.bindingName()
+    val member = rawName.toMemberBinding()
+
+    if (member != null) return findMemberRequest(member)
+
+    val selector = rawName.takeIf(::isTaigaSelector) ?: return null
+    val native = this.parent.angularDocumentationContext()
+    val nativeSubjects = native.subjects
+    if (nativeSubjects.any { owner ->
+            owner.localDocumentation.members.any {
+                it.name == selector &&
+                    it.kind == TaigaApiMemberKind.INPUT
+            }
+        }
+    ) {
+        return findMemberRequest(MemberBinding(selector, TaigaApiMemberKind.INPUT), native)
+    }
+    val applicable = nativeSubjects.forSelector(selector)
+    if (native.authoritative && applicable.isEmpty()) return null
+    val subject =
+        (this.descriptor as? HtmlAttributeSymbolDescriptor)
+            ?.symbol
+            ?.toLocalSubject(selector = selector)
+            ?: selector.fallbackSubject()
+
+    return TaigaDocumentationRequest.Entity(
+        subjects = applicable.ifEmpty { listOf(subject) },
+        startOffset = nameElement.textRange.startOffset,
+        endOffset = nameElement.textRange.endOffset,
+        usage = this.parent.compactUsage(),
+        icons = this.parent.documentationIcons(),
+        bindings = this.parent.documentationBindings(),
+        element = this.parent.documentationElement(),
+        contextSubjects = nativeSubjects,
+    )
+    }
+
     private fun XmlTag.documentationBindings(): List<TaigaDocumentationBinding> =
         attributes
             .take(MAX_CAPTURED_BINDINGS)
@@ -154,19 +166,17 @@ internal object TaigaDocumentationResolver {
     @Suppress("ReturnCount")
     private fun XmlAttribute.findMemberRequest(
         member: MemberBinding,
-        native: TaigaAngularDocumentationContext = parent.angularDocumentationContext(),
+        native: TaigaAngularDocumentation = parent.angularDocumentationContext(),
     ): TaigaDocumentationRequest.Member? {
         val nameElement = nameElement ?: return null
         val tag = parent
         val owners = if (native.authoritative) native.subjects else tag.taigaSubjects()
         if (owners.isEmpty()) return null
-        if (owners.any { it.localDocumentation.angularResolved } &&
-            owners.none { owner ->
-                owner.packageName != null &&
-                    owner.localDocumentation.members.any { it.name == member.name && it.kind == member.kind }
+        if (native.authoritative) {
+            val taigaOwners = owners.filter { it.packageName != null }
+            if (taigaOwners.none { owner -> owner.localDocumentation.members.any { it.name == member.name && it.kind == member.kind } }) {
+                return null
             }
-        ) {
-            return null
         }
         return TaigaDocumentationRequest.Member(
             owners = owners,
@@ -234,14 +244,16 @@ internal object TaigaDocumentationResolver {
                 ?: file.taigaImportPackage(publicSymbol)
                 ?: return null
 
-        val localSubject = declaration?.angularDocumentationSubject()
-            ?.copy(selector = null, publicSymbol = publicSymbol)
-            ?: TaigaDocumentationSubject(
-                selector = null,
-                publicSymbol = publicSymbol,
-                packageName = packageName,
-                localDocumentation = declaration?.localDocumentation(publicSymbol) ?: TaigaLocalDocumentation(),
-            )
+        val localSubject =
+            declaration
+                ?.angularDocumentationSubject()
+                ?.copy(selector = null, publicSymbol = publicSymbol)
+                ?: TaigaDocumentationSubject(
+                    selector = null,
+                    publicSymbol = publicSymbol,
+                    packageName = packageName,
+                    localDocumentation = declaration?.localDocumentation(publicSymbol) ?: TaigaLocalDocumentation(),
+                )
         return TaigaDocumentationRequest.Entity(
             subjects = listOf(localSubject),
             startOffset = element.textRange.startOffset,
@@ -252,14 +264,6 @@ internal object TaigaDocumentationResolver {
         )
     }
 }
-
-private fun List<TaigaDocumentationSubject>.forSelector(selector: String): List<TaigaDocumentationSubject> =
-    filter { subject ->
-        subject.packageName != null &&
-            subject.localDocumentation.selector?.let { value ->
-                Regex("(?<![\\w-])${Regex.escape(selector)}(?![\\w-])").containsMatchIn(value)
-            } == true
-    }
 
 private fun XmlTag.taigaSubjects(): List<TaigaDocumentationSubject> =
     buildList {

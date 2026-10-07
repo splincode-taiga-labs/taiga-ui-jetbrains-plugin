@@ -129,7 +129,6 @@ class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
                         queryChanged = { query = it },
                         goBack = { back = true },
                     ),
-                fullApi = true,
                 apiQuery = "visual",
             )
         val search = descendants(panel).filterIsInstance<JBTextField>().single()

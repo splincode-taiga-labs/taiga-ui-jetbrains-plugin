@@ -66,7 +66,7 @@ internal class TaigaDocumentationApiBrowser(
         bind("control F", "search-api") { search.requestFocusInWindow() }
         bind("meta F", "search-api-mac") { search.requestFocusInWindow() }
         search.document.addDocumentListener(
-            object : DocumentListener() {
+            object : DocumentListener {
                 override fun insertUpdate(event: DocumentEvent) = filter()
 
                 override fun removeUpdate(event: DocumentEvent) = filter()

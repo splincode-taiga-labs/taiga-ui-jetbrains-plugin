@@ -71,13 +71,22 @@ internal data class TaigaInputTypePresentation(
 
 internal fun PsiElement.inputFieldType(fieldName: String? = null): String? {
     val signature = text.trim().take(MAX_INPUT_FIELD_TEXT)
-    return INPUT_FIELD.matchEntire(signature)?.groupValues?.get(2)?.trim()
+    return INPUT_FIELD
+        .matchEntire(signature)
+        ?.groupValues
+        ?.get(2)
+        ?.trim()
         ?: fieldName?.let { name ->
-            Regex("\\b${Regex.escape(name)}[!?]?\\s*:\\s*([^;=]+)").find(signature)?.groupValues?.get(1)?.trim()
+            Regex("\\b${Regex.escape(name)}[!?]?\\s*:\\s*([^;=]+)")
+                .find(signature)
+                ?.groupValues
+                ?.get(1)
+                ?.trim()
         }
 }
 
 /** The second InputSignalWithTransform argument is what a template may pass. */
+@Suppress("ReturnCount")
 internal fun inputTypePresentation(type: String): TaigaInputTypePresentation {
     val match = SIGNAL_TYPE.matchEntire(type.trim()) ?: return TaigaInputTypePresentation(type, type)
     val arguments = splitTypeScriptParameters(match.groupValues[2])
@@ -86,6 +95,7 @@ internal fun inputTypePresentation(type: String): TaigaInputTypePresentation {
     return TaigaInputTypePresentation(read, write)
 }
 
+@Suppress("ReturnCount")
 internal fun PsiElement.expandedInputType(
     type: String,
     visited: Set<String> = emptySet(),
@@ -99,6 +109,7 @@ internal fun PsiElement.expandedInputType(
     return declaration.expandedInputType(definition, visited + type) ?: definition.take(MAX_EXPANDED_TYPE)
 }
 
+@Suppress("ReturnCount")
 internal fun TaigaResolvedDocumentation.Member.localValues(): List<String> {
     if (kind != TaigaApiMemberKind.INPUT) return emptyList()
     if (!subject.localDocumentation.receiversComplete) return emptyList()

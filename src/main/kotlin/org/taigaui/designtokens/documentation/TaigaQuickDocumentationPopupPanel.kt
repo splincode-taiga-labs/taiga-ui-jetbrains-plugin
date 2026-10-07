@@ -46,6 +46,7 @@ internal data class TaigaDocumentationPopupActions(
 )
 
 /** The same compact card structure serves every kind, with kind-specific content. */
+@Suppress("TooManyFunctions")
 internal class TaigaQuickDocumentationPopupPanel(
     private val resolved: TaigaResolvedDocumentation,
     private val onClose: () -> Unit = {},
@@ -53,13 +54,13 @@ internal class TaigaQuickDocumentationPopupPanel(
     private val previews: List<TaigaDocumentationIconPreview> = emptyList(),
     showExample: Boolean = false,
     pinned: Boolean = false,
-    private val fullApi: Boolean = false,
-    private val apiQuery: String = "",
+    private val apiQuery: String? = null,
 ) : JPanel(BorderLayout(0, JBUI.scale(12))) {
     private val content = verticalPanel()
     private val previewContent = verticalPanel()
     private val scroll: JBScrollPane
     private var apiBrowser: TaigaDocumentationApiBrowser? = null
+    private val fullApi: Boolean get() = apiQuery != null
 
     val preferredFocus: JComponent get() = apiBrowser?.preferredFocus ?: this
 
@@ -181,7 +182,7 @@ internal class TaigaQuickDocumentationPopupPanel(
             val browser =
                 TaigaDocumentationApiBrowser(
                     entity,
-                    apiQuery,
+                    apiQuery.orEmpty(),
                     { actions.openMember?.invoke(it) },
                     { actions.queryChanged?.invoke(it) },
                 )
@@ -230,7 +231,8 @@ internal class TaigaQuickDocumentationPopupPanel(
                     defaultNote(it),
                 )
             }
-            member.declaration?.publicSymbol?.takeIf { member.localMember == null && it != member.ownerName }?.let { owner ->
+            val legacyOwner = member.declaration?.publicSymbol?.takeIf { member.localMember == null }
+            legacyOwner?.takeIf { it != member.ownerName }?.let { owner ->
                 add(detail("Declared by", owner))
             }
             member.relatedMembers().takeIf(List<String>::isNotEmpty)?.let { related ->
@@ -246,34 +248,32 @@ internal class TaigaQuickDocumentationPopupPanel(
         val receivers = member.receivers.ifEmpty { listOf(member) }
         if (receivers.size > 1) content.add(sectionTitle("Receives this binding"))
         receivers.forEach { receiver ->
-            val local = receiver.localMember
-            if (receivers.size > 1) content.add(detail(receiver.ownerName.orEmpty(), receiver.typeText.orEmpty()))
-            local?.expandedType?.let { content.add(detail("Expanded type", it)) }
-            local?.valueType?.let { content.add(detail("Stored value type", it)) }
-            local?.transform?.let { content.add(detail("Input transform", it)) }
-            local?.deprecated?.let { content.add(note("Deprecated", it, DEFAULT_COLOR)) }
-            if (receivers.size > 1 &&
-                local?.required == true
-            ) {
-                content.add(detail(receiver.subject.presentationName, "Required input"))
-            }
-            receiver.declaration
-                ?.publicSymbol
-                ?.takeIf {
-                    it != receiver.subject.publicSymbol
-                }?.let { content.add(detail("Declared by", it)) }
-            actions.openOwner?.let { open ->
-                content.add(
-                    link("View ${receiver.subject.presentationName} API →") { open(receiver.ownerDocumentation()) },
-                )
-            }
-            if (receivers.size > 1) {
-                receiver.source?.let { source ->
-                    actions.navigateDeclaration?.let { navigate ->
-                        content.add(link("Source of ${receiver.subject.presentationName} ↗") { navigate(source) })
-                    }
-                }
-            }
+            addReceiverDetails(content, receiver, receivers.size > 1)
+            addReceiverLinks(content, receiver, receivers.size > 1)
+        }
+    }
+
+    private fun addReceiverDetails(content: JPanel, receiver: TaigaResolvedDocumentation.Member, multiple: Boolean) {
+        val local = receiver.localMember
+        if (multiple) content.add(detail(receiver.ownerName.orEmpty(), receiver.typeText.orEmpty()))
+        local?.expandedType?.let { content.add(detail("Expanded type", it)) }
+        local?.valueType?.let { content.add(detail("Stored value type", it)) }
+        local?.transform?.let { content.add(detail("Input transform", it)) }
+        local?.deprecated?.let { content.add(note("Deprecated", it, DEFAULT_COLOR)) }
+        if (multiple && local?.required == true) content.add(detail(receiver.subject.presentationName, "Required input"))
+        receiver.declaration?.publicSymbol?.takeIf { it != receiver.subject.publicSymbol }?.let {
+            content.add(detail("Declared by", it))
+        }
+    }
+
+    private fun addReceiverLinks(content: JPanel, receiver: TaigaResolvedDocumentation.Member, multiple: Boolean) {
+        actions.openOwner?.let { open ->
+            content.add(link("View ${receiver.subject.presentationName} API →") { open(receiver.ownerDocumentation()) })
+        }
+        val source = receiver.source
+        val navigate = actions.navigateDeclaration
+        if (multiple && source != null && navigate != null) {
+            content.add(link("Source of ${receiver.subject.presentationName} ↗") { navigate(source) })
         }
     }
 
