@@ -21,7 +21,7 @@ internal class TaigaDocumentationActionContext(
             document.modificationStamp == documentStamp &&
             PsiModificationTracker.getInstance(project).modificationCount == psiStamp &&
             VirtualFileManager.getInstance().modificationCount == vfsStamp &&
-            !PsiDocumentManager.getInstance(project).hasUncommittedDocuments()
+            PsiDocumentManager.getInstance(project).uncommittedDocuments.isEmpty()
 }
 
 /** Tracks the opening tag so Refresh survives edits before it and a binding rename. */

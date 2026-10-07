@@ -385,21 +385,29 @@ class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
 
     fun testKeyboardCopiesStaticLiteralWithoutApplyingIt() {
         val entity = directive()
-        val member = TaigaResolvedDocumentation.Member(
-            entity.entity,
-            entity.subject.copy(localDocumentation = TaigaLocalDocumentation(inputTypes = mapOf("size" to "'s' | 'm'"))),
-            0,
-            4,
-            null,
-            entity.entity.inputs.first(),
-            TaigaApiMemberKind.INPUT,
-            binding = TaigaDocumentationBinding("size", 0, 8, "size=\"s\"", 6, 7, "s", false),
-        )
+        val member =
+            TaigaResolvedDocumentation.Member(
+                entity.entity,
+                entity.subject.copy(
+                    localDocumentation = TaigaLocalDocumentation(inputTypes = mapOf("size" to "'s' | 'm'")),
+                ),
+                0,
+                4,
+                null,
+                entity.entity.inputs.first(),
+                TaigaApiMemberKind.INPUT,
+                binding = TaigaDocumentationBinding("size", 0, 8, "size=\"s\"", 6, 7, "s", false),
+            )
         var writes = 0
-        val panel = TaigaQuickDocumentationPopupPanel(
-            member,
-            actions = TaigaDocumentationPopupActions(applyValue = { writes++; "Applied $it" }),
-        )
+        val panel =
+            TaigaQuickDocumentationPopupPanel(
+                member,
+                actions =
+                    TaigaDocumentationPopupActions(applyValue = {
+                        writes++
+                        "Applied $it"
+                    }),
+            )
         val value = descendants(panel).filterIsInstance<JButton>().first { it.text == "m" }
         activate(value, "shift ENTER")
         activate(value, "shift SPACE")
