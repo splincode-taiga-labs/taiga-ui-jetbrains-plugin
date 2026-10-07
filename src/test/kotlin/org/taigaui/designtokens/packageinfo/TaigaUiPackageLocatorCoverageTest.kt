@@ -221,12 +221,12 @@ class TaigaUiPackageLocatorCoverageTest {
         val coreRegistry =
             coreLocation
                 ?.let { location ->
-                """,
-                [
-                  "@taiga-ui/core",
-                  [["npm:5.2.0", {"packageLocation":"$location","packageDependencies":[]}]]
-                ]"""
-            }.orEmpty()
+                    """,
+                    [
+                      "@taiga-ui/core",
+                      [["npm:5.2.0", {"packageLocation":"$location","packageDependencies":[]}]]
+                    ]"""
+                }.orEmpty()
 
         write(
             workspace.resolve(".pnp.data.json"),
