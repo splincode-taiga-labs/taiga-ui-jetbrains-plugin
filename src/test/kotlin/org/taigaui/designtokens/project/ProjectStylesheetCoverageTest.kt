@@ -1,6 +1,10 @@
 package org.taigaui.designtokens.project
 
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import org.taigaui.designtokens.index.DesignTokenSourceExtractor
+import org.taigaui.designtokens.packageinfo.DesignTokenSourcePackage
+import org.taigaui.designtokens.packageinfo.DesignTokensPackage
+import org.taigaui.designtokens.packageinfo.DesignTokensPackageResolver
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -169,6 +173,81 @@ class ProjectStylesheetCoverageTest : BasePlatformTestCase() {
         assertEquals(listOf(style), provider.find(context(style)))
         assertEmpty(provider.find(context(script)))
         assertEmpty(provider.find(context(dependencyStyle)))
+    }
+
+    fun testProviderRejectsInstalledSourceAndUsesDiscoveryRootAsWorkspaceHint() {
+        val packageRoot = workspaceRoot.resolve("node_modules/@taiga-ui/core")
+        val installedStyle = packageRoot.resolve("styles/theme.css")
+        val appSource = workspaceRoot.resolve("apps/demo/src/component.css")
+        val packageInfo =
+            DesignTokensPackage(
+                root = packageRoot,
+                realRoot = packageRoot,
+                version = "5.0.0",
+                discoveryRoot = workspaceRoot.resolve("node_modules/@taiga-ui"),
+                sourcePackages =
+                    listOf(
+                        DesignTokenSourcePackage(
+                            name = "@taiga-ui/core",
+                            root = packageRoot,
+                            realRoot = packageRoot,
+                            version = "5.0.0",
+                            sourceRoots = listOf(packageRoot.resolve("styles")),
+                        ),
+                    ),
+            )
+        val provider =
+            ProjectStylesheetIndexProvider(
+                project = project,
+                packageResolver = DesignTokensPackageResolver(),
+                sourceExtractor = DesignTokenSourceExtractor { emptyList() },
+            )
+
+        assertNull(provider.request(installedStyle, packageInfo))
+
+        val request = requireNotNull(provider.request(appSource, packageInfo))
+
+        assertEquals(workspaceRoot.toAbsolutePath().normalize(), request.workspaceRoot)
+    }
+
+    fun testProviderRefreshesNewFilesAndFallsBackToDiskText() {
+        val source = workspaceRoot.resolve("src/new-file.css")
+        Files.createDirectories(source.parent)
+        Files.writeString(source, ":root { --tui-new: red; }")
+        val provider =
+            ProjectStylesheetIndexProvider(
+                project = project,
+                packageResolver = DesignTokensPackageResolver(),
+                sourceExtractor = DesignTokenSourceExtractor { emptyList() },
+            )
+        val modificationStamp =
+            provider.javaClass
+                .getDeclaredMethod("modificationStamp", Path::class.java)
+                .apply { isAccessible = true }
+                .invoke(provider, source) as Long?
+        val readText =
+            provider.javaClass
+                .getDeclaredMethod("readProjectText", Path::class.java)
+                .apply { isAccessible = true }
+                .invoke(provider, source) as String?
+
+        assertNotNull(modificationStamp)
+        assertEquals(":root { --tui-new: red; }", readText)
+
+        val missing = workspaceRoot.resolve("src/missing.css")
+
+        assertNull(
+            provider.javaClass
+                .getDeclaredMethod("modificationStamp", Path::class.java)
+                .apply { isAccessible = true }
+                .invoke(provider, missing),
+        )
+        assertNull(
+            provider.javaClass
+                .getDeclaredMethod("readProjectText", Path::class.java)
+                .apply { isAccessible = true }
+                .invoke(provider, missing),
+        )
     }
 
     fun testJsonParserHandlesEmptyNestedAndMixedStyleArrays() {
