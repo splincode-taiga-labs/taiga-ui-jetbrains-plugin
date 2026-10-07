@@ -107,14 +107,9 @@ class DesignTokenIndexService(
     }
 
     fun getIndex(sourceFile: Path): DesignTokenIndex? =
-        runCatching {
+        indexOrNull(sourceFile) {
             getIndexOrThrow(sourceFile)
-        }.onFailure { error ->
-            LOG.warn(
-                "Failed to build the installed Taiga UI style index for $sourceFile",
-                error,
-            )
-        }.getOrNull()
+        }
 
     fun resolveToken(
         sourceFile: Path,
@@ -159,13 +154,32 @@ class DesignTokenIndexService(
     internal fun contextKey(sourceFile: Path): TokenContextKey {
         val normalizedSourceFile = sourceFile.toAbsolutePath().normalize()
 
-        return runCatching {
+        return contextKeyOrFallback(normalizedSourceFile) {
             val designTokensPackage = packageResolver.resolve(normalizedSourceFile)
             val projectRequest =
                 projectStylesheetIndexProvider.request(normalizedSourceFile, designTokensPackage)
 
             tokenContextKey(designTokensPackage, projectRequest)
-        }.getOrElse {
+        }
+    }
+
+    private fun <T> indexOrNull(
+        sourceFile: Path,
+        operation: () -> T,
+    ): T? =
+        runCatching(operation)
+            .onFailure { error ->
+                LOG.warn(
+                    "Failed to build the installed Taiga UI style index for $sourceFile",
+                    error,
+                )
+            }.getOrNull()
+
+    private fun contextKeyOrFallback(
+        normalizedSourceFile: Path,
+        operation: () -> TokenContextKey,
+    ): TokenContextKey =
+        runCatching(operation).getOrElse {
             TokenContextKey(
                 workspaceRoot = normalizedSourceFile.parent,
                 projectRoot = normalizedSourceFile.parent,
@@ -173,7 +187,6 @@ class DesignTokenIndexService(
                 projectEntryFiles = listOf(normalizedSourceFile),
             ).normalized()
         }
-    }
 
     internal fun isIndexCached(sourceFile: Path): Boolean =
         runCatching {
