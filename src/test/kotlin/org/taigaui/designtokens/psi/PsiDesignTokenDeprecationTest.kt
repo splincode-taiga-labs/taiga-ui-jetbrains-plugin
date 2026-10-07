@@ -64,16 +64,15 @@ class PsiDesignTokenDeprecationTest : BasePlatformTestCase() {
     private fun extract(
         content: String,
         fileName: String = "tokens.css",
-    ) =
-        PsiDesignTokenSourceExtractor(project).extract(
-            psiFile =
-                PsiFileFactory
-                    .getInstance(project)
-                    .createFileFromText(
-                        fileName,
-                        FileTypeManager.getInstance().getFileTypeByFileName(fileName),
-                        content,
-                    ),
-            sourceFile = Path.of("build", "deprecated-token-fixture", fileName),
-        )
+    ) = PsiDesignTokenSourceExtractor(project).extract(
+        psiFile =
+            PsiFileFactory
+                .getInstance(project)
+                .createFileFromText(
+                    fileName,
+                    FileTypeManager.getInstance().getFileTypeByFileName(fileName),
+                    content,
+                ),
+        sourceFile = Path.of("build", "deprecated-token-fixture", fileName),
+    )
 }
