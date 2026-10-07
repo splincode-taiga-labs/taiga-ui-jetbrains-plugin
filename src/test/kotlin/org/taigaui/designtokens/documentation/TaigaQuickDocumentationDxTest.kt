@@ -66,6 +66,17 @@ class TaigaQuickDocumentationDxTest : BasePlatformTestCase() {
         assertTrue(enabled.localValues().isEmpty())
     }
 
+    fun testEmptyIconInputsExposeChooserRangesWithoutInventingAPreview() {
+        val file = template("""<button tuiButton iconStart="" [iconEnd]="''">Save</button>""")
+        val end = member(file, "iconEnd").documentationIcons.single()
+        assertEquals("", end.name)
+        assertEquals(end.startOffset, end.endOffset)
+        assertEquals(file.text.indexOf("\"''\"") + 2, end.startOffset)
+        val start = member(file, "iconStart").documentationIcons.single()
+        assertEquals(file.text.indexOf("\"\"") + 1, start.startOffset)
+        assertEquals(start.startOffset, start.endOffset)
+    }
+
     fun testSelectorThatIsAlsoAnInputHasAnOfflineCard() {
         val file = template("""<div [tuiHint]="hint">Content</div>""")
         assertEquals("TuiHint", member(file, "tuiHint").subject.publicSymbol)
@@ -312,6 +323,7 @@ class TaigaQuickDocumentationDxTest : BasePlatformTestCase() {
             export declare class TuiButton extends TuiBase {
                 internalSize: TuiSize;
                 enabled: i0.InputSignalWithTransform<boolean, boolean | string>;
+                iconStart: string;
                 /** @deprecated Use newSize instead. */
                 oldSize: string;
                 newSize: string;
@@ -319,7 +331,7 @@ class TaigaQuickDocumentationDxTest : BasePlatformTestCase() {
                 legacyAppearance: string;
                 newAppearance: string;
                 static ɵdir: i0.ɵɵDirectiveDeclaration<TuiButton, "button[tuiButton]", never,
-                    {"internalSize": {"alias": "size"; "required": true}; "enabled": {"alias": "enabled"; "required": false; "isSignal": true}; "oldSize": "oldSize"; "newSize": "newSize"; "legacyAppearance": "legacyAppearance"; "newAppearance": "appearance"}, {}, never, never, true,
+                    {"internalSize": {"alias": "size"; "required": true}; "enabled": {"alias": "enabled"; "required": false; "isSignal": true}; "iconStart": "iconStart"; "oldSize": "oldSize"; "newSize": "newSize"; "legacyAppearance": "legacyAppearance"; "newAppearance": "appearance"}, {}, never, never, true,
                     [{directive: typeof TuiWithIcons; inputs: {"icon": "iconEnd"}; outputs: {}}]>;
             }
             export declare class TuiAux {
