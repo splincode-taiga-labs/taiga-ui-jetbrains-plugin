@@ -130,7 +130,10 @@ internal class TaigaQuickDocumentationHoverController(
         project.messageBus.connect(project).subscribe(
             VirtualFileManager.VFS_CHANGES,
             object : BulkFileListener {
-                override fun after(events: List<VFileEvent>) = contextChanged()
+                override fun after(events: List<VFileEvent>) {
+                    currentRequest?.actionContext?.filesChanged(events)
+                    contextChanged()
+                }
             },
         )
     }
