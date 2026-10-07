@@ -1,6 +1,8 @@
 package org.taigaui.designtokens.icons
 
 import com.intellij.codeInsight.lookup.Lookup
+import com.intellij.codeInsight.lookup.LookupEvent
+import com.intellij.codeInsight.lookup.LookupListener
 import com.intellij.codeInsight.lookup.LookupManager
 import com.intellij.openapi.components.service
 import com.intellij.openapi.vfs.LocalFileSystem
@@ -75,6 +77,26 @@ class IconCompletionPreviewUiCoverageTest : BasePlatformTestCase() {
             UIUtil.dispatchAllInvocationEvents()
             assertSame(hint, readPrivateField(controller, "previewHint"))
         }
+    }
+
+    fun testAttachedListenerHandlesSelectionAndCancellationCallbacksDirectly() {
+        val lookup = openLookup()
+        val controller = project.service<IconCompletionPreviewController>()
+
+        invokePrivate(controller, "attach", lookup)
+
+        val listener = requireNotNull(readPrivateField(controller, "activeListener")) as LookupListener
+
+        listener.itemSelected(
+            LookupEvent(
+                lookup,
+                lookup.currentItem,
+                '\n',
+            ),
+        )
+        listener.lookupCanceled(LookupEvent(lookup, true))
+
+        assertSame(listener, readPrivateField(controller, "activeListener"))
     }
 
     private fun openLookup(): Lookup {
