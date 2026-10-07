@@ -311,16 +311,16 @@ private fun Lookup.previewCandidate(): CompletionPreviewCandidate? {
     }
 }
 
-private fun Lookup.sourceFilePath(): Path? =
-    FileDocumentManager
-        .getInstance()
-        .getFile(topLevelEditor.document)
-        ?.path
-        ?.let(::pathOrNull)
-        ?: psiFile
-            ?.virtualFile
+private fun Lookup.sourceFilePath(): Path? {
+    val documentPath =
+        FileDocumentManager
+            .getInstance()
+            .getFile(topLevelEditor.document)
             ?.path
-            ?.let(::pathOrNull)
+    val psiPath = psiFile?.virtualFile?.path
+
+    return pathOrNull(documentPath ?: psiPath ?: return null)
+}
 
 internal fun normalizeDesignTokenLookupString(value: String): String? =
     when {
