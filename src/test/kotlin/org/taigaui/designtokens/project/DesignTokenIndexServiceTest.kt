@@ -291,6 +291,40 @@ class DesignTokenIndexServiceTest : BasePlatformTestCase() {
         assertEquals(0, service.cachedPackageCount)
     }
 
+    fun testDefensiveIndexBoundaryReturnsNullOnUnexpectedFailure() {
+        val sourcePath = tempRoot.resolve("broken/app.css")
+        val method =
+            service.javaClass.declaredMethods
+                .single { candidate ->
+                    candidate.name == "indexOrNull" &&
+                        candidate.parameterCount == 2
+                }.apply { isAccessible = true }
+        val operation = kotlin.jvm.functions.Function0<DesignTokenIndex> { error("broken index") }
+
+        assertNull(method.invoke(service, sourcePath, operation))
+    }
+
+    fun testContextKeyBoundaryFallsBackToSourceDirectoryOnUnexpectedFailure() {
+        val sourcePath =
+            tempRoot
+                .resolve("fallback/src/app.css")
+                .toAbsolutePath()
+                .normalize()
+        val method =
+            service.javaClass.declaredMethods
+                .single { candidate ->
+                    candidate.name == "contextKeyOrFallback" &&
+                        candidate.parameterCount == 2
+                }.apply { isAccessible = true }
+        val operation = kotlin.jvm.functions.Function0<TokenContextKey> { error("broken resolver") }
+        val key = method.invoke(service, sourcePath, operation) as TokenContextKey
+
+        assertEquals(sourcePath.parent, key.workspaceRoot)
+        assertEquals(sourcePath.parent, key.projectRoot)
+        assertNull(key.packageRoot)
+        assertEquals(listOf(sourcePath), key.projectEntryFiles)
+    }
+
     private fun createPackage(
         workspace: String,
         tokenValue: String,
