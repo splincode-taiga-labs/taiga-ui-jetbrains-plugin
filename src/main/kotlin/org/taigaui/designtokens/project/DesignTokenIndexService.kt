@@ -107,9 +107,14 @@ class DesignTokenIndexService(
     }
 
     fun getIndex(sourceFile: Path): DesignTokenIndex? =
-        indexOrNull(sourceFile) {
+        runCatching {
             getIndexOrThrow(sourceFile)
-        }
+        }.onFailure { error ->
+            LOG.warn(
+                "Failed to build the installed Taiga UI style index for $sourceFile",
+                error,
+            )
+        }.getOrNull()
 
     fun resolveToken(
         sourceFile: Path,
@@ -163,17 +168,6 @@ class DesignTokenIndexService(
         }
     }
 
-    private fun <T> indexOrNull(
-        sourceFile: Path,
-        operation: () -> T,
-    ): T? =
-        runCatching(operation)
-            .onFailure { error ->
-                LOG.warn(
-                    "Failed to build the installed Taiga UI style index for $sourceFile",
-                    error,
-                )
-            }.getOrNull()
 
     private fun contextKeyOrFallback(
         normalizedSourceFile: Path,
