@@ -112,6 +112,62 @@ class IconCompletionAutoPopupHandlerCoverageTest : BasePlatformTestCase() {
         }
     }
 
+    fun testExistingIconLookupShortCircuitsSchedulerRequestAndQueuedShow() {
+        val sourcePath = configure("@tui.")
+
+        project.service<IconCompletionService>().loadNow(sourcePath)
+        requestIconCompletion(project, myFixture.editor, sourcePath)
+        val lookup = requireNotNull(waitForLookup())
+
+        project
+            .service<IconCompletionAutoPopupScheduler>()
+            .schedule(myFixture.editor, sourcePath)
+        requestIconCompletion(project, myFixture.editor, sourcePath)
+        invokeShowIconLookup(listOf("@tui.a-arrow-up"))
+        UIUtil.dispatchAllInvocationEvents()
+
+        assertSame(
+            lookup,
+            runInEdtAndGet { LookupManager.getActiveLookup(myFixture.editor) },
+        )
+    }
+
+    fun testQueuedLookupStopsWhenIconContextDisappears() {
+        val sourcePath = workspaceRoot.resolve("src/plain.html")
+        val file = createFile(sourcePath, "<button>plain</button>")
+
+        myFixture.configureFromExistingVirtualFile(file)
+        myFixture.editor.caretModel.moveToOffset(myFixture.editor.document.textLength)
+        project.service<IconCompletionService>().loadNow(sourcePath)
+
+        requestIconCompletion(project, myFixture.editor, sourcePath)
+        UIUtil.dispatchAllInvocationEvents()
+
+        assertNull(waitForLookup(short = true))
+    }
+
+    fun testQueuedLookupStopsWhenNoNamesMatchCurrentPrefix() {
+        configure("@tui.z")
+
+        invokeShowIconLookup(listOf("@tui.a-arrow-up", "@tui.a-arrow-down"))
+        UIUtil.dispatchAllInvocationEvents()
+
+        assertNull(waitForLookup(short = true))
+    }
+
+    private fun invokeShowIconLookup(names: List<String>) {
+        val method =
+            Class
+                .forName("org.taigaui.designtokens.icons.IconCompletionAutoPopupHandlerKt")
+                .declaredMethods
+                .single { candidate ->
+                    candidate.name == "showIconLookup" &&
+                        candidate.parameterCount == 3
+                }.apply { isAccessible = true }
+
+        method.invoke(null, project, myFixture.editor, names)
+    }
+
     private fun configure(
         prefix: String,
         suffix: String = "",
