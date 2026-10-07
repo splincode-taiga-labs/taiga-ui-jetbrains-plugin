@@ -42,7 +42,10 @@ class TaigaQuickDocumentationBindingTest : BasePlatformTestCase() {
         val editor = TaigaDocumentationBindingEditor(project, myFixture.editor.document, binding, listOf("s", "m"))
         try {
             WriteCommandAction.runWriteCommandAction(project) {
-                myFixture.editor.document.replaceString(binding.startOffset, binding.endOffset, "size=\"custom\"")
+                myFixture
+                    .editor
+                    .document
+                    .replaceString(binding.startOffset, binding.endOffset, "size=\"custom\"")
             }
             assertTrue(editor.apply("m").startsWith("Binding changed"))
             assertTrue(myFixture.editor.document.text.contains("custom"))
@@ -111,13 +114,18 @@ class TaigaQuickDocumentationBindingTest : BasePlatformTestCase() {
 
     fun testRequiredInputsAreReportedOnlyWhenExplicit() {
         val local =
-            TaigaLocalDocumentationParser.parse("class TuiExample { size = input.required<string>(); label = input(''); }")
+            TaigaLocalDocumentationParser
+                .parse(
+                    "class TuiExample { size = input.required<string>(); label = input(''); }",
+                )
         assertEquals(setOf("size"), local.requiredInputs)
     }
 
     private fun binding(text: String): TaigaDocumentationBinding {
         val file = myFixture.configureByText("template.html", text)
-        return PsiTreeUtil.findChildrenOfType(file, XmlAttribute::class.java)
-            .first { it.bindingName().contains("size") }.documentationBinding()!!
+        return PsiTreeUtil
+            .findChildrenOfType(file, XmlAttribute::class.java)
+            .first { it.bindingName().contains("size") }
+            .documentationBinding()!!
     }
 }

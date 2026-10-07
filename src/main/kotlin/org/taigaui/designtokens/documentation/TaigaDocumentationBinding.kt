@@ -19,6 +19,7 @@ internal data class TaigaDocumentationBinding(
     val literal: String?,
     val expression: Boolean,
     val context: List<TaigaBindingContext> = emptyList(),
+    val declaration: TaigaDocumentationSubject? = null,
 ) {
     fun replacement(value: String): String {
         val htmlQuote = text[valueStart - 1]
@@ -119,7 +120,10 @@ internal class TaigaDocumentationBindingEditor(
         return result
     }
 
-    private fun matchesRange(range: RangeMarker, text: String): Boolean {
+    private fun matchesRange(
+        range: RangeMarker,
+        text: String,
+    ): Boolean {
         if (!range.isValid) return false
         val current = document.charsSequence.subSequence(range.startOffset, range.endOffset)
         return current.toString() == text

@@ -314,32 +314,43 @@ class TaigaQuickDocumentationIntegrationTest : CodeInsightFixtureTestCase<EmptyM
         assertEquals("s", (member as? TaigaDocumentationRequest.Member)?.binding?.literal)
         assertNotNull(renderDocumentation(file, "size"))
         val entity = TaigaDocumentationResolver.findRequest(file, file.text.indexOf("tuiButton") + 2)
-        assertEquals("s", (entity as? TaigaDocumentationRequest.Entity)?.bindings?.firstOrNull { it.name == "size" }?.literal)
+        val captured =
+            (entity as? TaigaDocumentationRequest.Entity)
+                ?.bindings
+                ?.firstOrNull { it.name == "size" }
+        assertEquals("s", captured?.literal)
     }
 
     @Test
     fun testInstalledInputAliasesResolveToFiniteValuesAndCyclesRemainUnknown() {
-        val virtualFile = createFile(
-            workspaceRoot.resolve("node_modules/@taiga-ui/core/binding.d.ts"),
-            """
-            export type TuiSmall = 's' | 'm';
-            export type TuiLarge = 'l';
-            export type TuiSizes = TuiSmall | TuiLarge;
-            export type TuiCycleA = TuiCycleB;
-            export type TuiCycleB = TuiCycleA;
-            export declare class TuiBinding {
-                size: InputSignal<TuiSizes>;
-                cycle: InputSignal<TuiCycleA>;
-            }
-            """.trimIndent(),
-        )
+        val virtualFile =
+            createFile(
+                workspaceRoot.resolve("node_modules/@taiga-ui/core/binding.d.ts"),
+                """
+                export type TuiSmall = 's' | 'm';
+                export type TuiLarge = 'l';
+                export type TuiSizes = TuiSmall | TuiLarge;
+                export type TuiCycleA = TuiCycleB;
+                export type TuiCycleB = TuiCycleA;
+                export declare class TuiBinding {
+                    size: InputSignal<TuiSizes>;
+                    cycle: InputSignal<TuiCycleA>;
+                }
+                """.trimIndent(),
+            )
         myFixture.configureFromExistingVirtualFile(virtualFile)
         val file = myFixture.file
         val element = requireNotNull(file.findElementAt(file.text.indexOf("TuiBinding")))
         val local = element.localDocumentation("TuiBinding")
-        val contexts = generateSequence(element) { it.parent }.take(6)
-            .joinToString { "${it.javaClass.simpleName}:${it.textRange}:${it.text.take(80)}" }
-        assertEquals("Types: ${local.inputTypes}; contexts: $contexts", listOf("s", "m", "l"), local.inputValues["size"])
+        val contexts =
+            generateSequence(element) { it.parent }
+                .take(6)
+                .joinToString { "${it.javaClass.simpleName}:${it.textRange}:${it.text.take(80)}" }
+        assertEquals(
+            "Types: ${local.inputTypes}; contexts: $contexts",
+            listOf("s", "m", "l"),
+            local.inputValues["size"],
+        )
         assertTrue(local.inputValues["cycle"].orEmpty().isEmpty())
     }
 

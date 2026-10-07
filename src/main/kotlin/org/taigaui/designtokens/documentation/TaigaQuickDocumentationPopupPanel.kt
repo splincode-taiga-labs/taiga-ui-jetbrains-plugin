@@ -291,6 +291,7 @@ internal class TaigaQuickDocumentationPopupPanel(
                 val entity = resolved as? TaigaResolvedDocumentation.Entity
                 val property = properties.firstOrNull { it.name == name }
                 if (entity != null && property != null) {
+                    val binding = entity.bindings.firstOrNull { it.name == name }
                     actions.openMember?.invoke(
                         TaigaResolvedDocumentation.Member(
                             entity.entity,
@@ -300,7 +301,8 @@ internal class TaigaQuickDocumentationPopupPanel(
                             null,
                             property,
                             kind,
-                            binding = entity.bindings.firstOrNull { it.name == name },
+                            declaration = binding?.declaration,
+                            binding = binding,
                         ),
                     )
                 }

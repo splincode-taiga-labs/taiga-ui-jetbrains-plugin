@@ -87,7 +87,7 @@ internal object TaigaDocumentationResolver {
                 endOffset = nameElement.textRange.endOffset,
                 usage = attribute.parent.compactUsage(),
                 icons = attribute.parent.documentationIcons(),
-                bindings = attribute.parent.attributes.mapNotNull { it.documentationBinding() },
+                bindings = attribute.parent.documentationBindings(),
             )
         }
 
@@ -110,9 +110,23 @@ internal object TaigaDocumentationResolver {
             endOffset = element.textRange.endOffset,
             usage = tag.compactUsage(),
             icons = tag.documentationIcons(),
-            bindings = tag.attributes.mapNotNull { it.documentationBinding() },
+            bindings = tag.documentationBindings(),
         )
     }
+
+    private fun XmlTag.documentationBindings(): List<TaigaDocumentationBinding> =
+        attributes
+            .take(MAX_CAPTURED_BINDINGS)
+            .mapNotNull { attribute ->
+                attribute.documentationBinding()?.let { binding ->
+                    val declaration =
+                        (attribute.descriptor as? HtmlAttributeSymbolDescriptor)
+                            ?.symbol
+                            ?.toLocalSubject(selector = null)
+                            ?.takeIf { it.packageName != null }
+                    binding.copy(declaration = declaration)
+                }
+            }
 
     @Suppress("ReturnCount")
     private fun XmlAttribute.findMemberRequest(member: MemberBinding): TaigaDocumentationRequest.Member? {
@@ -338,3 +352,5 @@ private val MEMBER_BINDING_PATTERNS =
     )
 
 private val PLAIN_INPUT_NAME = Regex("[A-Za-z_$][\\w$]*")
+
+private const val MAX_CAPTURED_BINDINGS = 32
