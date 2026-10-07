@@ -39,7 +39,7 @@ internal object PsiDesignTokenDeprecationExtractor {
             sibling = sibling.prevSibling
         }
 
-        return (sibling as? PsiComment)?.takeUnless(PsiComment::isTrailingComment)
+        return (sibling as? PsiComment)?.takeUnless { comment -> comment.isTrailingComment() }
     }
 
     private fun PsiComment.isTrailingComment(): Boolean {
