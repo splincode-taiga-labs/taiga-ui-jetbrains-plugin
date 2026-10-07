@@ -178,7 +178,13 @@ internal class TaigaQuickDocumentationPopupPanel(
             content.add(detail("Elements", elements.joinToString(" · ")))
         }
         if (fullApi) {
-            val browser = TaigaDocumentationApiBrowser(entity, apiQuery, { actions.openMember?.invoke(it) }, { actions.queryChanged?.invoke(it) })
+            val browser =
+                TaigaDocumentationApiBrowser(
+                    entity,
+                    apiQuery,
+                    { actions.openMember?.invoke(it) },
+                    { actions.queryChanged?.invoke(it) },
+                )
             apiBrowser = browser
             content.add(browser)
         } else {
@@ -233,7 +239,10 @@ internal class TaigaQuickDocumentationPopupPanel(
             addTemplateActions(this, member)
         }
 
-    private fun addMemberOwners(content: JPanel, member: TaigaResolvedDocumentation.Member) {
+    private fun addMemberOwners(
+        content: JPanel,
+        member: TaigaResolvedDocumentation.Member,
+    ) {
         val receivers = member.receivers.ifEmpty { listOf(member) }
         if (receivers.size > 1) content.add(sectionTitle("Receives this binding"))
         receivers.forEach { receiver ->
@@ -243,27 +252,46 @@ internal class TaigaQuickDocumentationPopupPanel(
             local?.valueType?.let { content.add(detail("Stored value type", it)) }
             local?.transform?.let { content.add(detail("Input transform", it)) }
             local?.deprecated?.let { content.add(note("Deprecated", it, DEFAULT_COLOR)) }
-            if (receivers.size > 1 && local?.required == true) content.add(detail(receiver.subject.presentationName, "Required input"))
-            receiver.declaration?.publicSymbol?.takeIf { it != receiver.subject.publicSymbol }?.let { content.add(detail("Declared by", it)) }
-            actions.openOwner?.let { open ->
-                content.add(link("View ${receiver.subject.presentationName} API →") { open(receiver.ownerDocumentation()) })
+            if (receivers.size > 1 &&
+                local?.required == true
+            ) {
+                content.add(detail(receiver.subject.presentationName, "Required input"))
             }
-            if (receivers.size > 1) receiver.source?.let { source ->
-                actions.navigateDeclaration?.let { navigate -> content.add(link("Source of ${receiver.subject.presentationName} ↗") { navigate(source) }) }
+            receiver.declaration
+                ?.publicSymbol
+                ?.takeIf {
+                    it != receiver.subject.publicSymbol
+                }?.let { content.add(detail("Declared by", it)) }
+            actions.openOwner?.let { open ->
+                content.add(
+                    link("View ${receiver.subject.presentationName} API →") { open(receiver.ownerDocumentation()) },
+                )
+            }
+            if (receivers.size > 1) {
+                receiver.source?.let { source ->
+                    actions.navigateDeclaration?.let { navigate ->
+                        content.add(link("Source of ${receiver.subject.presentationName} ↗") { navigate(source) })
+                    }
+                }
             }
         }
     }
 
-    private fun addTemplateActions(content: JPanel, documentation: TaigaResolvedDocumentation) {
+    private fun addTemplateActions(
+        content: JPanel,
+        documentation: TaigaResolvedDocumentation,
+    ) {
         val apply = actions.applyTemplateEdit ?: return
         val edits = documentation.templateEdits()
         if (edits.isEmpty()) return
         val status = JBLabel().apply { alignmentX = LEFT_ALIGNMENT }
         edits.forEach { edit ->
-            content.add(JButton(edit.label).apply {
-                alignmentX = LEFT_ALIGNMENT
-                addActionListener { status.text = apply(edit) }
-            })
+            content.add(
+                JButton(edit.label).apply {
+                    alignmentX = LEFT_ALIGNMENT
+                    addActionListener { status.text = apply(edit) }
+                },
+            )
         }
         content.add(status)
     }
@@ -391,12 +419,14 @@ internal class TaigaQuickDocumentationPopupPanel(
                         add(link("Source ↗", navigate))
                         add(Box.createHorizontalStrut(JBUI.scale(16)))
                     }
-                    if (resolved.packageName != null) add(
-                        link(if (resolved.badge == "Directive") "Full API ↗" else "Documentation ↗") {
-                            BrowserUtil.browse(resolved.documentationUri.toString())
-                            onClose()
-                        },
-                    )
+                    if (resolved.packageName != null) {
+                        add(
+                            link(if (resolved.badge == "Directive") "Full API ↗" else "Documentation ↗") {
+                                BrowserUtil.browse(resolved.documentationUri.toString())
+                                onClose()
+                            },
+                        )
+                    }
                 },
             )
         }

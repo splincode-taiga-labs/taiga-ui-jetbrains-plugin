@@ -92,9 +92,12 @@ class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
         val member = owner.focusedMember(owner.entity.inputs.first { it.name == "iconEnd" }, TaigaApiMemberKind.INPUT)
         var chosen: TaigaDocumentationIcon? = null
         var opened: TaigaResolvedDocumentation.Entity? = null
-        val panel = TaigaQuickDocumentationPopupPanel(member,
-            actions = TaigaDocumentationPopupActions(chooseIcon = { chosen = it }, openOwner = { opened = it }),
-            previews = listOf(iconPreview(end)))
+        val panel =
+            TaigaQuickDocumentationPopupPanel(
+                member,
+                actions = TaigaDocumentationPopupActions(chooseIcon = { chosen = it }, openOwner = { opened = it }),
+                previews = listOf(iconPreview(end)),
+            )
         assertEquals(listOf(end), member.documentationIcons)
         descendants(panel).filterIsInstance<JButton>().first { it.text == "Choose icon" }.doClick()
         assertEquals(end, chosen)
@@ -107,13 +110,28 @@ class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
 
     fun testFullApiSearchKeyboardSelectionAndBackWorkWithoutPsi() {
         val owner = directive()
-        val entity = owner.copy(entity = owner.entity.copy(outputs = listOf(TaigaApiProperty("valueChange", "(valueChange)", "string", "Value event"))))
+        val entity =
+            owner.copy(
+                entity =
+                    owner.entity.copy(
+                        outputs = listOf(TaigaApiProperty("valueChange", "(valueChange)", "string", "Value event")),
+                    ),
+            )
         var member: TaigaResolvedDocumentation.Member? = null
         var query = ""
         var back = false
-        val panel = TaigaQuickDocumentationPopupPanel(entity,
-            actions = TaigaDocumentationPopupActions(openMember = { member = it }, queryChanged = { query = it }, goBack = { back = true }),
-            fullApi = true, apiQuery = "visual")
+        val panel =
+            TaigaQuickDocumentationPopupPanel(
+                entity,
+                actions =
+                    TaigaDocumentationPopupActions(
+                        openMember = { member = it },
+                        queryChanged = { query = it },
+                        goBack = { back = true },
+                    ),
+                fullApi = true,
+                apiQuery = "visual",
+            )
         val search = descendants(panel).filterIsInstance<JBTextField>().single()
         val results = descendants(panel).filterIsInstance<JBList<*>>().single()
         assertSame(search, panel.preferredFocus)
@@ -122,7 +140,11 @@ class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
         search.text = "icon"
         assertEquals(2, results.model.size)
         results.selectedIndex = 1
-        val enter = results.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).get(KeyStroke.getKeyStroke("ENTER"))
+        val enter =
+            results
+                .getInputMap(
+                    JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT,
+                ).get(KeyStroke.getKeyStroke("ENTER"))
         results.actionMap.get(enter).actionPerformed(ActionEvent(results, ActionEvent.ACTION_PERFORMED, "open"))
         assertEquals("iconEnd", member?.property?.name)
         assertEquals(TaigaApiMemberKind.INPUT, member?.kind)
@@ -134,7 +156,11 @@ class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
         search.text = "does-not-exist"
         assertEquals(0, results.model.size)
         search.text = ""
-        val backKey = panel.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).get(KeyStroke.getKeyStroke("alt LEFT"))
+        val backKey =
+            panel
+                .getInputMap(
+                    JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT,
+                ).get(KeyStroke.getKeyStroke("alt LEFT"))
         panel.actionMap.get(backKey).actionPerformed(ActionEvent(panel, ActionEvent.ACTION_PERFORMED, "back"))
         assertTrue(back)
         renderAndSave(panel, "api-browser")

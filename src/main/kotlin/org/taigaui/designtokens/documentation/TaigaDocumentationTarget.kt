@@ -110,33 +110,40 @@ internal fun resolveDocumentation(
             }
 
         is TaigaDocumentationRequest.Member -> {
-            val matches = request.owners.mapNotNull { owner ->
-                val entity = owner.documentationEntity(snapshot) ?: return@mapNotNull null
-                val property =
-                    when (request.kind) {
-                        TaigaApiMemberKind.INPUT -> entity.inputs
-                        TaigaApiMemberKind.OUTPUT -> entity.outputs
-                    }.firstOrNull { property -> property.name == request.name }
-                        ?: return@mapNotNull null
-                val localMember = owner.localDocumentation.members.firstOrNull { it.name == request.name && it.kind == request.kind }
+            val matches =
+                request.owners.mapNotNull { owner ->
+                    val entity = owner.documentationEntity(snapshot) ?: return@mapNotNull null
+                    val property =
+                        when (request.kind) {
+                            TaigaApiMemberKind.INPUT -> entity.inputs
+                            TaigaApiMemberKind.OUTPUT -> entity.outputs
+                        }.firstOrNull { property -> property.name == request.name }
+                            ?: return@mapNotNull null
+                    val localMember =
+                        owner.localDocumentation.members.firstOrNull {
+                            it.name == request.name &&
+                                it.kind == request.kind
+                        }
 
-                TaigaResolvedDocumentation.Member(
-                    entity = entity,
-                    subject = owner.completedFrom(entity),
-                    startOffset = request.startOffset,
-                    endOffset = request.endOffset,
-                    usage = request.usage,
-                    property = property,
-                    kind = request.kind,
-                    declaration = localMember?.declaration ?: request.declaration?.takeIf { subject -> subject.packageName != null },
-                    binding = request.binding,
-                    element = request.element,
-                    localMember = localMember,
-                    icons = request.icons,
-                    bindings = request.bindings,
-                    contextSubjects = request.owners,
-                )
-            }
+                    TaigaResolvedDocumentation.Member(
+                        entity = entity,
+                        subject = owner.completedFrom(entity),
+                        startOffset = request.startOffset,
+                        endOffset = request.endOffset,
+                        usage = request.usage,
+                        property = property,
+                        kind = request.kind,
+                        declaration =
+                            localMember?.declaration
+                                ?: request.declaration?.takeIf { subject -> subject.packageName != null },
+                        binding = request.binding,
+                        element = request.element,
+                        localMember = localMember,
+                        icons = request.icons,
+                        bindings = request.bindings,
+                        contextSubjects = request.owners,
+                    )
+                }
             val preferred = matches.firstOrNull { it.subject.packageName != null } ?: matches.firstOrNull()
             preferred?.copy(receivers = matches.takeIf { it.size > 1 }.orEmpty())
         }
@@ -148,55 +155,130 @@ private fun TaigaDocumentationSubject.documentationEntity(snapshot: TaigaDocsSna
     if (!local.angularResolved && documented != null) return documented
     if ((!local.angularResolved && packageName == null) || (local.source == null && documented == null)) return null
     val kind = local.kind ?: if (local.pipe != null) TaigaDocKind.PIPE else TaigaDocKind.CLASS
-    val base = documented ?: TaigaEntityDoc(
-        sectionId = "local/$presentationName",
-        title = presentationName,
-        packageNames = listOfNotNull(packageName).toSet(),
-        kind = kind,
-        version = null,
-        description = null,
-        publicSymbols = listOfNotNull(publicSymbol).toSet(),
-        selectors = listOfNotNull(local.selector).toSet(),
-        inputs = emptyList(),
-        outputs = emptyList(),
-        example = null,
-        documentationUri = java.net.URI.create("https://taiga-ui.dev"),
-    )
+    val base =
+        documented ?: TaigaEntityDoc(
+            sectionId = "local/$presentationName",
+            title = presentationName,
+            packageNames = listOfNotNull(packageName).toSet(),
+            kind = kind,
+            version = null,
+            description = null,
+            publicSymbols = listOfNotNull(publicSymbol).toSet(),
+            selectors = listOfNotNull(local.selector).toSet(),
+            inputs = emptyList(),
+            outputs = emptyList(),
+            example = null,
+            documentationUri = java.net.URI.create("https://taiga-ui.dev"),
+        )
     if (!local.angularResolved) return base
+
     fun properties(memberKind: TaigaApiMemberKind): List<TaigaApiProperty> =
         local.members.filter { it.kind == memberKind }.map { member ->
-            val old = (if (memberKind == TaigaApiMemberKind.INPUT) base.inputs else base.outputs).firstOrNull { it.name == member.name }
-            TaigaApiProperty(member.name, if (memberKind == TaigaApiMemberKind.INPUT) "[${member.name}]" else "(${member.name})", member.type, member.description ?: old?.description)
+            val old =
+                (
+                    if (memberKind ==
+                        TaigaApiMemberKind.INPUT
+                    ) {
+                        base.inputs
+                    } else {
+                        base.outputs
+                    }
+                ).firstOrNull { it.name == member.name }
+            TaigaApiProperty(
+                member.name,
+                if (memberKind ==
+                    TaigaApiMemberKind.INPUT
+                ) {
+                    "[${member.name}]"
+                } else {
+                    "(${member.name})"
+                },
+                member.type,
+                member.description ?: old?.description,
+            )
         }
-    return base.copy(kind = kind, inputs = properties(TaigaApiMemberKind.INPUT), outputs = properties(TaigaApiMemberKind.OUTPUT))
+    return base.copy(
+        kind = kind,
+        inputs = properties(TaigaApiMemberKind.INPUT),
+        outputs = properties(TaigaApiMemberKind.OUTPUT),
+    )
 }
 
 internal fun TaigaResolvedDocumentation.Member.ownerDocumentation(): TaigaResolvedDocumentation.Entity =
-    TaigaResolvedDocumentation.Entity(entity, subject, startOffset, endOffset, null, null,
+    TaigaResolvedDocumentation.Entity(
+        entity,
+        subject,
+        startOffset,
+        endOffset,
+        null,
+        null,
         icons = icons.filter { icon -> entity.inputs.any { it.name == icon.attribute } },
-        bindings = bindings, element = element, contextSubjects = contextSubjects)
+        bindings = bindings,
+        element = element,
+        contextSubjects = contextSubjects,
+    )
 
 internal fun TaigaResolvedDocumentation.Entity.focusedMember(
     property: TaigaApiProperty,
     kind: TaigaApiMemberKind,
 ): TaigaResolvedDocumentation.Member {
-    val binding = bindings.firstOrNull { it.name == property.name }
+    val binding = bindings.firstOrNull { kind == TaigaApiMemberKind.INPUT && it.name == property.name }
     val localMember = subject.localDocumentation.members.firstOrNull { it.name == property.name && it.kind == kind }
-    val base = TaigaResolvedDocumentation.Member(entity, subject, startOffset, endOffset, null, property, kind,
-        declaration = localMember?.declaration ?: binding?.declaration, binding = binding, element = element, localMember = localMember,
-        icons = icons, bindings = bindings, contextSubjects = contextSubjects)
-    if (binding == null || contextSubjects.isEmpty()) return base
-    val request = TaigaDocumentationRequest.Member(contextSubjects, property.name, kind, startOffset, endOffset, binding = binding, element = element,
-        icons = icons, bindings = bindings)
+    val base =
+        TaigaResolvedDocumentation.Member(
+            entity,
+            subject,
+            startOffset,
+            endOffset,
+            null,
+            property,
+            kind,
+            declaration = localMember?.declaration ?: binding?.declaration,
+            binding = binding,
+            element = element,
+            localMember = localMember,
+            icons = icons,
+            bindings = bindings,
+            contextSubjects = contextSubjects,
+        )
+    val existing = element?.attributes?.any { attribute ->
+        attribute.bindingName == property.name &&
+            (kind == TaigaApiMemberKind.OUTPUT) == (attribute.rawName.startsWith('(') || attribute.rawName.startsWith("on-"))
+    } == true
+    if ((binding == null && !existing) || contextSubjects.isEmpty()) return base
+    val request =
+        TaigaDocumentationRequest.Member(
+            contextSubjects,
+            property.name,
+            kind,
+            startOffset,
+            endOffset,
+            binding = binding,
+            element = element,
+            icons = icons,
+            bindings = bindings,
+        )
     val resolved = resolveDocumentation(request) as? TaigaResolvedDocumentation.Member ?: return base
-    return base.copy(receivers = resolved.receivers.map { if (it.subject.presentationName == subject.presentationName) base else it })
+    return base.copy(
+        receivers =
+            resolved.receivers.map {
+                if (it.subject.presentationName ==
+                    subject.presentationName
+                ) {
+                    base
+                } else {
+                    it
+                }
+            },
+    )
 }
 
 internal val TaigaResolvedDocumentation.documentationIcons: List<TaigaDocumentationIcon>
-    get() = when (this) {
-        is TaigaResolvedDocumentation.Entity -> icons
-        is TaigaResolvedDocumentation.Member -> icons.filter { it.attribute == property.name }
-    }
+    get() =
+        when (this) {
+            is TaigaResolvedDocumentation.Entity -> icons
+            is TaigaResolvedDocumentation.Member -> icons.filter { it.attribute == property.name }
+        }
 
 internal fun TaigaDocsSnapshot.find(subject: TaigaDocumentationSubject): TaigaEntityDoc? =
     buildList {
@@ -269,7 +351,11 @@ internal val TaigaResolvedDocumentation.ownerName: String?
         when (this) {
             is TaigaResolvedDocumentation.Entity -> null
             is TaigaResolvedDocumentation.Member ->
-                (receivers.ifEmpty { listOf(this) }).joinToString(", ") { it.subject.publicSymbol ?: it.entity.publicSymbols.firstOrNull() ?: it.entity.title }
+                (receivers.ifEmpty { listOf(this) }).joinToString(", ") {
+                    it.subject.publicSymbol
+                        ?: it.entity.publicSymbols.firstOrNull()
+                        ?: it.entity.title
+                }
         }
 
 internal val TaigaResolvedDocumentation.typeText: String?

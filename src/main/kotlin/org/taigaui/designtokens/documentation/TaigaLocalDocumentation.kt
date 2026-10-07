@@ -69,7 +69,8 @@ internal object TaigaLocalDocumentationParser {
             pipe = parsePipe(declaration),
             inputTypes =
                 INPUT_TYPE.findAll(declaration).associate { match ->
-                    match.groupValues[1] to inputTypePresentation("${match.groupValues[2]}<${match.groupValues[3]}>").writeType
+                    match.groupValues[1] to
+                        inputTypePresentation("${match.groupValues[2]}<${match.groupValues[3]}>").writeType
                 },
             defaults = INPUT_INITIALIZER.findAll(declaration).mapNotNull(::parseDefault).toList(),
             requiredInputs = REQUIRED_INPUT.findAll(declaration).map { it.groupValues[1] }.toSet(),

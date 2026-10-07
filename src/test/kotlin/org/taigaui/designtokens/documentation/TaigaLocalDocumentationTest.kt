@@ -12,7 +12,10 @@ class TaigaLocalDocumentationTest {
         val presentation = inputTypePresentation("i0.InputSignalWithTransform<boolean, boolean | string>")
         assertEquals("boolean", presentation.readType)
         assertEquals("boolean | string", presentation.writeType)
-        val local = TaigaLocalDocumentationParser.parse("enabled: i0.InputSignalWithTransform<boolean, boolean | string>;")
+        val local =
+            TaigaLocalDocumentationParser.parse(
+                "enabled: i0.InputSignalWithTransform<boolean, boolean | string>;",
+            )
         assertEquals("boolean | string", local.inputTypes["enabled"])
         assertEquals("'s' | 'm'", inputTypePresentation("InputSignal<'s' | 'm'>").writeType)
     }

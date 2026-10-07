@@ -32,8 +32,9 @@ internal class TaigaDocumentationApiBrowser(
     private val openMember: (TaigaResolvedDocumentation.Member) -> Unit,
     private val queryChanged: (String) -> Unit = {},
 ) : JPanel(BorderLayout(0, JBUI.scale(8))) {
-    private val rows = entity.entity.inputs.map { TaigaDocumentationApiRow(it, TaigaApiMemberKind.INPUT) } +
-        entity.entity.outputs.map { TaigaDocumentationApiRow(it, TaigaApiMemberKind.OUTPUT) }
+    private val rows =
+        entity.entity.inputs.map { TaigaDocumentationApiRow(it, TaigaApiMemberKind.INPUT) } +
+            entity.entity.outputs.map { TaigaDocumentationApiRow(it, TaigaApiMemberKind.OUTPUT) }
     private val model = DefaultListModel<TaigaDocumentationApiRow>()
     private val list = JBList(model)
     private val search = JBTextField(initialQuery)
@@ -47,25 +48,32 @@ internal class TaigaDocumentationApiBrowser(
         list.selectionMode = ListSelectionModel.SINGLE_SELECTION
         list.visibleRowCount = 8
         val renderer = DefaultListCellRenderer()
-        list.cellRenderer = ListCellRenderer { component, row, index, selected, focused ->
-            val prefix = if (row.kind == TaigaApiMemberKind.INPUT) "Input" else "Output"
-            val text = "$prefix  ${row.property.name}: ${row.property.documentedType.orEmpty()}"
-            renderer.getListCellRendererComponent(component, text, index, selected, focused)
-        }
-        list.addMouseListener(object : MouseAdapter() {
-            override fun mouseClicked(event: MouseEvent) {
-                if (event.clickCount == 2) openSelected()
+        list.cellRenderer =
+            ListCellRenderer { component, row, index, selected, focused ->
+                val prefix = if (row.kind == TaigaApiMemberKind.INPUT) "Input" else "Output"
+                val text = "$prefix  ${row.property.name}: ${row.property.documentedType.orEmpty()}"
+                renderer.getListCellRendererComponent(component, text, index, selected, focused)
             }
-        })
+        list.addMouseListener(
+            object : MouseAdapter() {
+                override fun mouseClicked(event: MouseEvent) {
+                    if (event.clickCount == 2) openSelected()
+                }
+            },
+        )
         list.bind("ENTER", "open-api-member") { openSelected() }
         search.bind("DOWN", "focus-api-results") { list.requestFocusInWindow() }
         bind("control F", "search-api") { search.requestFocusInWindow() }
         bind("meta F", "search-api-mac") { search.requestFocusInWindow() }
-        search.document.addDocumentListener(object : DocumentListener() {
-            override fun insertUpdate(event: DocumentEvent) = filter()
-            override fun removeUpdate(event: DocumentEvent) = filter()
-            override fun changedUpdate(event: DocumentEvent) = filter()
-        })
+        search.document.addDocumentListener(
+            object : DocumentListener() {
+                override fun insertUpdate(event: DocumentEvent) = filter()
+
+                override fun removeUpdate(event: DocumentEvent) = filter()
+
+                override fun changedUpdate(event: DocumentEvent) = filter()
+            },
+        )
         add(search, BorderLayout.NORTH)
         add(JBScrollPane(list).apply { preferredSize = JBUI.size(490, 220) }, BorderLayout.CENTER)
         add(status, BorderLayout.SOUTH)
@@ -78,10 +86,16 @@ internal class TaigaDocumentationApiBrowser(
         val query = search.text.trim()
         val selected = list.selectedValue
         model.removeAllElements()
-        rows.filter {
-            listOfNotNull(it.property.name, it.property.documentedType, it.property.description).any { text -> text.contains(query, ignoreCase = true) }
-        }.forEach(model::addElement)
-        if (!model.isEmpty) list.selectedIndex = (0 until model.size).firstOrNull { model.getElementAt(it) == selected } ?: 0
+        rows
+            .filter {
+                listOfNotNull(it.property.name, it.property.documentedType, it.property.description).any { text ->
+                    text.contains(query, ignoreCase = true)
+                }
+            }.forEach(model::addElement)
+        if (!model.isEmpty) {
+            list.selectedIndex =
+                (0 until model.size).firstOrNull { model.getElementAt(it) == selected } ?: 0
+        }
         status.text = "${model.size} of ${rows.size} · ↑/↓ navigate · Enter open · Alt+Left back"
         queryChanged(search.text)
     }
@@ -91,9 +105,16 @@ internal class TaigaDocumentationApiBrowser(
     }
 }
 
-internal fun JComponent.bind(key: String, name: String, action: () -> Unit) {
+internal fun JComponent.bind(
+    key: String,
+    name: String,
+    action: () -> Unit,
+) {
     getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(key), name)
-    actionMap.put(name, object : AbstractAction() {
-        override fun actionPerformed(event: ActionEvent) = action()
-    })
+    actionMap.put(
+        name,
+        object : AbstractAction() {
+            override fun actionPerformed(event: ActionEvent) = action()
+        },
+    )
 }

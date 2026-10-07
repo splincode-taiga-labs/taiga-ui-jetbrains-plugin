@@ -11,18 +11,34 @@ import org.angular2.codeInsight.Angular2DeclarationsScope
 import org.angular2.codeInsight.attributes.Angular2ApplicableDirectivesProvider
 import org.angular2.entities.Angular2Directive
 import org.angular2.entities.Angular2DirectiveProperty
+import org.angular2.entities.Angular2EntitiesProvider
+
+internal data class TaigaAngularDocumentationContext(
+    val subjects: List<TaigaDocumentationSubject>,
+    val authoritative: Boolean,
+)
 
 /** Uses Angular's selector matching, import scope, inherited properties and exposed host aliases. */
-internal fun XmlTag.angularDocumentationSubjects(): List<TaigaDocumentationSubject> {
+internal fun XmlTag.angularDocumentationContext(): TaigaAngularDocumentationContext {
     val scope = Angular2DeclarationsScope(this)
-    val matched = Angular2ApplicableDirectivesProvider(this, false, scope).matched
-    if (matched.none { it.sourceElement.taigaPackageName() != null }) return emptyList()
-    return matched.sortedBy { it.sourceElement.taigaPackageName() == null }
+    val declared = Angular2ApplicableDirectivesProvider(this).matched
+    if (declared.none { it.sourceElement.taigaPackageName() != null }) {
+        return TaigaAngularDocumentationContext(emptyList(), false)
+    }
+    val matched = declared.filter(scope::contains)
+    val subjects = matched
+        .sortedBy { it.sourceElement.taigaPackageName() == null }
         .asSequence()
         .take(MAX_LOCAL_DIRECTIVES)
         .map { it.documentationSubject(matched.size <= MAX_LOCAL_DIRECTIVES) }
         .toList()
+    return TaigaAngularDocumentationContext(subjects, true)
 }
+
+internal fun PsiElement.angularDocumentationSubject(): TaigaDocumentationSubject? =
+    PsiTreeUtil.getParentOfType(this, TypeScriptClass::class.java, false)
+        ?.let(Angular2EntitiesProvider::getDirective)
+        ?.documentationSubject(true)
 
 private fun Angular2Directive.documentationSubject(complete: Boolean): TaigaDocumentationSubject {
     val local = sourceElement.localDocumentation(getName())
@@ -40,8 +56,18 @@ private fun Angular2Directive.documentationSubject(complete: Boolean): TaigaDocu
                 kind = if (isComponent) TaigaDocKind.COMPONENT else TaigaDocKind.DIRECTIVE,
                 receiversComplete = complete && properties.size <= MAX_LOCAL_API_MEMBERS,
                 inputTypes = localInputs.mapNotNull { member -> member.type?.let { member.name to it } }.toMap(),
-                inputValues = localInputs.associate { it.name to it.declaration.localDocumentation.inputValues[it.name].orEmpty() },
-                requiredInputs = localInputs.filter(TaigaLocalApiMember::required).map(TaigaLocalApiMember::name).toSet(),
+                inputValues =
+                    localInputs.associate {
+                        it.name to
+                            it.declaration.localDocumentation.inputValues[it.name]
+                                .orEmpty()
+                    },
+                requiredInputs =
+                    localInputs
+                        .filter(
+                            TaigaLocalApiMember::required,
+                        ).map(TaigaLocalApiMember::name)
+                        .toSet(),
             ),
     )
 }
@@ -52,11 +78,16 @@ private fun Angular2DirectiveProperty.documentationMember(kind: TaigaApiMemberKi
     val ownerName = owner?.name
     val local = source.inputDocumentation(name, source.localDocumentation(ownerName))
     val accepted = (transformParameterType ?: type)?.getTypeText(JSType.TypeTextFormat.PRESENTABLE)
-    val declared = source.inputFieldType() ?: local.inputTypes[name]
+    val declared = source.inputFieldType(fieldName) ?: local.inputTypes[name]
     val presentation = declared?.let(::inputTypePresentation)
     val effective = accepted?.let(::inputTypePresentation)?.writeType ?: presentation?.writeType ?: declared
     val comment = source.bindingDocComment()
-    val deprecated = DEPRECATED.find(comment)?.groupValues?.get(1)?.trim()
+    val deprecated =
+        DEPRECATED
+            .find(comment)
+            ?.groupValues
+            ?.get(1)
+            ?.trim()
     val projected =
         local.copy(
             source = source.documentationSource() ?: local.source,
@@ -69,10 +100,10 @@ private fun Angular2DirectiveProperty.documentationMember(kind: TaigaApiMemberKi
         kind = kind,
         type = effective,
         declaration = TaigaDocumentationSubject(null, ownerName, source.taigaPackageName(), projected),
-        fieldName = fieldName,
+        fieldName = fieldName ?: name,
         required = required,
         expandedType = effective?.let { source.expandedInputType(it) },
-        valueType = presentation?.readType?.takeIf { it != effective },
+        valueType = presentation?.readType?.takeIf { kind == TaigaApiMemberKind.INPUT && it != effective },
         transform = TRANSFORM.find(source.text)?.groupValues?.get(1),
         description = comment.bindingDescription(),
         deprecated = deprecated,
@@ -100,7 +131,11 @@ private fun String.bindingDescription(): String? =
 
 private fun PsiElement.documentationSource(): TaigaDocumentationSource? =
     containingFile?.originalFile?.virtualFile?.path?.let { path ->
-        TaigaDocumentationSource(java.nio.file.Path.of(path), textOffset)
+        TaigaDocumentationSource(
+            java.nio.file.Path
+                .of(path),
+            textOffset,
+        )
     }
 
 private val DOC_COMMENT = Regex("""/\*\*[\s\S]*?\*/""")

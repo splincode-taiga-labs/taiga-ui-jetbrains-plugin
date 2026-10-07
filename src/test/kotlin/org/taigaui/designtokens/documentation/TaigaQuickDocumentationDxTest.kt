@@ -12,9 +12,15 @@ class TaigaQuickDocumentationDxTest : BasePlatformTestCase() {
         super.setUp()
         create("angular.json", """{"projects":{"test":{"projectType":"application","root":"","sourceRoot":"src"}}}""")
         create("package.json", """{"dependencies":{"@angular/core":"17.3.0","@taiga-ui/core":"5.18.0"}}""")
-        create("node_modules/@angular/core/package.json", """{"name":"@angular/core","version":"17.3.0","types":"index.d.ts"}""")
+        create(
+            "node_modules/@angular/core/package.json",
+            """{"name":"@angular/core","version":"17.3.0","types":"index.d.ts"}""",
+        )
         create("node_modules/@angular/core/index.d.ts", CORE_DECLARATIONS)
-        create("node_modules/@taiga-ui/core/package.json", """{"name":"@taiga-ui/core","version":"5.18.0","types":"index.d.ts"}""")
+        create(
+            "node_modules/@taiga-ui/core/package.json",
+            """{"name":"@taiga-ui/core","version":"5.18.0","types":"index.d.ts"}""",
+        )
         create("node_modules/@taiga-ui/core/index.d.ts", TAIGA_DECLARATIONS)
         create("src/component.ts", CONSUMER)
     }
@@ -42,7 +48,12 @@ class TaigaQuickDocumentationDxTest : BasePlatformTestCase() {
         assertEquals(listOf("m"), size.localValues())
         assertTrue(size.ownerName.orEmpty().contains("LocalSized"))
         val owner = size.receivers.first { it.subject.publicSymbol == "TuiAux" }
-        assertTrue(owner.ownerDocumentation().entity.inputs.any { it.name == "size" })
+        assertTrue(
+            owner
+                .ownerDocumentation()
+                .entity.inputs
+                .any { it.name == "size" },
+        )
     }
 
     fun testTransformedInputShowsWhatTheTemplateMayPass() {
@@ -60,17 +71,74 @@ class TaigaQuickDocumentationDxTest : BasePlatformTestCase() {
         assertEquals("TuiHint", member(file, "tuiHint").subject.publicSymbol)
     }
 
+    fun testPlainSelectorInputHasAFocusedCardAndUnimportedDirectiveHasNone() {
+        val file = template("""<div tuiHint="hint">Content</div>""")
+        assertEquals("tuiHint", member(file, "tuiHint").property.name)
+        val unimported = template("""<button tuiUnimported size="l">Save</button>""")
+        assertNull(TaigaDocumentationResolver.findRequest(unimported, unimported.text.indexOf("tuiUnimported") + 2))
+        assertNull(TaigaDocumentationResolver.findRequest(unimported, unimported.text.indexOf("size") + 1))
+    }
+
+    fun testTypeScriptOwnerApiIsAvailableWithoutOnlineDocumentation() {
+        val virtual = myFixture.tempDirFixture.createFile("src/owner-api.ts", "import {TuiButton} from '@taiga-ui/core';")
+        val file = myFixture.configureFromExistingVirtualFile(virtual)
+        val request = requireNotNull(TaigaDocumentationResolver.findRequest(file, file.text.indexOf("TuiButton") + 3))
+        val owner = resolveDocumentation(request) as? TaigaResolvedDocumentation.Entity
+        assertTrue(owner?.entity?.inputs?.any { it.name == "iconEnd" } == true)
+        assertEquals("Directive", owner?.badge)
+    }
+
+    fun testOnlineIndexCannotChangeInstalledTypesOrHideUndocumentedInputs() {
+        val file = template("""<button tuiButton size="m" [enabled]="flag">Save</button>""")
+        val request = requireNotNull(TaigaDocumentationResolver.findRequest(file, file.text.indexOf("size") + 1))
+        val installed = member(file, "size")
+        val source = requireNotNull(TaigaDocsSources.forMajor(5))
+        val documented = installed.entity.copy(inputs = listOf(
+            TaigaApiProperty("size", "[size]", "number", "Remote description"),
+            TaigaApiProperty("removedInput", "[removedInput]", "boolean", "Absent locally")))
+        val snapshot = TaigaDocsSnapshot(
+            TaigaUiProjectContext("5.18.0", 5, "@taiga-ui/core", setOf("@taiga-ui/core"), "fixture"),
+            TaigaDocsIndex(source, listOf(documented)))
+        val enriched = snapshot.resolve(request) as? TaigaResolvedDocumentation.Member
+        assertEquals(installed.typeText, enriched?.typeText)
+        assertEquals("Remote description", enriched?.description)
+        assertTrue(enriched?.entity?.inputs?.any { it.name == "enabled" } == true)
+        assertTrue(enriched?.entity?.inputs?.none { it.name == "removedInput" } == true)
+    }
+
     fun testRequiredInputInsertionDoesNotInventAValueAndSupportsUndo() {
         val file = template("""<button tuiButton>Save</button>""")
-        val documentation = requireNotNull(resolveDocumentation(requireNotNull(TaigaDocumentationResolver.findRequest(file, file.text.indexOf("tuiButton") + 2))))
+        val documentation =
+            requireNotNull(
+                resolveDocumentation(
+                    requireNotNull(
+                        TaigaDocumentationResolver.findRequest(
+                            file,
+                            file.text.indexOf("tuiButton") + 2,
+                        ),
+                    ),
+                ),
+            )
         val edit = documentation.templateEdits().single { it.name == "size" }
         val before = myFixture.editor.document.text
         var caret = -1
-        val adapter = TaigaDocumentationTemplateEditor(project, myFixture.editor.document, requireNotNull(documentation.templateElement)) { caret = it }
+        val adapter =
+            TaigaDocumentationTemplateEditor(
+                project,
+                myFixture.editor.document,
+                requireNotNull(documentation.templateElement),
+            ) {
+                caret =
+                    it
+            }
         try {
             assertTrue(adapter.apply(edit).startsWith("Added"))
             assertEquals("""<button tuiButton [size]="">Save</button>""", myFixture.editor.document.text)
-            assertEquals(myFixture.editor.document.text.indexOf("\"\"") + 1, caret)
+            assertEquals(
+                myFixture.editor.document.text
+                    .indexOf("\"\"") + 1,
+                caret,
+            )
             assertEquals("Binding already exists", adapter.apply(edit))
             UndoManager.getInstance(project).undo(TextEditorProvider.getInstance().getTextEditor(myFixture.editor))
             assertEquals(before, myFixture.editor.document.text)
@@ -133,7 +201,9 @@ class TaigaQuickDocumentationDxTest : BasePlatformTestCase() {
             assertTrue(adapter.apply(edit).startsWith("Replaced"))
             assertTrue(document.text.startsWith("<!-- unrelated -->\n"))
             assertTrue(document.text.contains("newSize=\"value\""))
-        } finally { adapter.dispose() }
+        } finally {
+            adapter.dispose()
+        }
     }
 
     fun testDeprecatedActionUsesThePublicAliasOfTheReplacement() {
@@ -144,7 +214,14 @@ class TaigaQuickDocumentationDxTest : BasePlatformTestCase() {
     }
 
     fun testInlineTemplateInputOffsetsPointIntoTheHostEditor() {
-        val virtual = myFixture.tempDirFixture.createFile("src/inline.ts", CONSUMER.replace("templateUrl: './component.html'", "template: `<button tuiButton size=\"m\">Save</button>`"))
+        val virtual =
+            myFixture.tempDirFixture.createFile(
+                "src/inline.ts",
+                CONSUMER.replace(
+                    "templateUrl: './component.html'",
+                    "template: `<button tuiButton size=\"m\">Save</button>`",
+                ),
+            )
         val file = myFixture.configureFromExistingVirtualFile(virtual)
         myFixture.doHighlighting()
         val offset = file.text.indexOf("size=\"m\"")
@@ -154,7 +231,11 @@ class TaigaQuickDocumentationDxTest : BasePlatformTestCase() {
         assertEquals("TuiButton", resolved?.subject?.publicSymbol)
         assertEquals("m", resolved?.binding?.literal)
         val binding = requireNotNull(resolved?.binding)
-        assertEquals(binding.text, myFixture.editor.document.text.substring(binding.startOffset, binding.endOffset))
+        assertEquals(
+            binding.text,
+            myFixture.editor.document.text
+                .substring(binding.startOffset, binding.endOffset),
+        )
     }
 
     private fun template(text: String): PsiFile {
@@ -165,14 +246,22 @@ class TaigaQuickDocumentationDxTest : BasePlatformTestCase() {
         return myFixture.file
     }
 
-    private fun member(file: PsiFile, name: String): TaigaResolvedDocumentation.Member {
+    private fun member(
+        file: PsiFile,
+        name: String,
+    ): TaigaResolvedDocumentation.Member {
         val offset = file.text.indexOf(name)
         val request = TaigaDocumentationResolver.findRequest(file, offset + 1)
         assertNotNull("Missing installed request for $name", request)
         return requireNotNull(resolveDocumentation(requireNotNull(request)) as? TaigaResolvedDocumentation.Member)
     }
 
-    private fun create(path: String, text: String) { myFixture.tempDirFixture.createFile(path, text.trimIndent()) }
+    private fun create(
+        path: String,
+        text: String,
+    ) {
+        myFixture.tempDirFixture.createFile(path, text.trimIndent())
+    }
 
     private companion object {
         val CORE_DECLARATIONS = """

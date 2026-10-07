@@ -385,37 +385,63 @@ internal class TaigaQuickDocumentationHoverController(
                 showPopup(request, resolved, true, view.fullApi, view.query)
             },
             openOwner = { entity -> navigate(request, TaigaDocumentationView(entity, fullApi = true)) },
-            goBack = if (history.isEmpty()) null else ({
-                val view = history.removeLast()
-                hidePopup(restoreNativeHover = false)
-                showPopup(request, view.resolved, view.showExample, view.fullApi, view.query)
-            }),
+            goBack =
+                if (history.isEmpty()) {
+                    null
+                } else {
+                    (
+                        {
+                            val view = history.removeLast()
+                            hidePopup(restoreNativeHover = false)
+                            showPopup(request, view.resolved, view.showExample, view.fullApi, view.query)
+                        }
+                    )
+                },
             queryChanged = { query -> currentView = currentView?.copy(query = query) },
             navigateDeclaration = { source ->
                 dismissHover(request.editor, force = true)
-                LocalFileSystem.getInstance().findFileByNioFile(source.file)?.let { file -> OpenFileDescriptor(project, file, source.offset).navigate(true) }
+                LocalFileSystem.getInstance().findFileByNioFile(source.file)?.let { file ->
+                    OpenFileDescriptor(project, file, source.offset).navigate(true)
+                }
             },
-            applyTemplateEdit = templateEditor?.let { adapter -> { edit ->
-                if (edit in resolved.templateEdits()) adapter.apply(edit) else "Reopen the card before applying"
-            } },
+            applyTemplateEdit =
+                templateEditor?.let { adapter ->
+                    { edit ->
+                        if (edit in resolved.templateEdits()) adapter.apply(edit) else "Reopen the card before applying"
+                    }
+                },
         )
 
-    private fun navigate(request: TaigaQuickDocumentationHoverRequest, view: TaigaDocumentationView) {
+    private fun navigate(
+        request: TaigaQuickDocumentationHoverRequest,
+        view: TaigaDocumentationView,
+    ) {
         currentView?.let(history::addLast)
         hidePopup(restoreNativeHover = false)
         showPopup(request, view.resolved, view.showExample, view.fullApi, view.query)
     }
 
-    private fun prepareTemplateEditor(request: TaigaQuickDocumentationHoverRequest, resolved: TaigaResolvedDocumentation) {
+    private fun prepareTemplateEditor(
+        request: TaigaQuickDocumentationHoverRequest,
+        resolved: TaigaResolvedDocumentation,
+    ) {
         val element = resolved.templateElement
         if (element == templateElement) return
         disposeTemplateEditor()
         val document = request.editor.document
-        if (element != null && request.isStillCurrent(project) && document.isWritable && element.endOffset <= document.textLength &&
+        if (element != null &&
+            request.isStillCurrent(project) &&
+            document.isWritable &&
+            element.endOffset <= document.textLength &&
             document.charsSequence.subSequence(element.startOffset, element.endOffset).toString() == element.text
         ) {
             templateElement = element
-            templateEditor = TaigaDocumentationTemplateEditor(project, document, element) { request.editor.caretModel.moveToOffset(it) }
+            templateEditor =
+                TaigaDocumentationTemplateEditor(
+                    project,
+                    document,
+                    element,
+                ) { request.editor.caretModel.moveToOffset(it) }
         }
     }
 
@@ -515,16 +541,20 @@ internal class TaigaQuickDocumentationHoverController(
         name: String,
     ) {
         if (!request.isStillCurrent(project) || !request.editor.document.isWritable) return
-        WriteCommandAction.writeCommandAction(project).withName("Change Taiga UI ${reference.attribute} icon").run<RuntimeException> {
-            val document = request.editor.document
-            val current = document.charsSequence
-            if (reference.endOffset <= current.length &&
-                current.subSequence(reference.startOffset, reference.endOffset).toString() == reference.name
-            ) {
-                document.replaceString(reference.startOffset, reference.endOffset, name)
-                PsiDocumentManager.getInstance(project).commitDocument(document)
+        WriteCommandAction
+            .writeCommandAction(
+                project,
+            ).withName("Change Taiga UI ${reference.attribute} icon")
+            .run<RuntimeException> {
+                val document = request.editor.document
+                val current = document.charsSequence
+                if (reference.endOffset <= current.length &&
+                    current.subSequence(reference.startOffset, reference.endOffset).toString() == reference.name
+                ) {
+                    document.replaceString(reference.startOffset, reference.endOffset, name)
+                    PsiDocumentManager.getInstance(project).commitDocument(document)
+                }
             }
-        }
     }
 
     private fun scheduleHide() {

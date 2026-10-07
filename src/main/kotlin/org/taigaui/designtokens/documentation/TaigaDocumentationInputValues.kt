@@ -69,7 +69,13 @@ internal data class TaigaInputTypePresentation(
     val writeType: String,
 )
 
-internal fun PsiElement.inputFieldType(): String? = INPUT_FIELD.matchEntire(text.trim())?.groupValues?.get(2)?.trim()
+internal fun PsiElement.inputFieldType(fieldName: String? = null): String? {
+    val signature = text.trim().take(MAX_INPUT_FIELD_TEXT)
+    return INPUT_FIELD.matchEntire(signature)?.groupValues?.get(2)?.trim()
+        ?: fieldName?.let { name ->
+            Regex("\\b${Regex.escape(name)}[!?]?\\s*:\\s*([^;=]+)").find(signature)?.groupValues?.get(1)?.trim()
+        }
+}
 
 /** The second InputSignalWithTransform argument is what a template may pass. */
 internal fun inputTypePresentation(type: String): TaigaInputTypePresentation {

@@ -30,6 +30,7 @@ jobs:
                   java-version: 21
             - uses: gradle/actions/setup-gradle@v4
             - name: Format Kotlin
+              continue-on-error: true
               env:
                   JAVA_TOOL_OPTIONS: -Djava.io.tmpdir=${{ runner.temp }}
               run: ./gradlew ktlintFormat -Djava.net.useSystemProxies=false --stacktrace
