@@ -84,7 +84,7 @@ class EventPluginsHoverPopupControllerTest : BasePlatformTestCase() {
         val offset = editor.document.text.indexOf("stop") + 2
         val controller = project.service<EventPluginsHoverPopupController>()
 
-        controller.mouseMoved(editorMouseEvent(offset))
+        controller.mouseMoved(editorMouseEvent(offset, EditorMouseEventArea.EDITING_AREA))
         val popup = requireNotNull(waitForPrivateField(controller, "popup"))
         val reference = requireNotNull(EventPluginBindingAtOffsetFinder.find(editor.document.text, offset))
         val requestClass = Class.forName("org.taigaui.designtokens.events.EventPluginsHoverRequest")
@@ -145,7 +145,7 @@ class EventPluginsHoverPopupControllerTest : BasePlatformTestCase() {
                 .indexOf("enter") + 2
         val controller = project.service<EventPluginsHoverPopupController>()
 
-        controller.mouseMoved(editorMouseEvent(offset))
+        controller.mouseMoved(editorMouseEvent(offset, EditorMouseEventArea.EDITING_AREA))
 
         assertNotNull(waitForPrivateField(controller, "activeKey"))
         controller.dismissHover()
