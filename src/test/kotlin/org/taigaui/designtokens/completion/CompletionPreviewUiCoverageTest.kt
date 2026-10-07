@@ -1,6 +1,9 @@
 package org.taigaui.designtokens.completion
 
 import com.intellij.codeInsight.lookup.Lookup
+import com.intellij.codeInsight.lookup.LookupArranger
+import com.intellij.codeInsight.lookup.LookupElement
+import com.intellij.codeInsight.lookup.LookupElementBuilder
 import com.intellij.codeInsight.lookup.LookupEvent
 import com.intellij.codeInsight.lookup.LookupListener
 import com.intellij.codeInsight.lookup.LookupManager
@@ -115,6 +118,71 @@ class CompletionPreviewUiCoverageTest : BasePlatformTestCase() {
         assertSame(listener, readPrivateField(controller, "activeListener"))
     }
 
+    fun testPreviewFallsBackToLinkedCustomPropertyWhenIndexHasNoToken() {
+        val usage =
+            createFile(
+                workspaceRoot.resolve("src/fallback.less"),
+                ".demo { color: var(--tui-linked); }",
+            )
+        val declaration =
+            myFixture.addFileToProject(
+                "linked.css",
+                ":root { --tui-linked: hotpink; }",
+            )
+        myFixture.configureFromExistingVirtualFile(usage)
+        val caretOffset =
+            myFixture.editor.document.text
+                .indexOf("--tui-linked") + "--tui-linked".length
+        myFixture.editor.caretModel.moveToOffset(caretOffset)
+        val declarationOffset = declaration.text.indexOf("--tui-linked")
+        val element = requireNotNull(declaration.findElementAt(declarationOffset))
+        val item = LookupElementBuilder.create(element, "--tui-linked")
+        val lookup = showLookup(listOf(item), "--tui-linked")
+        val controller = project.service<DesignTokenCompletionPreviewController>()
+
+        invokePrivate(controller, "attach", lookup)
+        waitForPreviewJob(controller)
+
+        assertNotNull(readPrivateField(controller, "previewPanel"))
+        runInEdtAndGet { LookupManager.getInstance(project).hideActiveLookup() }
+    }
+
+    fun testPreviewHidesWhenIndexAndCustomPropertyFallbackAreEmpty() {
+        val usage =
+            createFile(
+                workspaceRoot.resolve("src/missing.less"),
+                ".demo { color: var(--tui-missing-preview); }",
+            )
+        myFixture.configureFromExistingVirtualFile(usage)
+        val caretOffset =
+            myFixture.editor.document.text
+                .indexOf("--tui-missing-preview") + "--tui-missing-preview".length
+        myFixture.editor.caretModel.moveToOffset(caretOffset)
+        val item = LookupElementBuilder.create("--tui-missing-preview")
+        val lookup = showLookup(listOf(item), "--tui-missing-preview")
+        val controller = project.service<DesignTokenCompletionPreviewController>()
+
+        invokePrivate(controller, "attach", lookup)
+        waitForPreviewJob(controller)
+
+        assertNull(readPrivateField(controller, "previewHint"))
+        runInEdtAndGet { LookupManager.getInstance(project).hideActiveLookup() }
+    }
+
+    fun testPreviewRequestClearsWhenCaretLeavesDesignTokenContext() {
+        val lookup = openLookup()
+        val controller = project.service<DesignTokenCompletionPreviewController>()
+
+        invokePrivate(controller, "attach", lookup)
+
+        myFixture.editor.caretModel.moveToOffset(0)
+        invokePrivate(controller, "requestPreview", lookup)
+        waitForPreviewJob(controller)
+
+        assertNull(readPrivateField(controller, "previewKey"))
+        runInEdtAndGet { LookupManager.getInstance(project).hideActiveLookup() }
+    }
+
     private fun openLookup(): Lookup {
         val sourcePath = workspaceRoot.resolve("src/component.less")
         val file =
@@ -139,6 +207,40 @@ class CompletionPreviewUiCoverageTest : BasePlatformTestCase() {
         return requireNotNull(
             runInEdtAndGet { LookupManager.getActiveLookup(myFixture.editor) },
         )
+    }
+
+    private fun showLookup(
+        items: List<LookupElement>,
+        prefix: String,
+    ): Lookup =
+        requireNotNull(
+            runInEdtAndGet {
+                LookupManager
+                    .getInstance(project)
+                    .showLookup(
+                        myFixture.editor,
+                        items.toTypedArray(),
+                        prefix,
+                        object : LookupArranger.DefaultArranger() {
+                            override fun isCompletion(): Boolean = true
+                        },
+                    )
+            },
+        )
+
+    private fun waitForPreviewJob(controller: DesignTokenCompletionPreviewController) {
+        repeat(300) {
+            UIUtil.dispatchAllInvocationEvents()
+            val job = readPrivateField(controller, "previewJob") as? kotlinx.coroutines.Job
+
+            if (job == null || !job.isActive) {
+                return
+            }
+
+            Thread.sleep(10)
+        }
+
+        fail("Completion preview job did not finish")
     }
 
     private fun showPreview(
