@@ -12,12 +12,11 @@ import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 class TaigaDocsIndexStoreCoverageTest {
@@ -167,36 +166,33 @@ class TaigaDocsIndexStoreCoverageTest {
         }
 
     @Test
-    fun `invalidate prevents an in flight refresh from publishing stale data`() =
-        runBlocking {
-            val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-            val started = CountDownLatch(1)
-            val release = CountDownLatch(1)
-            val repository =
-                TaigaDocsRepository(
-                    fetcher =
-                        TaigaDocsFetcher {
-                            started.countDown()
-                            check(release.await(5, TimeUnit.SECONDS)) { "Timed out waiting to release docs fetch" }
-                            docs("Late")
-                        },
-                    cache = TaigaDocsCache(temporaryFolder.newFolder("stale-refresh").toPath()),
-                )
-            val store = TaigaDocsIndexStore(scope, repository)
+    fun `publish rejects data from a stale generation`() {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val repository =
+            TaigaDocsRepository(
+                fetcher = TaigaDocsFetcher { null },
+                cache = TaigaDocsCache(temporaryFolder.newFolder("stale-generation").toPath()),
+            )
+        val store = TaigaDocsIndexStore(scope, repository)
+        val index = requireNotNull(TaigaDocsParser().parse(source, docs("Late")))
+        val publish =
+            TaigaDocsIndexStore::class.java
+                .getDeclaredMethod(
+                    "publish",
+                    TaigaDocsSource::class.java,
+                    Long::class.javaPrimitiveType,
+                    TaigaDocsIndex::class.java,
+                ).apply { isAccessible = true }
 
-            try {
-                val refresh = async { store.refresh(source) }
+        try {
+            store.invalidate(source)
 
-                assertTrue(started.await(5, TimeUnit.SECONDS))
-                store.invalidate(source)
-                release.countDown()
-
-                assertNull(refresh.await())
-                assertNull(store.cached(source))
-            } finally {
-                scope.cancel()
-            }
+            assertFalse(publish.invoke(store, source, 0L, index) as Boolean)
+            assertNull(store.cached(source))
+        } finally {
+            scope.cancel()
         }
+    }
 
     private fun docs(description: String): String =
         listOf(
