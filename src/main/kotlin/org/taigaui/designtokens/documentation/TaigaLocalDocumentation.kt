@@ -37,6 +37,26 @@ internal data class TaigaLocalDocumentation(
     val defaults: List<TaigaInputDefault> = emptyList(),
     val inputValues: Map<String, List<String>> = emptyMap(),
     val requiredInputs: Set<String> = emptySet(),
+    val members: List<TaigaLocalApiMember> = emptyList(),
+    val angularResolved: Boolean = false,
+    val kind: TaigaDocKind? = null,
+    val receiversComplete: Boolean = true,
+)
+
+/** Public Angular bindings, captured from the installed declaration rather than a docs index. */
+internal data class TaigaLocalApiMember(
+    val name: String,
+    val kind: TaigaApiMemberKind,
+    val type: String?,
+    val declaration: TaigaDocumentationSubject,
+    val fieldName: String = name,
+    val required: Boolean = false,
+    val expandedType: String? = null,
+    val valueType: String? = null,
+    val transform: String? = null,
+    val description: String? = null,
+    val deprecated: String? = null,
+    val replacement: String? = null,
 )
 
 /** Reads bounded local declaration text; it never evaluates application code. */
@@ -49,7 +69,7 @@ internal object TaigaLocalDocumentationParser {
             pipe = parsePipe(declaration),
             inputTypes =
                 INPUT_TYPE.findAll(declaration).associate { match ->
-                    match.groupValues[1] to match.groupValues[2].trim()
+                    match.groupValues[1] to inputTypePresentation("${match.groupValues[2]}<${match.groupValues[3]}>").writeType
                 },
             defaults = INPUT_INITIALIZER.findAll(declaration).mapNotNull(::parseDefault).toList(),
             requiredInputs = REQUIRED_INPUT.findAll(declaration).map { it.groupValues[1] }.toSet(),
@@ -204,7 +224,7 @@ private val RETURN_TYPE = Regex("""^\s*:\s*([^;{\n]+)""")
 private val RETURN_CALL = Regex("""^\s*(?::[^;{]+)?\{\s*return\s+([\w$]+\([^;{}\n]+\))\s*;\s*}""")
 private val PARAMETER = Regex("""(?:\.\.\.)?([\w$]+)(\?)?\s*:\s*(.*)""")
 private val DEFAULT_ASSIGNMENT = Regex("""(?<![=>])=(?!=|>)""")
-private val INPUT_TYPE = Regex("""\b([\w$]+)\s*:\s*(?:\w+\.)?InputSignal<([^;]+)>\s*;""")
+private val INPUT_TYPE = Regex("""\b([\w$]+)\s*:\s*(?:\w+\.)?(InputSignal|InputSignalWithTransform)<([^;]+)>\s*;""")
 private val INPUT_INITIALIZER = Regex("""\b([\w$]+)\s*=\s*input(?:<[^>]+>)?\(([^;\n]+)\)""")
 private val INJECT = Regex("""\binject\s*(?:<[^>]+>)?\(\s*([A-Z][A-Z_0-9]+)\s*[,)]""")
 private val LITERAL = Regex("""(?:'[^'\\]*'|"[^"\\]*"|true|false|null|undefined|-?\d+(?:\.\d+)?)""")

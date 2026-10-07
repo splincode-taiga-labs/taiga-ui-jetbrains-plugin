@@ -38,6 +38,11 @@ internal data class TaigaDocumentationPopupActions(
     val togglePin: (() -> Unit)? = null,
     val applyValue: ((String) -> String)? = null,
     val currentValue: String? = null,
+    val openOwner: ((TaigaResolvedDocumentation.Entity) -> Unit)? = null,
+    val goBack: (() -> Unit)? = null,
+    val queryChanged: ((String) -> Unit)? = null,
+    val applyTemplateEdit: ((TaigaDocumentationTemplateEdit) -> String)? = null,
+    val navigateDeclaration: ((TaigaDocumentationSource) -> Unit)? = null,
 )
 
 /** The same compact card structure serves every kind, with kind-specific content. */
@@ -48,15 +53,21 @@ internal class TaigaQuickDocumentationPopupPanel(
     private val previews: List<TaigaDocumentationIconPreview> = emptyList(),
     showExample: Boolean = false,
     pinned: Boolean = false,
+    private val fullApi: Boolean = false,
+    private val apiQuery: String = "",
 ) : JPanel(BorderLayout(0, JBUI.scale(12))) {
     private val content = verticalPanel()
     private val previewContent = verticalPanel()
     private val scroll: JBScrollPane
+    private var apiBrowser: TaigaDocumentationApiBrowser? = null
+
+    val preferredFocus: JComponent get() = apiBrowser?.preferredFocus ?: this
 
     init {
         border = JBUI.Borders.empty(16, 18)
         background = DESIGN_TOKEN_POPUP_BACKGROUND
         getAccessibleContext().accessibleName = "Taiga UI documentation for ${resolved.presentationName}"
+        actions.goBack?.let { back -> bind("alt LEFT", "back-to-api", back) }
 
         content.add(header(pinned))
         content.add(Box.createVerticalStrut(JBUI.scale(4)))
@@ -108,6 +119,10 @@ internal class TaigaQuickDocumentationPopupPanel(
             layout = BoxLayout(this, BoxLayout.X_AXIS)
             isOpaque = false
             alignmentX = LEFT_ALIGNMENT
+            actions.goBack?.let { back ->
+                add(JButton("Back").apply { addActionListener { back() } })
+                add(Box.createHorizontalStrut(JBUI.scale(8)))
+            }
             add(
                 JBLabel(resolved.presentationName).apply {
                     foreground = CARD_FOREGROUND
@@ -162,8 +177,15 @@ internal class TaigaQuickDocumentationPopupPanel(
         if (elements.isNotEmpty() && entity.badge == "Directive") {
             content.add(detail("Elements", elements.joinToString(" · ")))
         }
-        addApiSection(content, "Parameters", entity.entity.inputs, TaigaApiMemberKind.INPUT)
-        addApiSection(content, "Events", entity.entity.outputs, TaigaApiMemberKind.OUTPUT)
+        if (fullApi) {
+            val browser = TaigaDocumentationApiBrowser(entity, apiQuery, { actions.openMember?.invoke(it) }, { actions.queryChanged?.invoke(it) })
+            apiBrowser = browser
+            content.add(browser)
+        } else {
+            addApiSection(content, "Parameters", entity.entity.inputs, TaigaApiMemberKind.INPUT)
+            addApiSection(content, "Events", entity.entity.outputs, TaigaApiMemberKind.OUTPUT)
+        }
+        addTemplateActions(content, entity)
         entity.localDocumentation.defaults
             .take(MAX_VISIBLE_DEFAULTS)
             .forEach { content.add(defaultNote(it)) }
@@ -171,7 +193,12 @@ internal class TaigaQuickDocumentationPopupPanel(
 
     private fun memberContent(member: TaigaResolvedDocumentation.Member): JComponent =
         verticalPanel().apply {
-            member.typeText?.let {
+            if (member.documentationIcons.isNotEmpty()) {
+                addIconPreviews(previewContent, previews)
+                add(previewContent)
+            }
+            addMemberOwners(this, member)
+            member.typeText?.takeIf { member.receivers.isEmpty() }?.let {
                 val label = if (member.kind == TaigaApiMemberKind.OUTPUT) "\$event type" else "Type"
                 add(detail(label, it))
             }
@@ -197,13 +224,49 @@ internal class TaigaQuickDocumentationPopupPanel(
                     defaultNote(it),
                 )
             }
-            member.declaration?.publicSymbol?.takeIf { it != member.ownerName }?.let { owner ->
+            member.declaration?.publicSymbol?.takeIf { member.localMember == null && it != member.ownerName }?.let { owner ->
                 add(detail("Declared by", owner))
             }
             member.relatedMembers().takeIf(List<String>::isNotEmpty)?.let { related ->
                 add(detail("See also", related.joinToString("  ·  ")))
             }
+            addTemplateActions(this, member)
         }
+
+    private fun addMemberOwners(content: JPanel, member: TaigaResolvedDocumentation.Member) {
+        val receivers = member.receivers.ifEmpty { listOf(member) }
+        if (receivers.size > 1) content.add(sectionTitle("Receives this binding"))
+        receivers.forEach { receiver ->
+            val local = receiver.localMember
+            if (receivers.size > 1) content.add(detail(receiver.ownerName.orEmpty(), receiver.typeText.orEmpty()))
+            local?.expandedType?.let { content.add(detail("Expanded type", it)) }
+            local?.valueType?.let { content.add(detail("Stored value type", it)) }
+            local?.transform?.let { content.add(detail("Input transform", it)) }
+            local?.deprecated?.let { content.add(note("Deprecated", it, DEFAULT_COLOR)) }
+            if (receivers.size > 1 && local?.required == true) content.add(detail(receiver.subject.presentationName, "Required input"))
+            receiver.declaration?.publicSymbol?.takeIf { it != receiver.subject.publicSymbol }?.let { content.add(detail("Declared by", it)) }
+            actions.openOwner?.let { open ->
+                content.add(link("View ${receiver.subject.presentationName} API →") { open(receiver.ownerDocumentation()) })
+            }
+            if (receivers.size > 1) receiver.source?.let { source ->
+                actions.navigateDeclaration?.let { navigate -> content.add(link("Source of ${receiver.subject.presentationName} ↗") { navigate(source) }) }
+            }
+        }
+    }
+
+    private fun addTemplateActions(content: JPanel, documentation: TaigaResolvedDocumentation) {
+        val apply = actions.applyTemplateEdit ?: return
+        val edits = documentation.templateEdits()
+        if (edits.isEmpty()) return
+        val status = JBLabel().apply { alignmentX = LEFT_ALIGNMENT }
+        edits.forEach { edit ->
+            content.add(JButton(edit.label).apply {
+                alignmentX = LEFT_ALIGNMENT
+                addActionListener { status.text = apply(edit) }
+            })
+        }
+        content.add(status)
+    }
 
     private fun pipeContent(pipe: TaigaPipeDocumentation?): JComponent =
         verticalPanel().apply {
@@ -291,26 +354,13 @@ internal class TaigaQuickDocumentationPopupPanel(
                 val entity = resolved as? TaigaResolvedDocumentation.Entity
                 val property = properties.firstOrNull { it.name == name }
                 if (entity != null && property != null) {
-                    val binding = entity.bindings.firstOrNull { it.name == name }
-                    actions.openMember?.invoke(
-                        TaigaResolvedDocumentation.Member(
-                            entity.entity,
-                            entity.subject,
-                            entity.startOffset,
-                            entity.endOffset,
-                            null,
-                            property,
-                            kind,
-                            declaration = binding?.declaration,
-                            binding = binding,
-                        ),
-                    )
+                    actions.openMember?.invoke(entity.focusedMember(property, kind))
                 }
             },
         )
         if (properties.size > MAX_VISIBLE_API_PROPERTIES) {
             content.add(
-                JBLabel("+${properties.size - MAX_VISIBLE_API_PROPERTIES} more in full documentation").apply {
+                JBLabel("+${properties.size - MAX_VISIBLE_API_PROPERTIES} more in Browse API").apply {
                     foreground = CARD_MUTED_FOREGROUND
                 },
             )
@@ -327,18 +377,21 @@ internal class TaigaQuickDocumentationPopupPanel(
                     layout = BoxLayout(this, BoxLayout.X_AXIS)
                     isOpaque = false
                     alignmentX = LEFT_ALIGNMENT
-                    val reference = (resolved as? TaigaResolvedDocumentation.Entity)?.icons?.firstOrNull()
+                    val reference = resolved.documentationIcons.firstOrNull()
                     if (reference != null && actions.chooseIcon != null) {
                         add(JButton("Choose icon").apply { addActionListener { actions.chooseIcon.invoke(reference) } })
                     } else if (resolved.entity.example != null && actions.showExample != null) {
                         add(link("Example →") { actions.showExample.invoke() })
+                    }
+                    if (resolved is TaigaResolvedDocumentation.Entity && !fullApi) {
+                        actions.openOwner?.let { open -> add(link("Browse API →") { open(resolved) }) }
                     }
                     add(Box.createHorizontalGlue())
                     actions.navigateToSource?.let { navigate ->
                         add(link("Source ↗", navigate))
                         add(Box.createHorizontalStrut(JBUI.scale(16)))
                     }
-                    add(
+                    if (resolved.packageName != null) add(
                         link(if (resolved.badge == "Directive") "Full API ↗" else "Documentation ↗") {
                             BrowserUtil.browse(resolved.documentationUri.toString())
                             onClose()

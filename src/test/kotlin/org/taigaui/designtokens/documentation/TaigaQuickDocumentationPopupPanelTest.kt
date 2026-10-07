@@ -3,19 +3,24 @@ package org.taigaui.designtokens.documentation
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
+import com.intellij.ui.components.JBList
+import com.intellij.ui.components.JBTextField
 import com.intellij.ui.components.labels.LinkLabel
 import org.taigaui.designtokens.icons.IconSvgPreviewRenderer
 import org.taigaui.designtokens.icons.IconSvgSource
 import java.awt.Component
 import java.awt.Container
 import java.awt.Dimension
+import java.awt.event.ActionEvent
 import java.awt.image.BufferedImage
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.CompletableFuture
 import javax.imageio.ImageIO
 import javax.swing.JButton
+import javax.swing.JComponent
 import javax.swing.JTabbedPane
+import javax.swing.KeyStroke
 
 class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
     fun testDirectiveCardShowsParametersImmediatelyWithoutDuplicateMarkup() {
@@ -78,6 +83,61 @@ class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
 
         descendants(panel).filterIsInstance<JButton>().first { it.text == "Choose icon" }.doClick()
         assertEquals(reference, chosen)
+    }
+
+    fun testFocusedIconInputHasItsOwnPreviewChooserAndOwnerApi() {
+        val start = TaigaDocumentationIcon("iconStart", "@tui.chevron", 3, 15)
+        val end = TaigaDocumentationIcon("iconEnd", "@tui.eye", 30, 38)
+        val owner = directive().copy(icons = listOf(start, end))
+        val member = owner.focusedMember(owner.entity.inputs.first { it.name == "iconEnd" }, TaigaApiMemberKind.INPUT)
+        var chosen: TaigaDocumentationIcon? = null
+        var opened: TaigaResolvedDocumentation.Entity? = null
+        val panel = TaigaQuickDocumentationPopupPanel(member,
+            actions = TaigaDocumentationPopupActions(chooseIcon = { chosen = it }, openOwner = { opened = it }),
+            previews = listOf(iconPreview(end)))
+        assertEquals(listOf(end), member.documentationIcons)
+        descendants(panel).filterIsInstance<JButton>().first { it.text == "Choose icon" }.doClick()
+        assertEquals(end, chosen)
+        descendants(panel).filterIsInstance<LinkLabel<*>>().first { it.text == "View TuiButton API →" }.doClick()
+        assertEquals(owner.entity.inputs, opened?.entity?.inputs)
+        assertTrue(labelText(panel).contains("@tui.eye"))
+        assertFalse(labelText(panel).contains("@tui.chevron"))
+        renderAndSave(panel, "icon-input")
+    }
+
+    fun testFullApiSearchKeyboardSelectionAndBackWorkWithoutPsi() {
+        val owner = directive()
+        val entity = owner.copy(entity = owner.entity.copy(outputs = listOf(TaigaApiProperty("valueChange", "(valueChange)", "string", "Value event"))))
+        var member: TaigaResolvedDocumentation.Member? = null
+        var query = ""
+        var back = false
+        val panel = TaigaQuickDocumentationPopupPanel(entity,
+            actions = TaigaDocumentationPopupActions(openMember = { member = it }, queryChanged = { query = it }, goBack = { back = true }),
+            fullApi = true, apiQuery = "visual")
+        val search = descendants(panel).filterIsInstance<JBTextField>().single()
+        val results = descendants(panel).filterIsInstance<JBList<*>>().single()
+        assertSame(search, panel.preferredFocus)
+        assertEquals(1, results.model.size)
+        assertEquals("visual", query)
+        search.text = "icon"
+        assertEquals(2, results.model.size)
+        results.selectedIndex = 1
+        val enter = results.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).get(KeyStroke.getKeyStroke("ENTER"))
+        results.actionMap.get(enter).actionPerformed(ActionEvent(results, ActionEvent.ACTION_PERFORMED, "open"))
+        assertEquals("iconEnd", member?.property?.name)
+        assertEquals(TaigaApiMemberKind.INPUT, member?.kind)
+        search.text = "VALUE EVENT"
+        assertEquals(1, results.model.size)
+        results.actionMap.get(enter).actionPerformed(ActionEvent(results, ActionEvent.ACTION_PERFORMED, "open"))
+        assertEquals("valueChange", member?.property?.name)
+        assertEquals(TaigaApiMemberKind.OUTPUT, member?.kind)
+        search.text = "does-not-exist"
+        assertEquals(0, results.model.size)
+        search.text = ""
+        val backKey = panel.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).get(KeyStroke.getKeyStroke("alt LEFT"))
+        panel.actionMap.get(backKey).actionPerformed(ActionEvent(panel, ActionEvent.ACTION_PERFORMED, "back"))
+        assertTrue(back)
+        renderAndSave(panel, "api-browser")
     }
 
     fun testPinAndCloseActionsAreExplicit() {

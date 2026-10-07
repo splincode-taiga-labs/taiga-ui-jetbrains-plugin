@@ -30,7 +30,15 @@ internal object TaigaDocumentationResolver {
         offset: Int,
     ): TaigaDocumentationRequest? {
         val element = file.elementAt(offset) ?: return null
-        return findPipeRequest(file, element, offset) ?: if (file.isTaigaTemplateFile()) {
+        findPipeRequest(file, element, offset)?.let { return it }
+        val manager = InjectedLanguageManager.getInstance(file.project)
+        val injected = manager.findInjectedElementAt(file, offset)
+        if (injected != null && injected.containingFile != file && injected.containingFile.isTaigaTemplateFile()) {
+            return findTemplateRequest(injected.containingFile, injected.textOffset)?.mapTemplateOffsets { value ->
+                manager.injectedToHost(injected.containingFile, value)
+            }
+        }
+        return if (file.isTaigaTemplateFile()) {
             findTemplateRequest(file, offset)
         } else {
             findCodeRequest(file, offset)
@@ -75,6 +83,7 @@ internal object TaigaDocumentationResolver {
             if (member != null) return attribute.findMemberRequest(member)
 
             val selector = rawName.takeIf(::isTaigaSelector) ?: return null
+            val nativeSubjects = attribute.parent.angularDocumentationSubjects()
             val subject =
                 (attribute.descriptor as? HtmlAttributeSymbolDescriptor)
                     ?.symbol
@@ -82,12 +91,14 @@ internal object TaigaDocumentationResolver {
                     ?: selector.fallbackSubject()
 
             return TaigaDocumentationRequest.Entity(
-                subjects = listOf(subject),
+                subjects = nativeSubjects.forSelector(selector).ifEmpty { listOf(subject) },
                 startOffset = nameElement.textRange.startOffset,
                 endOffset = nameElement.textRange.endOffset,
                 usage = attribute.parent.compactUsage(),
                 icons = attribute.parent.documentationIcons(),
                 bindings = attribute.parent.documentationBindings(),
+                element = attribute.parent.documentationElement(),
+                contextSubjects = nativeSubjects,
             )
         }
 
@@ -98,6 +109,7 @@ internal object TaigaDocumentationResolver {
             return null
         }
 
+        val nativeSubjects = tag.angularDocumentationSubjects()
         val subject =
             (tag.descriptor as? HtmlElementSymbolDescriptor)
                 ?.symbol
@@ -105,12 +117,14 @@ internal object TaigaDocumentationResolver {
                 ?: tagName.fallbackSubject()
 
         return TaigaDocumentationRequest.Entity(
-            subjects = listOf(subject),
+            subjects = nativeSubjects.forSelector(tagName).ifEmpty { listOf(subject) },
             startOffset = element.textRange.startOffset,
             endOffset = element.textRange.endOffset,
             usage = tag.compactUsage(),
             icons = tag.documentationIcons(),
             bindings = tag.documentationBindings(),
+            element = tag.documentationElement(),
+            contextSubjects = nativeSubjects,
         )
     }
 
@@ -132,8 +146,11 @@ internal object TaigaDocumentationResolver {
     private fun XmlAttribute.findMemberRequest(member: MemberBinding): TaigaDocumentationRequest.Member? {
         val nameElement = nameElement ?: return null
         val tag = parent
-        val owners = tag.taigaSubjects()
+        val owners = tag.angularDocumentationSubjects().ifEmpty { tag.taigaSubjects() }
         if (owners.isEmpty()) return null
+        if (owners.any { it.localDocumentation.angularResolved } && owners.none { owner ->
+            owner.packageName != null && owner.localDocumentation.members.any { it.name == member.name && it.kind == member.kind }
+        }) return null
         return TaigaDocumentationRequest.Member(
             owners = owners,
             name = member.name,
@@ -142,6 +159,9 @@ internal object TaigaDocumentationResolver {
             endOffset = nameElement.textRange.endOffset,
             usage = tag.memberUsage(member, owners.firstOrNull()?.selector),
             binding = documentationBinding(),
+            element = tag.documentationElement(),
+            icons = tag.documentationIcons(),
+            bindings = tag.documentationBindings(),
             declaration =
                 (descriptor as? HtmlAttributeSymbolDescriptor)
                     ?.symbol
@@ -216,6 +236,13 @@ internal object TaigaDocumentationResolver {
     }
 }
 
+private fun List<TaigaDocumentationSubject>.forSelector(selector: String): List<TaigaDocumentationSubject> =
+    filter { subject ->
+        subject.packageName != null && subject.localDocumentation.selector?.let { value ->
+            Regex("(?<![\\w-])${Regex.escape(selector)}(?![\\w-])").containsMatchIn(value)
+        } == true
+    }
+
 private fun XmlTag.taigaSubjects(): List<TaigaDocumentationSubject> =
     buildList {
         name
@@ -231,7 +258,7 @@ private fun XmlTag.taigaSubjects(): List<TaigaDocumentationSubject> =
             }
 
         attributes.forEach { attribute ->
-            val selector = attribute.name.takeIf(::isTaigaSelector) ?: return@forEach
+            val selector = attribute.bindingName().removeSurrounding("[", "]").takeIf(::isTaigaSelector) ?: return@forEach
 
             add(
                 (attribute.descriptor as? HtmlAttributeSymbolDescriptor)

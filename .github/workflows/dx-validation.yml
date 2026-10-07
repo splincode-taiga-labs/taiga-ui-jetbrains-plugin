@@ -1,0 +1,57 @@
+name: Input DX validation
+
+on:
+    push:
+        branches:
+            - codex/pr116-input-dx-validation
+
+permissions:
+    contents: read
+
+concurrency:
+    group: dx-validation-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    validate:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: npm
+            - run: npm ci
+            - run: npm run format
+            - run: npm run install:fixtures --prefix test-fixtures
+            - uses: actions/setup-java@v4
+              with:
+                  distribution: temurin
+                  java-version: 21
+            - uses: gradle/actions/setup-gradle@v4
+            - name: Format Kotlin
+              env:
+                  JAVA_TOOL_OPTIONS: -Djava.io.tmpdir=${{ runner.temp }}
+              run: ./gradlew ktlintFormat -Djava.net.useSystemProxies=false --stacktrace
+            - name: Check complexity
+              continue-on-error: true
+              env:
+                  JAVA_TOOL_OPTIONS: -Djava.io.tmpdir=${{ runner.temp }}
+              run: ./gradlew detekt -Djava.net.useSystemProxies=false --stacktrace
+            - name: Verify documentation scenarios
+              env:
+                  JAVA_TOOL_OPTIONS: -Djava.io.tmpdir=${{ runner.temp }}
+              run: ./gradlew test --tests 'org.taigaui.designtokens.documentation.*' -Djava.net.useSystemProxies=false --stacktrace
+            - name: Collect formatted sources
+              if: always()
+              run: tar -czf "$RUNNER_TEMP/dx-formatted-sources.tar.gz" src/main/kotlin/org/taigaui/designtokens/documentation src/test/kotlin/org/taigaui/designtokens/documentation README.md docs/ARCHITECTURE.md
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: input-dx-validation
+                  if-no-files-found: ignore
+                  path: |
+                      ${{ runner.temp }}/dx-formatted-sources.tar.gz
+                      build/reports/quick-documentation/*.png
+                      build/test-results/test/TEST-*Documentation*.xml
+                      build/reports/detekt/*
