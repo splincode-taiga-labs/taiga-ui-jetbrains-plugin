@@ -157,16 +157,13 @@ class EventPluginsHoverPopupControllerTest : BasePlatformTestCase() {
         assertNotNull(lookup)
         assertNotNull(activeLookup)
 
-        IconlessEventLookupProbe:
-        run {
-            val listener = EventPluginsHoverPopupListener()
-            listener.mouseMoved(
-                editorMouseEvent(
-                    myFixture.editor.caretModel.offset.coerceAtLeast(0),
-                    EditorMouseEventArea.EDITING_AREA,
-                ),
-            )
-        }
+        val listener = EventPluginsHoverPopupListener()
+        listener.mouseMoved(
+            editorMouseEvent(
+                myFixture.editor.caretModel.offset.coerceAtLeast(0),
+                EditorMouseEventArea.EDITING_AREA,
+            ),
+        )
 
         runInEdtAndGet { LookupManager.getInstance(project).hideActiveLookup() }
     }
