@@ -51,10 +51,10 @@ class TaigaDocsCacheCoverageTest {
         val root = temporaryFolder.newFolder("non-atomic-cache").toPath()
         var attempts = 0
         val cache =
-            TaigaDocsCache(root) { sourcePath, targetPath, options ->
+            TaigaDocsCache(root) { sourcePath, targetPath, atomic ->
                 attempts++
 
-                if (StandardCopyOption.ATOMIC_MOVE in options) {
+                if (atomic) {
                     throw AtomicMoveNotSupportedException(
                         sourcePath.toString(),
                         targetPath.toString(),
@@ -62,7 +62,7 @@ class TaigaDocsCacheCoverageTest {
                     )
                 }
 
-                Files.move(sourcePath, targetPath, *options)
+                Files.move(sourcePath, targetPath, StandardCopyOption.REPLACE_EXISTING)
             }
 
         assertTrue(cache.write(source, "fallback"))
