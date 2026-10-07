@@ -1,8 +1,8 @@
 package org.taigaui.designtokens.events
 
+import com.intellij.codeInsight.lookup.LookupManager
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.components.service
-import com.intellij.codeInsight.lookup.LookupManager
 import com.intellij.openapi.editor.event.EditorMouseEvent
 import com.intellij.openapi.editor.event.EditorMouseEventArea
 import com.intellij.psi.PsiDocumentManager
@@ -140,7 +140,9 @@ class EventPluginsHoverPopupControllerTest : BasePlatformTestCase() {
                 """.trimIndent(),
             )
         myFixture.configureFromExistingVirtualFile(file.virtualFile)
-        val offset = myFixture.editor.document.text.indexOf("enter") + 2
+        val offset =
+            myFixture.editor.document.text
+                .indexOf("enter") + 2
         val controller = project.service<EventPluginsHoverPopupController>()
 
         controller.mouseMoved(editorMouseEvent(offset))
@@ -160,7 +162,8 @@ class EventPluginsHoverPopupControllerTest : BasePlatformTestCase() {
         val listener = EventPluginsHoverPopupListener()
         listener.mouseMoved(
             editorMouseEvent(
-                myFixture.editor.caretModel.offset.coerceAtLeast(0),
+                myFixture.editor.caretModel.offset
+                    .coerceAtLeast(0),
                 EditorMouseEventArea.EDITING_AREA,
             ),
         )
