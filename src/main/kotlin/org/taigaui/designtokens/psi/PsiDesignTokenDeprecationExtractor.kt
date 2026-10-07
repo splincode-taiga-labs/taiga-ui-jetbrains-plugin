@@ -17,8 +17,7 @@ internal object PsiDesignTokenDeprecationExtractor {
     private fun String.toDeprecation(tokenName: String): DesignTokenDeprecation? =
         DesignTokenDeprecationParser.parse(this, tokenName)
 
-    private fun PsiComment.toDeprecation(tokenName: String): DesignTokenDeprecation? =
-        text.toDeprecation(tokenName)
+    private fun PsiComment.toDeprecation(tokenName: String): DesignTokenDeprecation? = text.toDeprecation(tokenName)
 
     private fun CssDeclaration.trailingCommentText(): String? {
         val content = containingFile.text
