@@ -2,6 +2,7 @@ package org.taigaui.designtokens.completion
 
 import com.intellij.codeInsight.lookup.LookupElementBuilder
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import java.nio.file.Path
 
 class DesignTokenCustomPropertyPreviewTest : BasePlatformTestCase() {
     fun testBuildsPreviewFromLookupPsiElementAndChoosesNearestDeclaration() {
@@ -144,14 +145,13 @@ class DesignTokenCustomPropertyPreviewTest : BasePlatformTestCase() {
             declarationType.declaredConstructors
                 .single()
                 .apply { isAccessible = true }
-                .newInstance("2rem", java.nio.file.Path.of("styles.css"), null)
+                .newInstance("2rem", Path.of("styles.css"), null)
         val rowWithoutLine =
             supportType.declaredMethods
                 .single { method ->
                     method.name == "toHoverValueRow" &&
                         method.parameterCount == 1
-                }
-                .apply { isAccessible = true }
+                }.apply { isAccessible = true }
                 .invoke(null, withoutLine)
         val targetWithoutLine =
             rowWithoutLine.javaClass
