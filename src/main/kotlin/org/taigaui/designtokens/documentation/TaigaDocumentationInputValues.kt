@@ -32,7 +32,12 @@ private fun PsiElement.resolveInputAlias(type: String): PsiElement? {
         .take(MAX_ALIAS_REFERENCES)
         .mapNotNull { match ->
             val offset = textRange.startOffset + match.range.first
-            file.findElementAt(offset)?.resolveTaigaDeclaration(file, offset)
+            file.findElementAt(offset)?.candidateReferences(file, offset)
+                ?.asSequence()
+                ?.flatMap { it.resolutionCandidates(false) }
+                ?.flatMap { sequenceOf(it, it.navigationElement, it.originalElement) }
+                ?.distinct()
+                ?.firstOrNull { it.typeDefinition(type) != null }
         }.firstOrNull { element -> element.typeDefinition(type) != null }
 }
 

@@ -71,9 +71,12 @@ class TaigaQuickDocumentationDxTest : BasePlatformTestCase() {
         assertEquals("TuiHint", member(file, "tuiHint").subject.publicSymbol)
     }
 
-    fun testPlainSelectorInputHasAFocusedCardAndUnimportedDirectiveHasNone() {
+    fun testPlainSelectorInputHasAFocusedCard() {
         val file = template("""<div tuiHint="hint">Content</div>""")
         assertEquals("tuiHint", member(file, "tuiHint").property.name)
+    }
+
+    fun testUnimportedDirectiveHasNoCard() {
         val unimported = template("""<button tuiUnimported size="l">Save</button>""")
         assertNull(TaigaDocumentationResolver.findRequest(unimported, unimported.text.indexOf("tuiUnimported") + 2))
         assertNull(TaigaDocumentationResolver.findRequest(unimported, unimported.text.indexOf("size") + 1))
@@ -327,8 +330,9 @@ class TaigaQuickDocumentationDxTest : BasePlatformTestCase() {
         const val CONSUMER = """
             import {Component, Directive, Input} from '@angular/core';
             import {TuiButton, TuiAux, TuiHint} from '@taiga-ui/core';
+            type LocalSize = 's' | 'm';
             @Directive({selector: 'button[localSized]', standalone: true})
-            export class LocalSized { @Input() size: 's' | 'm' = 'm'; }
+            export class LocalSized { @Input() size: LocalSize = 'm'; }
             @Component({selector: 'example', templateUrl: './component.html', standalone: true, imports: [TuiButton, TuiAux, TuiHint, LocalSized]})
             export class ExampleComponent { flag = true; hint = 'text'; }
         """

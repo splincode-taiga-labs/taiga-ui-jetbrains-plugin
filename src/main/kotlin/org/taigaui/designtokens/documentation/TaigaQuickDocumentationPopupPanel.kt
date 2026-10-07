@@ -46,7 +46,7 @@ internal data class TaigaDocumentationPopupActions(
 )
 
 /** The same compact card structure serves every kind, with kind-specific content. */
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "LongParameterList")
 internal class TaigaQuickDocumentationPopupPanel(
     private val resolved: TaigaResolvedDocumentation,
     private val onClose: () -> Unit = {},

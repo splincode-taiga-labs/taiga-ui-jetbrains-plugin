@@ -12,14 +12,14 @@ internal fun PsiElement.localDocumentation(symbol: String?): TaigaLocalDocumenta
         ancestors(TYPE_DEFINITION_PARENT_LIMIT)
             .firstOrNull { element ->
                 val name = symbol?.let(Regex::escape) ?: "Tui\\w+"
-                Regex("\\bclass\\s+$name\\b").containsMatchIn(element.text.take(MAX_LOCAL_DECLARATION_TEXT))
+                Regex("\\bclass\\s+$name\\b").containsMatchIn(element.text.orEmpty().take(MAX_LOCAL_DECLARATION_TEXT))
             }
             ?: this
     val file = declaration.containingFile?.originalFile?.virtualFile
     val path = file?.takeIf { it.extension in DECLARATION_EXTENSIONS }?.path
     val source = path?.let { value -> runCatching { Path.of(value) }.getOrNull() }
 
-    val local = TaigaLocalDocumentationParser.parse(declaration.text)
+    val local = TaigaLocalDocumentationParser.parse(declaration.text.orEmpty())
     return local.copy(
         inputValues =
             if (declaration is PsiFile) {
@@ -66,7 +66,7 @@ internal fun PsiElement.resolveTaigaDeclaration(
         .firstOrNull { element -> element.taigaPackageName() != null }
 }
 
-private fun PsiReference.resolutionCandidates(incompleteCode: Boolean): Sequence<PsiElement> =
+internal fun PsiReference.resolutionCandidates(incompleteCode: Boolean): Sequence<PsiElement> =
     when (this) {
         is PsiPolyVariantReference ->
             multiResolve(incompleteCode)
@@ -99,7 +99,7 @@ internal fun PsiElement.taigaPackageName(): String? =
 
 internal fun PsiElement.typeDefinition(symbol: String): String? =
     ancestors(TYPE_DEFINITION_PARENT_LIMIT)
-        .map { element -> element.text.take(MAX_DECLARATION_TEXT) }
+        .map { element -> element.text.orEmpty().take(MAX_DECLARATION_TEXT) }
         .mapNotNull { text -> text.extractTypeDefinition(symbol) }
         .firstOrNull()
 
