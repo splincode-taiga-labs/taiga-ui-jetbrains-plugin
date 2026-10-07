@@ -219,7 +219,8 @@ class TaigaUiPackageLocatorCoverageTest {
         enableTopLevelFallback: Boolean = false,
     ) {
         val coreRegistry =
-            coreLocation?.let { location ->
+            coreLocation
+                ?.let { location ->
                 """,
                 [
                   "@taiga-ui/core",
