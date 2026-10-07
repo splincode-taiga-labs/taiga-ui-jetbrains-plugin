@@ -379,7 +379,7 @@ internal class TaigaQuickDocumentationHoverController(
         val binding = member?.binding ?: return
         val values = member.localValues()
         if (member.kind != TaigaApiMemberKind.INPUT || binding.literal == null || values.isEmpty() ||
-            !request.isStillCurrent(project)
+            !request.isStillCurrent(project) || !request.editor.document.isWritable
         ) return
         bindingMember = member
         bindingEditor = TaigaDocumentationBindingEditor(project, request.editor.document, binding, values)
