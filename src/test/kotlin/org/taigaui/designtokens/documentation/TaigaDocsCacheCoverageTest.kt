@@ -7,7 +7,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 class TaigaDocsCacheCoverageTest {
     @get:Rule
@@ -42,6 +44,30 @@ class TaigaDocsCacheCoverageTest {
         Files.writeString(cacheFile, "   ")
 
         assertNull(TaigaDocsCache(root).read(source))
+    }
+
+    @Test
+    fun `falls back to replace move when atomic move is unsupported`() {
+        val root = temporaryFolder.newFolder("non-atomic-cache").toPath()
+        var attempts = 0
+        val cache =
+            TaigaDocsCache(root) { sourcePath, targetPath, options ->
+                attempts++
+
+                if (StandardCopyOption.ATOMIC_MOVE in options) {
+                    throw AtomicMoveNotSupportedException(
+                        sourcePath.toString(),
+                        targetPath.toString(),
+                        "not supported by test file system",
+                    )
+                }
+
+                Files.move(sourcePath, targetPath, *options)
+            }
+
+        assertTrue(cache.write(source, "fallback"))
+        assertEquals(2, attempts)
+        assertEquals("fallback", cache.read(source))
     }
 
     @Test
