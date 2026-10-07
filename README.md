@@ -28,6 +28,10 @@ Cards can add a missing required input with an empty expression ready to fill in
 
 Use **View … API** from an input or **Browse API** from an owner to explore all of its installed inputs and outputs. Search by name, type, or description; use **↑/↓** and **Enter** to open a member, **Ctrl/Cmd+F** to focus search, and **Alt+Left** or **Back** to return with the search preserved. Standard Quick Documentation and completion documentation remain available.
 
+Use **Show Taiga UI Card** from Find Action or the editor context menu, or press **Alt+Shift+Q**, to open the same interactive card at the caret without mouse hover. Use **Tab/Shift+Tab** to reach its actions, **Enter/Space** to activate buttons and links, and **Escape** to close it. The explicit action works even when mouse-hover documentation is disabled in IDE settings.
+
+Code changes invalidate the card's source-changing actions, including changes to component imports and installed declarations. A stale card keeps navigation and literal copying available and offers **Refresh** / **F5** to resolve the current API. Successful value and template edits refresh the card automatically; Undo/Redo require refreshing before another edit. If its source target was deleted or renamed outside the card, reopen the card at the caret.
+
 ## Design tokens
 
 ### Completion

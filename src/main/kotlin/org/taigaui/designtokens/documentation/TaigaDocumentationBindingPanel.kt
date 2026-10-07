@@ -16,6 +16,16 @@ internal class TaigaDocumentationBindingPanel(
     applyValue: ((String) -> String)?,
     currentValue: String? = null,
 ) : JPanel() {
+    private var canApply = applyValue != null && member.kind == TaigaApiMemberKind.INPUT && member.binding?.literal != null
+    private val prompt = JBLabel()
+    private val valueButtons = mutableListOf<JButton>()
+
+    fun invalidateContext() {
+        canApply = false
+        prompt.text = "Choose a literal to copy; refresh to apply"
+        valueButtons.forEach { it.toolTipText = "Copy '${it.text}'" }
+    }
+
     init {
         layout = BoxLayout(this, BoxLayout.Y_AXIS)
         isOpaque = false
@@ -33,7 +43,6 @@ internal class TaigaDocumentationBindingPanel(
                 alignmentX = LEFT_ALIGNMENT
                 maximumSize = Dimension(Int.MAX_VALUE, preferredSize.height)
             }
-        val canApply = applyValue != null && member.kind == TaigaApiMemberKind.INPUT && member.binding?.literal != null
         val current = JBLabel().apply { alignmentX = LEFT_ALIGNMENT }
         member.binding?.let { binding ->
             current.text =
@@ -47,10 +56,9 @@ internal class TaigaDocumentationBindingPanel(
             add(current)
         }
         if (values.isNotEmpty()) {
-            val prompt =
-                if (canApply) "Choose a value to apply (Shift-click copies)" else "Choose a literal to copy"
+            prompt.text = if (canApply) "Choose a value to apply (Shift-click copies)" else "Choose a literal to copy"
             add(
-                JBLabel(prompt).apply {
+                prompt.apply {
                     alignmentX = LEFT_ALIGNMENT
                 },
             )
@@ -61,6 +69,7 @@ internal class TaigaDocumentationBindingPanel(
                     values.take(MAX_VISIBLE_VALUES).forEach { value ->
                         add(
                             JButton(value).apply {
+                                valueButtons += this
                                 toolTipText =
                                     if (canApply) {
                                         "Apply $value to the existing binding; Shift-click to copy"
@@ -69,7 +78,7 @@ internal class TaigaDocumentationBindingPanel(
                                     }
                                 addActionListener { event ->
                                     if (canApply && event.modifiers and ActionEvent.SHIFT_MASK == 0) {
-                                        status.text = applyValue(value)
+                                        status.text = applyValue?.invoke(value)
                                         status.toolTipText = status.text
                                         if (status.text?.startsWith("Applied") == true) {
                                             current.text = "Current value: $value"

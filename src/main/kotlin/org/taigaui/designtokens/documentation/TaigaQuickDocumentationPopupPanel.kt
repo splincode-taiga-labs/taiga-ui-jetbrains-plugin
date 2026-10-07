@@ -24,6 +24,7 @@ import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.JSeparator
+import javax.swing.LayoutFocusTraversalPolicy
 
 internal data class TaigaDocumentationIconPreview(
     val reference: TaigaDocumentationIcon,
@@ -43,6 +44,7 @@ internal data class TaigaDocumentationPopupActions(
     val queryChanged: ((String) -> Unit)? = null,
     val applyTemplateEdit: ((TaigaDocumentationTemplateEdit) -> String)? = null,
     val navigateDeclaration: ((TaigaDocumentationSource) -> Unit)? = null,
+    val refresh: (() -> Unit)? = null,
 )
 
 /** The same compact card structure serves every kind, with kind-specific content. */
@@ -61,19 +63,29 @@ internal class TaigaQuickDocumentationPopupPanel(
     private val scroll: JBScrollPane
     private var apiBrowser: TaigaDocumentationApiBrowser? = null
     private var backButton: JButton? = null
+    private val sourceButtons = mutableListOf<JButton>()
+    private var bindingPanel: TaigaDocumentationBindingPanel? = null
+    private val contextStatus = verticalPanel()
+    private var contextMessage: String? = null
     private val fullApi: Boolean get() = apiQuery != null
 
-    val preferredFocus: JComponent get() = apiBrowser?.preferredFocus ?: backButton ?: this
+    val preferredFocus: JComponent get() = apiBrowser?.preferredFocus ?: backButton ?: firstFocusable(this) ?: this
 
     init {
         border = JBUI.Borders.empty(16, 18)
         background = DESIGN_TOKEN_POPUP_BACKGROUND
         getAccessibleContext().accessibleName = "Taiga UI documentation for ${resolved.presentationName}"
+        isFocusCycleRoot = true
+        focusTraversalPolicy = LayoutFocusTraversalPolicy()
+        bind("ESCAPE", "close-taiga-card", onClose)
+        actions.refresh?.let { refresh -> bind("F5", "refresh-taiga-card", refresh) }
         actions.goBack?.let { back -> bind("alt LEFT", "back-to-api", back) }
 
         content.add(header(pinned))
         content.add(Box.createVerticalStrut(JBUI.scale(4)))
         content.add(meta())
+        contextStatus.isVisible = false
+        content.add(contextStatus)
         resolved.description?.takeIf(String::isNotBlank)?.let { description ->
             content.add(Box.createVerticalStrut(JBUI.scale(12)))
             content.add(wrappedLabel(description.take(MAX_DESCRIPTION_LENGTH)))
@@ -105,7 +117,34 @@ internal class TaigaQuickDocumentationPopupPanel(
             }
         add(scroll, BorderLayout.CENTER)
         add(footer(), BorderLayout.SOUTH)
+        keyboardButtons(this)
     }
+
+    fun invalidateContext(message: String = STALE_DOCUMENTATION_MESSAGE) {
+        if (contextMessage == message) return
+        contextMessage = message
+        sourceButtons.forEach { it.isEnabled = false }
+        bindingPanel?.invalidateContext()
+        contextStatus.removeAll()
+        contextStatus.add(wrappedLabel(message))
+        actions.refresh?.let { refresh ->
+            val button = JButton("Refresh").apply { addActionListener { refresh() } }
+            contextStatus.add(button)
+            keyboardButtons(button)
+        }
+        contextStatus.isVisible = true
+        revalidate()
+        repaint()
+    }
+
+    fun showRefreshFailure() = invalidateContext("The source target changed. Reopen its card at the caret.")
+
+    private fun sourceButton(text: String, action: () -> Unit): JButton =
+        JButton(text).apply {
+            sourceButtons += this
+            isEnabled = !contextStatus.isVisible
+            addActionListener { action() }
+        }
 
     fun showIconPreviews(values: List<TaigaDocumentationIconPreview>) {
         previewContent.removeAll()
@@ -212,7 +251,7 @@ internal class TaigaQuickDocumentationPopupPanel(
                 val label = if (member.kind == TaigaApiMemberKind.OUTPUT) "\$event type" else "Type"
                 add(detail(label, it))
             }
-            add(TaigaDocumentationBindingPanel(member, actions.applyValue, actions.currentValue))
+            add(TaigaDocumentationBindingPanel(member, actions.applyValue, actions.currentValue).also { bindingPanel = it })
             val declaredRequiredInputs =
                 member.declaration
                     ?.localDocumentation
@@ -302,9 +341,8 @@ internal class TaigaQuickDocumentationPopupPanel(
         val status = JBLabel().apply { alignmentX = LEFT_ALIGNMENT }
         edits.forEach { edit ->
             content.add(
-                JButton(edit.label).apply {
+                sourceButton(edit.label) { status.text = apply(edit) }.apply {
                     alignmentX = LEFT_ALIGNMENT
-                    addActionListener { status.text = apply(edit) }
                 },
             )
         }
@@ -422,7 +460,7 @@ internal class TaigaQuickDocumentationPopupPanel(
                     alignmentX = LEFT_ALIGNMENT
                     val reference = resolved.documentationIcons.firstOrNull()
                     if (reference != null && actions.chooseIcon != null) {
-                        add(JButton("Choose icon").apply { addActionListener { actions.chooseIcon.invoke(reference) } })
+                        add(sourceButton("Choose icon") { actions.chooseIcon.invoke(reference) })
                     } else if (resolved.entity.example != null && actions.showExample != null) {
                         add(link("Example →") { actions.showExample.invoke() })
                     }
@@ -603,7 +641,26 @@ private fun link(
     LinkLabel<Any>(title, null) { _, _ -> action() }.apply {
         foreground = DESIGN_TOKEN_POPUP_LINK_COLOR
         font = font.deriveFont(Font.PLAIN)
+        isFocusable = true
+        bind("ENTER", "activate-taiga-link", action)
+        bind("SPACE", "activate-taiga-link-space", action)
     }
+
+private fun firstFocusable(component: java.awt.Container): JComponent? =
+    component.components.firstNotNullOfOrNull { child ->
+        when {
+            child is JComponent && (child is JButton || child is LinkLabel<*>) && child.isFocusable && child.isEnabled -> child
+            child is java.awt.Container -> firstFocusable(child)
+            else -> null
+        }
+    }
+
+private fun keyboardButtons(component: JComponent) {
+    if (component is JButton) {
+        component.bind("ENTER", "activate-taiga-button") { if (component.isEnabled) component.doClick() }
+    }
+    component.components.filterIsInstance<JComponent>().forEach(::keyboardButtons)
+}
 
 private fun wrappedLabel(
     text: String,

@@ -2,6 +2,7 @@ package org.taigaui.designtokens.documentation
 
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.command.undo.UndoManager
+import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.impl.text.TextEditorProvider
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiFile
@@ -271,6 +272,145 @@ class TaigaQuickDocumentationDxTest : BasePlatformTestCase() {
             myFixture.editor.document.text
                 .substring(binding.startOffset, binding.endOffset),
         )
+    }
+
+    fun testPinnedValueActionRejectsAddedLocalReceiverAndRefreshNarrowsChoices() {
+        val file = template("""<button tuiButton size="m">Save</button>""")
+        val original = member(file, "size")
+        val document = myFixture.editor.document
+        val context = TaigaDocumentationActionContext(project, document)
+        val adapter = TaigaDocumentationBindingEditor(project, document, requireNotNull(original.binding), original.localValues(), context::isCurrent)
+        val request = requireNotNull(TaigaDocumentationResolver.findRequest(file, file.text.indexOf("size") + 1))
+        val target = TaigaDocumentationRefreshTarget(document, request)
+        try {
+            assertTrue(original.localValues().contains("l"))
+            WriteCommandAction.runWriteCommandAction(project) {
+                document.insertString(document.text.indexOf(" size="), " localSized")
+                document.insertString(0, "<!-- note -->\n")
+            }
+            assertEquals(STALE_DOCUMENTATION_MESSAGE, adapter.apply("l"))
+            assertTrue(document.text.contains("size=\"m\""))
+            PsiDocumentManager.getInstance(project).commitAllDocuments()
+            myFixture.doHighlighting()
+            val fresh = requireNotNull(resolveDocumentation(requireNotNull(TaigaDocumentationResolver.findRequest(file, requireNotNull(target.offset())))) as? TaigaResolvedDocumentation.Member)
+            assertEquals(setOf("s", "m"), fresh.localValues().toSet())
+            val refreshedContext = TaigaDocumentationActionContext(project, document)
+            val refreshed = TaigaDocumentationBindingEditor(project, document, requireNotNull(fresh.binding), fresh.localValues(), refreshedContext::isCurrent)
+            try {
+                assertTrue(refreshed.apply("s").startsWith("Applied"))
+                assertTrue(document.text.contains("size=\"s\""))
+            } finally {
+                refreshed.dispose()
+            }
+        } finally {
+            adapter.dispose()
+            target.dispose()
+        }
+    }
+
+    fun testPinnedValueActionRejectsUncommittedImportChanges() {
+        val file = template("""<button tuiButton size="m">Save</button>""")
+        val original = member(file, "size")
+        val document = myFixture.editor.document
+        val context = TaigaDocumentationActionContext(project, document)
+        val adapter = TaigaDocumentationBindingEditor(project, document, requireNotNull(original.binding), original.localValues(), context::isCurrent)
+        try {
+            val owner = requireNotNull(FileDocumentManager.getInstance().getDocument(myFixture.findFileInTempDir("src/component.ts")))
+            WriteCommandAction.runWriteCommandAction(project) {
+                owner.setText(owner.text.replace("imports: [TuiButton, TuiAux, TuiHint, LocalSized]", "imports: [TuiAux, TuiHint, LocalSized]"))
+            }
+            assertEquals(STALE_DOCUMENTATION_MESSAGE, adapter.apply("l"))
+            assertTrue(document.text.contains("size=\"m\""))
+            PsiDocumentManager.getInstance(project).commitAllDocuments()
+            myFixture.doHighlighting()
+            assertNull(TaigaDocumentationResolver.findRequest(file, file.text.indexOf("size") + 1))
+        } finally {
+            adapter.dispose()
+        }
+    }
+
+    fun testPinnedValueActionRejectsInstalledTypeChangesAndRefreshReadsNewApi() {
+        val file = template("""<button tuiButton size="m">Save</button>""")
+        val original = member(file, "size")
+        val document = myFixture.editor.document
+        val context = TaigaDocumentationActionContext(project, document)
+        val adapter = TaigaDocumentationBindingEditor(project, document, requireNotNull(original.binding), original.localValues(), context::isCurrent)
+        try {
+            val declarations = requireNotNull(FileDocumentManager.getInstance().getDocument(myFixture.findFileInTempDir("node_modules/@taiga-ui/core/index.d.ts")))
+            WriteCommandAction.runWriteCommandAction(project) {
+                declarations.setText(declarations.text.replace("'s' | 'm' | 'l'", "'m'"))
+            }
+            PsiDocumentManager.getInstance(project).commitAllDocuments()
+            assertEquals(STALE_DOCUMENTATION_MESSAGE, adapter.apply("l"))
+            myFixture.doHighlighting()
+            assertEquals(listOf("m"), member(file, "size").localValues())
+        } finally {
+            adapter.dispose()
+        }
+    }
+
+    fun testPinnedDeprecatedActionRejectsChangedDeclarationMetadata() {
+        val file = template("""<button tuiButton oldSize="value">Save</button>""")
+        val old = member(file, "oldSize")
+        val document = myFixture.editor.document
+        val context = TaigaDocumentationActionContext(project, document)
+        val adapter = TaigaDocumentationTemplateEditor(project, document, requireNotNull(old.element), context::isCurrent)
+        val edit = old.templateEdits().single { it.kind == TaigaTemplateEditKind.RENAME_BINDING }
+        try {
+            val declarations = requireNotNull(FileDocumentManager.getInstance().getDocument(myFixture.findFileInTempDir("node_modules/@taiga-ui/core/index.d.ts")))
+            WriteCommandAction.runWriteCommandAction(project) {
+                declarations.setText(declarations.text.replace("@deprecated Use newSize instead.", "This input is still supported."))
+            }
+            PsiDocumentManager.getInstance(project).commitAllDocuments()
+            assertEquals(STALE_DOCUMENTATION_MESSAGE, adapter.apply(edit))
+            assertTrue(document.text.contains("oldSize=\"value\""))
+            myFixture.doHighlighting()
+            assertTrue(member(file, "oldSize").templateEdits().none { it.kind == TaigaTemplateEditKind.RENAME_BINDING })
+        } finally {
+            adapter.dispose()
+        }
+    }
+
+    fun testUndoRedoInvalidatesPinnedSnapshotAndRefreshReadsCurrentLiteral() {
+        val file = template("""<button tuiButton size="m">Save</button>""")
+        val original = member(file, "size")
+        val document = myFixture.editor.document
+        val context = TaigaDocumentationActionContext(project, document)
+        val adapter = TaigaDocumentationBindingEditor(project, document, requireNotNull(original.binding), original.localValues(), context::isCurrent)
+        val editor = TextEditorProvider.getInstance().getTextEditor(myFixture.editor)
+        try {
+            assertTrue(adapter.apply("s").startsWith("Applied"))
+            UndoManager.getInstance(project).undo(editor)
+            assertEquals(STALE_DOCUMENTATION_MESSAGE, adapter.apply("l"))
+            assertTrue(document.text.contains("size=\"m\""))
+            UndoManager.getInstance(project).redo(editor)
+            PsiDocumentManager.getInstance(project).commitAllDocuments()
+            myFixture.doHighlighting()
+            assertEquals("s", member(file, "size").binding?.literal)
+        } finally {
+            adapter.dispose()
+        }
+    }
+
+    fun testRefreshTargetTracksDeprecatedRename() {
+        val file = template("""<button tuiButton oldSize="value">Save</button>""")
+        val request = requireNotNull(TaigaDocumentationResolver.findRequest(file, file.text.indexOf("oldSize") + 1))
+        val old = requireNotNull(resolveDocumentation(request) as? TaigaResolvedDocumentation.Member)
+        val document = myFixture.editor.document
+        val target = TaigaDocumentationRefreshTarget(document, request)
+        val adapter = TaigaDocumentationTemplateEditor(project, document, requireNotNull(old.element))
+        try {
+            val edit = old.templateEdits().single { it.kind == TaigaTemplateEditKind.RENAME_BINDING }
+            assertTrue(adapter.apply(edit).startsWith("Replaced"))
+            target.name = requireNotNull(edit.replacement)
+            myFixture.doHighlighting()
+            val fresh = resolveDocumentation(requireNotNull(TaigaDocumentationResolver.findRequest(file, requireNotNull(target.offset())))) as? TaigaResolvedDocumentation.Member
+            assertEquals("newSize", fresh?.property?.name)
+            assertEquals("value", fresh?.binding?.literal)
+        } finally {
+            target.dispose()
+            adapter.dispose()
+        }
     }
 
     private fun template(text: String): PsiFile {
