@@ -11,24 +11,24 @@ internal object PsiDesignTokenDeprecationExtractor {
         declaration: CssDeclaration,
         tokenName: String,
     ): DesignTokenDeprecation? =
-        declaration.trailingComment()?.toDeprecation(tokenName)
+        declaration.trailingCommentText()?.toDeprecation(tokenName)
             ?: declaration.leadingComment()?.toDeprecation(tokenName)
 
+    private fun String.toDeprecation(tokenName: String): DesignTokenDeprecation? =
+        DesignTokenDeprecationParser.parse(this, tokenName)
+
     private fun PsiComment.toDeprecation(tokenName: String): DesignTokenDeprecation? =
-        DesignTokenDeprecationParser.parse(text, tokenName)
+        text.toDeprecation(tokenName)
 
-    private fun CssDeclaration.trailingComment(): PsiComment? {
-        var sibling = nextSibling
+    private fun CssDeclaration.trailingCommentText(): String? {
+        val content = containingFile.text
+        val start = textRange.endOffset
+        val end = content.indexOf('\n', start).takeUnless { it < 0 } ?: content.length
+        val trailingText = content.substring(start, end).trim()
 
-        while (sibling is PsiWhiteSpace) {
-            if ('\n' in sibling.text) {
-                return null
-            }
-
-            sibling = sibling.nextSibling
+        return trailingText.takeIf { text ->
+            text.startsWith("//") || text.startsWith("/*")
         }
-
-        return sibling as? PsiComment
     }
 
     private fun CssDeclaration.leadingComment(): PsiComment? {
