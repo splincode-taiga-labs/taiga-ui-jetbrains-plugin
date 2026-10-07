@@ -38,16 +38,42 @@ class PsiDesignTokenDeprecationTest : BasePlatformTestCase() {
         assertNull(declarations.getValue("--tui-new").deprecation)
     }
 
-    private fun extract(content: String) =
+    fun testKeepsInlineDeprecationWithOwningLessDeclaration() {
+        val declarations =
+            extract(
+                content =
+                    """
+                    :root {
+                        --tui-background-engaging-pressed: #456; // @deprecated: Replaced with accent-pressed
+                        --tui-background-brand-tinkoff: #ffd22d; // @deprecated: Moved to brand group
+                    }
+                    """.trimIndent(),
+                fileName = "tokens.less",
+            ).associateBy { declaration -> declaration.name }
+
+        assertEquals(
+            "Replaced with accent-pressed",
+            declarations.getValue("--tui-background-engaging-pressed").deprecation?.message,
+        )
+        assertEquals(
+            "Moved to brand group",
+            declarations.getValue("--tui-background-brand-tinkoff").deprecation?.message,
+        )
+    }
+
+    private fun extract(
+        content: String,
+        fileName: String = "tokens.css",
+    ) =
         PsiDesignTokenSourceExtractor(project).extract(
             psiFile =
                 PsiFileFactory
                     .getInstance(project)
                     .createFileFromText(
-                        "tokens.css",
-                        FileTypeManager.getInstance().getFileTypeByFileName("tokens.css"),
+                        fileName,
+                        FileTypeManager.getInstance().getFileTypeByFileName(fileName),
                         content,
                     ),
-            sourceFile = Path.of("build", "deprecated-token-fixture", "tokens.css"),
+            sourceFile = Path.of("build", "deprecated-token-fixture", fileName),
         )
 }

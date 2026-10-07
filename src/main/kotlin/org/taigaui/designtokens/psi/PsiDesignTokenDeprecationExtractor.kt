@@ -12,28 +12,47 @@ internal object PsiDesignTokenDeprecationExtractor {
         declaration: CssDeclaration,
         tokenName: String,
     ): DesignTokenDeprecation? =
-        listOfNotNull(declaration.previousComment(), declaration.nextComment())
-            .mapNotNull { comment -> DesignTokenDeprecationParser.parse(comment.text, tokenName) }
-            .distinct()
-            .singleOrNull()
+        declaration.trailingComment()?.toDeprecation(tokenName)
+            ?: declaration.leadingComment()?.toDeprecation(tokenName)
 
-    private fun PsiElement.previousComment(): PsiComment? {
+    private fun PsiComment.toDeprecation(tokenName: String): DesignTokenDeprecation? =
+        DesignTokenDeprecationParser.parse(text, tokenName)
+
+    private fun CssDeclaration.trailingComment(): PsiComment? {
+        var sibling = nextSibling
+
+        while (sibling is PsiWhiteSpace) {
+            if ('\n' in sibling.text) {
+                return null
+            }
+
+            sibling = sibling.nextSibling
+        }
+
+        return sibling as? PsiComment
+    }
+
+    private fun CssDeclaration.leadingComment(): PsiComment? {
         var sibling = prevSibling
 
         while (sibling is PsiWhiteSpace) {
             sibling = sibling.prevSibling
         }
 
-        return sibling as? PsiComment
+        return (sibling as? PsiComment)?.takeUnless(PsiComment::isTrailingComment)
     }
 
-    private fun PsiElement.nextComment(): PsiComment? {
-        var sibling = nextSibling
+    private fun PsiComment.isTrailingComment(): Boolean {
+        var sibling = prevSibling
 
         while (sibling is PsiWhiteSpace) {
-            sibling = sibling.nextSibling
+            if ('\n' in sibling.text) {
+                return false
+            }
+
+            sibling = sibling.prevSibling
         }
 
-        return sibling as? PsiComment
+        return sibling is CssDeclaration
     }
 }
