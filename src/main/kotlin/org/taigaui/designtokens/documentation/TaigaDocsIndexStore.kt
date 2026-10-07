@@ -27,13 +27,9 @@ internal class TaigaDocsIndexStore(
     suspend fun refresh(source: TaigaDocsSource): TaigaDocsIndex? =
         refreshLoad(source, allowCachedFallback = true).await() ?: cached(source)
 
-    fun invalidate(source: TaigaDocsSource) {
-        invalidate(source, removeDiskCache = false)
-    }
-
     fun invalidate(
         source: TaigaDocsSource,
-        removeDiskCache: Boolean,
+        removeDiskCache: Boolean = false,
     ) {
         val jobs =
             synchronized(lock) {
