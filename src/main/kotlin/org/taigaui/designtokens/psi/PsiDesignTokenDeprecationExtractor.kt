@@ -23,7 +23,12 @@ internal object PsiDesignTokenDeprecationExtractor {
         val content = containingFile.text
         val start = textRange.endOffset
         val end = content.indexOf('\n', start).takeUnless { it < 0 } ?: content.length
-        val trailingText = content.substring(start, end).trim()
+        val trailingText =
+            content
+                .substring(start, end)
+                .trimStart()
+                .removePrefix(";")
+                .trimStart()
 
         return trailingText.takeIf { text ->
             text.startsWith("//") || text.startsWith("/*")
@@ -41,16 +46,11 @@ internal object PsiDesignTokenDeprecationExtractor {
     }
 
     private fun PsiComment.isTrailingComment(): Boolean {
-        var sibling = prevSibling
+        val content = containingFile.text
+        val commentStart = textRange.startOffset
+        val previousLineBreak = content.lastIndexOf('\n', commentStart - 1)
+        val lineStart = if (previousLineBreak < 0) 0 else previousLineBreak + 1
 
-        while (sibling is PsiWhiteSpace) {
-            if ('\n' in sibling.text) {
-                return false
-            }
-
-            sibling = sibling.prevSibling
-        }
-
-        return sibling is CssDeclaration
+        return content.substring(lineStart, commentStart).isNotBlank()
     }
 }
