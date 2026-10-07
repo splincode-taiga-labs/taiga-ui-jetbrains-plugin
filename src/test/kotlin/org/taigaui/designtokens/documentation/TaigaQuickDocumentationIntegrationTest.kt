@@ -335,6 +335,7 @@ class TaigaQuickDocumentationIntegrationTest : CodeInsightFixtureTestCase<EmptyM
                 export declare class TuiBinding {
                     size: InputSignal<TuiSizes>;
                     cycle: InputSignal<TuiCycleA>;
+                    plainSize: TuiSizes;
                 }
                 """.trimIndent(),
             )
@@ -352,6 +353,16 @@ class TaigaQuickDocumentationIntegrationTest : CodeInsightFixtureTestCase<EmptyM
             local.inputValues["size"],
         )
         assertTrue(local.inputValues["cycle"].orEmpty().isEmpty())
+        listOf("size", "plainSize").forEach { name ->
+            val token = requireNotNull(file.findElementAt(file.text.indexOf("$name:")))
+            val field =
+                generateSequence(token) { it.parent }
+                    .take(6)
+                    .first { it.text.trim().startsWith("$name:") && it.text.contains("TuiSizes") }
+            val aliased = field.inputDocumentation("publicSize", local)
+            assertEquals("TuiSizes", aliased.inputTypes["publicSize"])
+            assertEquals(listOf("s", "m", "l"), aliased.inputValues["publicSize"])
+        }
     }
 
     private fun nthIndexOf(
