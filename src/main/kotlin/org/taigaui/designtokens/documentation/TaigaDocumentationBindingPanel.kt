@@ -19,7 +19,10 @@ internal class TaigaDocumentationBindingPanel(
         layout = BoxLayout(this, BoxLayout.Y_AXIS)
         isOpaque = false
         alignmentX = LEFT_ALIGNMENT
-        val values = member.localValues().ifEmpty { member.possibleValues() }
+        val values =
+            member.localValues().ifEmpty {
+                member.possibleValues().ifEmpty { member.property.documentedType?.let(::finiteStringValues).orEmpty() }
+            }
         val status = JBLabel(" ").apply { alignmentX = LEFT_ALIGNMENT }
         val canApply = applyValue != null && member.kind == TaigaApiMemberKind.INPUT && member.binding?.literal != null
         val current = JBLabel().apply { alignmentX = LEFT_ALIGNMENT }
@@ -44,7 +47,7 @@ internal class TaigaDocumentationBindingPanel(
                                 toolTipText = if (canApply) "Apply $value to the existing binding; Shift-click to copy" else "Copy '$value'"
                                 addActionListener { event ->
                                     if (canApply && event.modifiers and ActionEvent.SHIFT_MASK == 0) {
-                                        status.text = applyValue?.invoke(value)
+                                        status.text = applyValue(value)
                                         if (status.text?.startsWith("Applied") == true) {
                                             current.text = "Current value: $value"
                                         }
@@ -59,7 +62,11 @@ internal class TaigaDocumentationBindingPanel(
                 },
             )
             if (values.size > MAX_VISIBLE_VALUES) {
-                add(JBLabel("More values in source").apply { alignmentX = LEFT_ALIGNMENT })
+                add(
+                    JBLabel(if (member.source != null) "More values in source" else "More values in full documentation").apply {
+                        alignmentX = LEFT_ALIGNMENT
+                    },
+                )
             }
             add(status)
         }
