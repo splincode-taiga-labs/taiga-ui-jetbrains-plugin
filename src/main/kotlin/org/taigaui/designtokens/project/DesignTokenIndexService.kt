@@ -108,7 +108,9 @@ class DesignTokenIndexService(
 
     fun getIndex(sourceFile: Path): DesignTokenIndex? =
         runCatching {
-            getIndexOrThrow(sourceFile)
+            packageResolver
+                .resolve(sourceFile)
+                ?.let(cache::getOrBuild)
         }.onFailure { error ->
             LOG.warn(
                 "Failed to build the installed Taiga UI style index for $sourceFile",
@@ -199,10 +201,6 @@ class DesignTokenIndexService(
             packageIndexCached && packageNameCatalogCached && projectIndexCached
         }.getOrDefault(false)
 
-    internal fun getIndexOrThrow(sourceFile: Path): DesignTokenIndex? =
-        packageResolver
-            .resolve(sourceFile)
-            ?.let(cache::getOrBuild)
 
     internal fun invalidate(changedPaths: Collection<Path>): Int {
         val packageInvalidated = cache.invalidate(changedPaths)
