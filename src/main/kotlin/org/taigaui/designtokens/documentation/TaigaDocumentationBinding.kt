@@ -19,8 +19,10 @@ internal data class TaigaDocumentationBinding(
     val expression: Boolean,
 ) {
     fun replacement(value: String): String {
-        val quoted = if (expression) "'$value'" else value
-        val escaped = quoted.replace("&", "&amp;").replace("\"", "&quot;").replace("'", "&#39;")
+        val htmlQuote = text[valueStart - 1]
+        val literalQuote = if (htmlQuote == '"') "'" else "\""
+        val quoted = if (expression) "$literalQuote$value$literalQuote" else value
+        val escaped = quoted.replace("&", "&amp;").replace(htmlQuote.toString(), if (htmlQuote == '"') "&quot;" else "&#39;")
         return text.replaceRange(valueStart, valueEnd, escaped)
     }
 }
