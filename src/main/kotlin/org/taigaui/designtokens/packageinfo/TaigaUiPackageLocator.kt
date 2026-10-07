@@ -65,10 +65,7 @@ internal class TaigaUiPackageLocator(
                 }
             }.getOrElse { emptyMap() }
         val normalizedScope = scopeRoot.toAbsolutePath().normalize()
-        val workspaceRoot =
-            normalizedScope.parent
-                ?.parent
-                ?: startDirectory
+        val workspaceRoot = requireNotNull(normalizedScope.parent?.parent)
 
         return TaigaUiPackageScope(
             workspaceRoot = workspaceRoot,
@@ -207,11 +204,10 @@ internal class TaigaUiPackageLocator(
     private fun Path.startDirectory(): Path? {
         val normalized = toAbsolutePath().normalize()
 
-        return when {
-            Files.isDirectory(normalized) -> normalized
-            Files.isRegularFile(normalized) -> normalized.parent
-            normalized.parent != null -> normalized.parent
-            else -> null
+        return if (Files.isDirectory(normalized)) {
+            normalized
+        } else {
+            normalized.parent
         }
     }
 
