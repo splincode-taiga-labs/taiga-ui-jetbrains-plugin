@@ -55,6 +55,21 @@ jobs:
                   distribution: temurin
                   java-version: 21
 
+            - name: Format Kotlin for validation
+              env:
+                  JAVA_TOOL_OPTIONS: -Djava.io.tmpdir=${{ runner.temp }}
+              run: |
+                  ./gradlew ktlintFormat -Djava.net.useSystemProxies=false --stacktrace
+                  git diff --binary > kotlin-formatting.patch
+
+            - name: Export Kotlin formatting
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: kotlin-formatting
+                  if-no-files-found: ignore
+                  path: kotlin-formatting.patch
+
             - name: Verify Kotlin style
               env:
                   JAVA_TOOL_OPTIONS: -Djava.io.tmpdir=${{ runner.temp }}

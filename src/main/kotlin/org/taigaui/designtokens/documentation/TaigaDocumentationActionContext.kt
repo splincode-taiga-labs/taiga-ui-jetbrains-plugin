@@ -45,7 +45,9 @@ internal class TaigaDocumentationRefreshTarget(
         if (!marker.isValid) return null
         if (element == null) return marker.startOffset
         val text = document.charsSequence.subSequence(marker.startOffset, marker.endOffset).toString()
-        if (text.startsWith("<$name") && text.getOrNull(name.length + 1)?.let { it.isWhitespace() || it == '>' || it == '/' } == true) {
+        val boundary = text.getOrNull(name.length + 1)
+        val endsTagName = boundary?.isWhitespace() == true || boundary == '>' || boundary == '/'
+        if (text.startsWith("<$name") && endsTagName) {
             return marker.startOffset + 1
         }
         val attribute = Regex("(?:^|\\s)([\\[(]*${Regex.escape(name)}[\\])]*)(?=\\s*=|\\s|/?>)").find(text)
