@@ -19,7 +19,9 @@ internal fun PsiElement.localDocumentation(symbol: String?): TaigaLocalDocumenta
     val path = file?.takeIf { it.extension in DECLARATION_EXTENSIONS }?.path
     val source = path?.let { value -> runCatching { Path.of(value) }.getOrNull() }
 
-    return TaigaLocalDocumentationParser.parse(declaration.text).copy(
+    val local = TaigaLocalDocumentationParser.parse(declaration.text)
+    return local.copy(
+        inputValues = local.inputTypes.mapValues { (_, type) -> declaration.localInputValues(type) },
         source = source?.let { file -> TaigaDocumentationSource(file, declaration.textOffset) },
     )
 }

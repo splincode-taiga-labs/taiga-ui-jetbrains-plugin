@@ -70,7 +70,10 @@ internal object TaigaDocumentationResolver {
         if (attribute != null && attribute.nameElement?.textRange?.containsOffset(offset) == true) {
             val nameElement = attribute.nameElement ?: return null
             val rawName = attribute.bindingName()
-            val member = rawName.toMemberBinding()
+            val member =
+                rawName.toMemberBinding()
+                    ?: rawName.takeIf { !isTaigaSelector(it) && Regex("[A-Za-z_$][\\w$]*").matches(it) }
+                        ?.let { MemberBinding(it, TaigaApiMemberKind.INPUT) }
 
             if (member != null) {
                 val tag = attribute.parent
@@ -87,6 +90,7 @@ internal object TaigaDocumentationResolver {
                     startOffset = nameElement.textRange.startOffset,
                     endOffset = nameElement.textRange.endOffset,
                     usage = tag.memberUsage(member, owners.firstOrNull()?.selector),
+                    binding = attribute.documentationBinding(),
                     declaration =
                         (attribute.descriptor as? HtmlAttributeSymbolDescriptor)
                             ?.symbol
@@ -107,6 +111,7 @@ internal object TaigaDocumentationResolver {
                 endOffset = nameElement.textRange.endOffset,
                 usage = attribute.parent.compactUsage(),
                 icons = attribute.parent.documentationIcons(),
+                bindings = attribute.parent.attributes.mapNotNull { it.documentationBinding() },
             )
         }
 
@@ -129,6 +134,7 @@ internal object TaigaDocumentationResolver {
             endOffset = element.textRange.endOffset,
             usage = tag.compactUsage(),
             icons = tag.documentationIcons(),
+            bindings = tag.attributes.mapNotNull { it.documentationBinding() },
         )
     }
 
