@@ -76,7 +76,9 @@ private data class DocumentationDependencies(
     val configurationPaths: Set<String> = emptySet(),
 ) {
     fun contains(path: String): Boolean =
-        path in configurationPaths || files.any { it.path == path } || roots.any { path == it || path.startsWith("$it/") }
+        path in configurationPaths ||
+            files.any { it.path == path } ||
+            roots.any { path == it || path.startsWith("$it/") }
 }
 
 /** Bounded local import graph plus installed package roots; never scan the project on a UI callback. */
@@ -92,8 +94,13 @@ private fun captureDocumentationDependencies(
     val queue = ArrayDeque<PsiFile>()
     queue.add(file)
     component?.sourceElement?.containingFile?.let(queue::add)
-    installedSources.mapNotNull { findDocumentationFile(project, it) }
-        .mapNotNull { com.intellij.psi.PsiManager.getInstance(project).findFile(it) }.forEach(queue::add)
+    installedSources
+        .mapNotNull { findDocumentationFile(project, it) }
+        .mapNotNull {
+            com.intellij.psi.PsiManager
+                .getInstance(project)
+                .findFile(it)
+        }.forEach(queue::add)
     val files = linkedSetOf<VirtualFile>()
     val roots = linkedSetOf<String>()
     val configurationPaths = linkedSetOf<String>()
@@ -104,7 +111,8 @@ private fun captureDocumentationDependencies(
         if (packageRoot != null) {
             roots.add(packageRoot)
         } else {
-            PsiTreeUtil.findChildrenOfType(current, ES6FromClause::class.java)
+            PsiTreeUtil
+                .findChildrenOfType(current, ES6FromClause::class.java)
                 .take(MAX_CONTEXT_IMPORTS)
                 .forEach { from ->
                     from.resolveReferencedElements().mapNotNull { it.containingFile }.forEach(queue::add)
