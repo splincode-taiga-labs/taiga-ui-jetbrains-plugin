@@ -61,6 +61,23 @@ class PsiDesignTokenDeprecationTest : BasePlatformTestCase() {
         )
     }
 
+    fun testDoesNotLeakInlineLessDeprecationToNextDeclaration() {
+        val declarations =
+            extract(
+                content =
+                    """
+                    :root {
+                        --tui-background-engaging-pressed: #456; // @deprecated: Replaced with accent-pressed
+                        --tui-background-brand-tinkoff: #ffd22d;
+                    }
+                    """.trimIndent(),
+                fileName = "tokens.less",
+            ).associateBy { declaration -> declaration.name }
+
+        assertNotNull(declarations.getValue("--tui-background-engaging-pressed").deprecation)
+        assertNull(declarations.getValue("--tui-background-brand-tinkoff").deprecation)
+    }
+
     private fun extract(
         content: String,
         fileName: String = "tokens.css",
