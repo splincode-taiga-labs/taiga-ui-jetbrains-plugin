@@ -283,8 +283,7 @@ private fun PolySymbol.toLocalSubject(
                         ?: local
                 }
             subject.copy(localDocumentation = input)
-        }
-        .firstOrNull()
+        }.firstOrNull()
         ?: TaigaDocumentationSubject(
             selector = selector,
             publicSymbol = requestedSymbol,
