@@ -150,7 +150,8 @@ class DesignTokenCustomPropertyPreviewTest : BasePlatformTestCase() {
                 .single { method ->
                     method.name == "toHoverValueRow" &&
                         method.parameterCount == 1
-                }.apply { isAccessible = true }
+                }
+                .apply { isAccessible = true }
                 .invoke(null, withoutLine)
         val targetWithoutLine =
             rowWithoutLine.javaClass

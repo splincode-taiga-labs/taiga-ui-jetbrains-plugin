@@ -14,11 +14,18 @@ import com.intellij.util.ui.UIUtil
 import org.taigaui.designtokens.project.DesignTokenIndexService
 import org.taigaui.designtokens.settings.TaigaDesignTokensSettings
 import java.awt.Container
+import java.awt.GraphicsConfiguration
+import java.awt.GraphicsDevice
+import java.awt.Point
+import java.awt.Rectangle
 import java.awt.event.MouseEvent
+import java.awt.geom.AffineTransform
+import java.awt.image.ColorModel
 import java.lang.reflect.Proxy
 import java.nio.file.Files
 import java.nio.file.Path
 import javax.swing.JLabel
+import javax.swing.JPanel
 
 class DesignTokenHoverPopupControllerTest : BasePlatformTestCase() {
     private lateinit var tempRoot: Path
@@ -101,7 +108,8 @@ class DesignTokenHoverPopupControllerTest : BasePlatformTestCase() {
                 ) as DesignTokenHoverPopupPanel
 
             assertNotNull(readPrivateField(controller, "popupKey"))
-            assertTrue(panel.containsLabel("Loading design token graph…") || panel.componentCount > 0)
+            waitUntil { !panel.containsLabel("Loading design token graph…") }
+            assertTrue(panel.containsLabel("--tui-text-primary"))
         } finally {
             controller.dismissHover(editor)
         }
@@ -300,7 +308,7 @@ class DesignTokenHoverPopupControllerTest : BasePlatformTestCase() {
                 ) as DesignTokenHoverPopupPanel
 
             assertNotNull(readPrivateField(controller, "popupKey"))
-            assertTrue(panel.containsLabel("Loading design token graph…") || panel.componentCount > 0)
+            waitUntil { !panel.containsLabel("Loading design token graph…") }
         } finally {
             controller.dismissHover(editor)
         }
@@ -399,6 +407,151 @@ class DesignTokenHoverPopupControllerTest : BasePlatformTestCase() {
 
         assertNull(readPrivateField(controller, "activeHoverKey"))
         assertNull(readPrivateField(controller, "latestHoverRequest"))
+    }
+
+    fun testSelectionThatAppearsDuringDelayCancelsPendingRequest() {
+        configureCss(".demo { color: var(--tui-text-primary); }")
+        val editor = myFixture.editor
+        val controller = project.service<DesignTokenHoverPopupController>()
+        val offset = editor.document.text.indexOf("--tui-text-primary") + 3
+
+        controller.mouseMoved(editorMouseEvent(offset))
+        assertNotNull(readPrivateField(controller, "activeHoverKey"))
+
+        editor.selectionModel.setSelection(0, 1)
+        waitUntilNull(controller, "activeHoverKey")
+
+        assertNull(readPrivateField(controller, "latestHoverRequest"))
+        editor.selectionModel.removeSelection()
+    }
+
+    fun testMovingAwayFromVisiblePopupSchedulesAndCompletesHide() {
+        configureCss(
+            """
+            :root {
+                --tui-text-primary: #ff0000;
+            }
+
+            .demo {
+                color: var(--tui-text-primary);
+            }
+            """.trimIndent(),
+        )
+        val editor = myFixture.editor
+        val controller = project.service<DesignTokenHoverPopupController>()
+        val offset = editor.document.text.lastIndexOf("--tui-text-primary") + 3
+
+        controller.mouseMoved(editorMouseEvent(offset))
+        val panel =
+            requireNotNull(
+                waitForPrivateField(controller, "popupContent"),
+            ) as DesignTokenHoverPopupPanel
+        waitUntil { !panel.containsLabel("Loading design token graph…") }
+
+        controller.mouseMoved(editorMouseEvent(0))
+        waitUntilNull(controller, "popup")
+
+        assertNull(readPrivateField(controller, "activeHoverKey"))
+        assertNull(readPrivateField(controller, "latestHoverRequest"))
+    }
+
+    fun testScheduleHideNoopsWithoutPopupOrActiveHover() {
+        val controller = project.service<DesignTokenHoverPopupController>()
+
+        invokePrivate(controller, "scheduleHide")
+
+        assertNull(readPrivateField(controller, "pendingHideJob"))
+    }
+
+    fun testShowPopupDuplicateAndBlockedGuards() {
+        configureCss(
+            """
+            :root {
+                --tui-text-primary: #ff0000;
+            }
+
+            .demo {
+                color: var(--tui-text-primary);
+            }
+            """.trimIndent(),
+        )
+        val editor = myFixture.editor
+        val controller = project.service<DesignTokenHoverPopupController>()
+        val offset = editor.document.text.lastIndexOf("--tui-text-primary") + 3
+
+        controller.mouseMoved(editorMouseEvent(offset))
+        val key = requireNotNull(waitForPrivateField(controller, "popupKey"))
+        val popup = requireNotNull(readPrivateField(controller, "popup"))
+
+        invokePrivate(
+            controller,
+            "showLoadingPopup",
+            editor,
+            Point(0, 0),
+            key,
+            "--tui-text-primary",
+        )
+        assertSame(popup, readPrivateField(controller, "popup"))
+
+        editor.selectionModel.setSelection(0, 1)
+        invokePrivate(
+            controller,
+            "showPopup",
+            editor,
+            Point(0, 0),
+            key,
+            { _: DesignTokenHoverPopupPanel -> },
+        )
+        assertSame(popup, readPrivateField(controller, "popup"))
+        editor.selectionModel.removeSelection()
+
+        controller.dismissHover(editor)
+    }
+
+    fun testPopupWidthUsesGraphicsConfigurationWhenAvailable() {
+        val configuration =
+            object : GraphicsConfiguration() {
+                override fun getDevice(): GraphicsDevice? = null
+
+                override fun getColorModel(): ColorModel = ColorModel.getRGBdefault()
+
+                override fun getColorModel(transparency: Int): ColorModel = ColorModel.getRGBdefault()
+
+                override fun getDefaultTransform(): AffineTransform = AffineTransform()
+
+                override fun getNormalizingTransform(): AffineTransform = AffineTransform()
+
+                override fun getBounds(): Rectangle = Rectangle(0, 0, 600, 800)
+            }
+        val component =
+            object : JPanel() {
+                override fun getGraphicsConfiguration(): GraphicsConfiguration = configuration
+            }
+        val editor =
+            Proxy.newProxyInstance(
+                Editor::class.java.classLoader,
+                arrayOf(Editor::class.java),
+            ) { proxy, method, arguments ->
+                when (method.name) {
+                    "getContentComponent" -> component
+                    "toString" -> "GraphicsEditor"
+                    "hashCode" -> System.identityHashCode(proxy)
+                    "equals" -> proxy === arguments?.firstOrNull()
+                    else -> null
+                }
+            } as Editor
+        val method =
+            Class
+                .forName("org.taigaui.designtokens.documentation.DesignTokenHoverPopupControllerKt")
+                .declaredMethods
+                .single { candidate ->
+                    candidate.name == "calculateDesignTokenPopupWidth" &&
+                        candidate.parameterCount == 1
+                }.apply { isAccessible = true }
+
+        val width = method.invoke(null, editor) as Int
+
+        assertTrue(width in 1..559)
     }
 
     private fun Container.containsLabel(text: String): Boolean =
