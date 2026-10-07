@@ -1,5 +1,7 @@
 package org.taigaui.designtokens.icons
 
+import com.intellij.codeInsight.lookup.LookupManager
+import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.components.service
 import com.intellij.openapi.editor.event.EditorMouseEvent
 import com.intellij.openapi.editor.event.EditorMouseEventArea
@@ -7,9 +9,12 @@ import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.testFramework.runInEdtAndGet
 import com.intellij.util.ui.UIUtil
+import java.awt.Point
 import java.awt.event.MouseEvent
+import java.awt.image.BufferedImage
 import java.nio.file.Files
 import java.nio.file.Path
+import javax.swing.ImageIcon
 
 class IconHoverPopupControllerTest : BasePlatformTestCase() {
     private lateinit var tempRoot: Path
@@ -84,11 +89,114 @@ class IconHoverPopupControllerTest : BasePlatformTestCase() {
 
         controller.mouseMoved(editorMouseEvent(offset))
 
-        try {
-            assertNotNull(waitForPrivateField(controller, "popup"))
-        } finally {
-            controller.dismissHover(editor)
+        val popup = requireNotNull(waitForPrivateField(controller, "popup")) as com.intellij.openapi.ui.popup.JBPopup
+
+        runInEdtAndGet { popup.cancel() }
+        waitUntilNull(controller, "popup")
+
+        assertNull(readPrivateField(controller, "activeKey"))
+        assertNull(readPrivateField(controller, "hoverJob"))
+    }
+
+    fun testDocumentChangeMakesDelayedHoverStale() {
+        configureHtml("""<button iconStart="@tui.search"></button>""")
+        val editor = myFixture.editor
+        val controller = project.service<IconHoverPopupController>()
+        val offset = editor.document.text.indexOf("@tui.search") + 3
+
+        controller.mouseMoved(editorMouseEvent(offset))
+        assertNotNull(waitForPrivateField(controller, "activeKey"))
+
+        WriteCommandAction.runWriteCommandAction(project) {
+            editor.document.insertString(0, " ")
         }
+
+        waitUntilNull(controller, "activeKey")
+
+        assertNull(readPrivateField(controller, "hoverJob"))
+    }
+
+    fun testVisiblePopupRejectsDuplicateShowRequest() {
+        val workspace = tempRoot.resolve("duplicate-workspace")
+        val sourcePath = workspace.resolve("src/icons.html")
+        val iconPath = workspace.resolve("node_modules/@taiga-ui/icons/src/search.svg")
+
+        Files.createDirectories(iconPath.parent)
+        Files.writeString(
+            iconPath,
+            """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 12h16"/></svg>""",
+        )
+        configureSource(
+            fileName = "duplicate-workspace/src/icons.html",
+            content = """<button iconStart="@tui.search"></button>""",
+        )
+
+        val editor = myFixture.editor
+        val controller = project.service<IconHoverPopupController>()
+        val offset = editor.document.text.indexOf("@tui.search") + 3
+
+        controller.mouseMoved(editorMouseEvent(offset))
+        val popup = requireNotNull(waitForPrivateField(controller, "popup"))
+        val reference = requireNotNull(IconReferenceAtOffsetFinder.find(editor.document.text, offset))
+        val requestClass = Class.forName("org.taigaui.designtokens.icons.IconHoverRequest")
+        val request =
+            requestClass.declaredConstructors
+                .single()
+                .apply { isAccessible = true }
+                .newInstance(
+                    editor,
+                    sourcePath,
+                    reference,
+                    Point(0, 0),
+                    editor.document.modificationStamp,
+                )
+        val showPopup =
+            controller.javaClass.declaredMethods
+                .single { method ->
+                    method.name == "showPopup" && method.parameterCount == 2
+                }.apply { isAccessible = true }
+
+        showPopup.invoke(
+            controller,
+            request,
+            ImageIcon(BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB)),
+        )
+
+        assertSame(popup, readPrivateField(controller, "popup"))
+        controller.dismissHover(editor)
+    }
+
+    fun testListenerDismissesHoverWhileIconLookupIsActive() {
+        val workspace = tempRoot.resolve("lookup-workspace")
+        val sourcePath = workspace.resolve("src/icons.html")
+        val iconPath = workspace.resolve("node_modules/@taiga-ui/icons/src/search.svg")
+
+        Files.createDirectories(iconPath.parent)
+        Files.writeString(
+            iconPath,
+            """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 12h16"/></svg>""",
+        )
+        configureSource(
+            fileName = "lookup-workspace/src/icons.html",
+            content = """<button iconStart="@tui.search"></button>""",
+        )
+
+        val controller = project.service<IconHoverPopupController>()
+        val listener = IconHoverPopupListener()
+        val offset = myFixture.editor.document.text.indexOf("@tui.search") + 3
+        val event = editorMouseEvent(offset)
+
+        listener.mouseMoved(event)
+        assertNotNull(readPrivateField(controller, "activeKey"))
+
+        project.service<IconCompletionService>().loadNow(sourcePath)
+        requestIconCompletion(project, myFixture.editor, sourcePath)
+        assertNotNull(waitForLookup())
+
+        listener.mouseMoved(event)
+
+        assertNull(readPrivateField(controller, "activeKey"))
+        runInEdtAndGet { LookupManager.getInstance(project).hideActiveLookup() }
     }
 
     fun testRepeatedSameHoverKeepsSingleActiveKey() {
@@ -164,6 +272,26 @@ class IconHoverPopupControllerTest : BasePlatformTestCase() {
 
         listener.mouseDragged(event)
         assertNull(readPrivateField(controller, "activeKey"))
+    }
+
+    private fun waitForLookup(): Any? {
+        repeat(300) {
+            UIUtil.dispatchAllInvocationEvents()
+            val lookup =
+                runInEdtAndGet {
+                    LookupManager.getActiveLookup(myFixture.editor)
+                }
+
+            if (lookup != null) {
+                return lookup
+            }
+
+            Thread.sleep(10)
+        }
+
+        return runInEdtAndGet {
+            LookupManager.getActiveLookup(myFixture.editor)
+        }
     }
 
     private fun configureHtml(content: String) {
