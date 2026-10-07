@@ -1,7 +1,7 @@
 package org.taigaui.designtokens.documentation
 
+import com.intellij.lang.javascript.documentation.JSDocumentationUtils
 import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiWhiteSpace
 
 internal data class TaigaDocumentationMemberMetadata(
     val description: String?,
@@ -26,19 +26,12 @@ internal fun PsiElement.bindingMetadata(): TaigaDocumentationMemberMetadata {
     )
 }
 
-private fun PsiElement.bindingDocComment(): String {
-    val declaration = text.take(MAX_MEMBER_TEXT)
-    val embedded = DOC_COMMENT.find(declaration)?.takeIf { declaration.substring(0, it.range.first).isBlank() }?.value
-    if (embedded != null) return embedded
-    var sibling = prevSibling
-    while (sibling is PsiWhiteSpace) sibling = sibling.prevSibling
-    // JavaScript JSDoc is its own PSI element, rather than a platform PsiComment.
-    return sibling
+private fun PsiElement.bindingDocComment(): String =
+    JSDocumentationUtils
+        .findDocComment(this)
         ?.text
         ?.take(MAX_MEMBER_TEXT)
-        ?.takeIf { it.startsWith("/**") }
         .orEmpty()
-}
 
 private fun String.bindingDescription(): String? =
     removePrefix("/**")
@@ -50,7 +43,6 @@ private fun String.bindingDescription(): String? =
         .joinToString(" ")
         .takeIf(String::isNotBlank)
 
-private val DOC_COMMENT = Regex("""/\*\*[\s\S]*?\*/""")
 private val DEPRECATED = Regex("""@deprecated\s+([^\n*]+)""")
 private val REPLACEMENT = Regex("""(?i)\buse\s+(?:\{@link\s+|[`'"])?([A-Za-z_$][\w$]*)(?:}|[`'"])?\s+instead\b""")
 private val TRANSFORM = Regex("""\btransform\s*:\s*([\w$.]+)""")
