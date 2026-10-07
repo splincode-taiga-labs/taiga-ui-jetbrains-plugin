@@ -249,7 +249,7 @@ class DesignTokenIndexServiceTest : BasePlatformTestCase() {
             ":root { --tui-proprietary-only: red; }",
         )
 
-        val resolutionIndex = requireNotNull(service.getIndexOrThrow(sourcePath))
+        val resolutionIndex = requireNotNull(service.getIndex(sourcePath))
         val completionNames = service.completionTokenNames(sourcePath)
 
         assertTrue(resolutionIndex.find(CORE_FONT_TOKEN).isEmpty())
@@ -352,7 +352,7 @@ class DesignTokenIndexServiceTest : BasePlatformTestCase() {
 
     private fun index(packageFixture: PackageFixture): DesignTokenIndex =
         requireNotNull(
-            service.getIndexOrThrow(packageFixture.sourcePath),
+            service.getIndex(packageFixture.sourcePath),
         )
 
     private fun tokenValue(index: DesignTokenIndex): String =
