@@ -252,7 +252,7 @@ class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
                     ),
                 pinned = true,
             )
-        descendants(panel).filterIsInstance<JButton>().first { it.text == "m" }.doClick()
+        descendants(panel).filterIsInstance<JButton>().first { it.text == "Apply 'm'" }.doClick()
         assertEquals("m", applied)
         assertTrue(labelText(panel).contains("Current value: m"))
         assertTrue(labelText(panel).contains("Undo available"))
@@ -281,7 +281,9 @@ class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
                 TaigaApiMemberKind.INPUT,
             )
         val panel = TaigaQuickDocumentationPopupPanel(member)
-        descendants(panel).filterIsInstance<JButton>().first { it.text == "m" }.doClick()
+        val apply = descendants(panel).filterIsInstance<JButton>().first { it.text == "Apply 'm'" }
+        assertFalse(apply.isEnabled)
+        descendants(panel).filterIsInstance<JButton>().first { it.text == "Copy 'm'" }.doClick()
         assertTrue(labelText(panel).contains("Copied 'm'"))
         assertTrue(member.localValues().isEmpty())
     }
@@ -353,14 +355,17 @@ class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
         val chooser = buttons.first { it.text == "Choose icon" }
         assertFalse(chooser.isEnabled)
         activate(chooser, "ENTER")
-        activate(buttons.first { it.text == "m" }, "ENTER")
+        val apply = buttons.first { it.text == "Apply 'm'" }
+        assertFalse(apply.isEnabled)
+        activate(apply, "ENTER")
+        activate(buttons.first { it.text == "Copy 'm'" }, "ENTER")
         assertEquals(0, writes)
         assertTrue(labelText(panel).contains("Copied 'm'"))
         assertTrue(labelText(panel).contains("Code changed"))
         activate(panel, "F5")
         assertTrue(refreshed)
         renderAndSave(panel, "stale-binding")
-        val value = buttons.first { it.text == "m" }
+        val value = buttons.first { it.text == "Copy 'm'" }
         val viewport = descendants(panel).filterIsInstance<JViewport>().first()
         val position = SwingUtilities.convertPoint(value.parent, value.location, viewport)
         assertTrue(
@@ -418,12 +423,13 @@ class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
                         "Applied $it"
                     }),
             )
-        val value = descendants(panel).filterIsInstance<JButton>().first { it.text == "m" }
-        activate(value, "shift ENTER")
-        activate(value, "shift SPACE")
+        val value = descendants(panel).filterIsInstance<JButton>().first { it.text == "Copy 'm'" }
+        activate(value, "ENTER")
+        value.doClick()
         assertEquals(0, writes)
         assertTrue(labelText(panel).contains("Copied 'm'"))
-        activate(value, "ENTER")
+        val apply = descendants(panel).filterIsInstance<JButton>().first { it.text == "Apply 'm'" }
+        activate(apply, "ENTER")
         assertEquals(1, writes)
         assertTrue(labelText(panel).contains("Applied m"))
     }
