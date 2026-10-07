@@ -279,7 +279,14 @@ class TaigaQuickDocumentationDxTest : BasePlatformTestCase() {
         val original = member(file, "size")
         val document = myFixture.editor.document
         val context = TaigaDocumentationActionContext(project, document)
-        val adapter = TaigaDocumentationBindingEditor(project, document, requireNotNull(original.binding), original.localValues(), context::isCurrent)
+        val adapter =
+            TaigaDocumentationBindingEditor(
+                project,
+                document,
+                requireNotNull(original.binding),
+                original.localValues(),
+                context::isCurrent,
+            )
         val request = requireNotNull(TaigaDocumentationResolver.findRequest(file, file.text.indexOf("size") + 1))
         val target = TaigaDocumentationRefreshTarget(document, request)
         try {
@@ -292,10 +299,22 @@ class TaigaQuickDocumentationDxTest : BasePlatformTestCase() {
             assertTrue(document.text.contains("size=\"m\""))
             PsiDocumentManager.getInstance(project).commitAllDocuments()
             myFixture.doHighlighting()
-            val fresh = requireNotNull(resolveDocumentation(requireNotNull(TaigaDocumentationResolver.findRequest(file, requireNotNull(target.offset())))) as? TaigaResolvedDocumentation.Member)
+            val fresh =
+                requireNotNull(
+                    resolveDocumentation(
+                        requireNotNull(TaigaDocumentationResolver.findRequest(file, requireNotNull(target.offset()))),
+                    ) as? TaigaResolvedDocumentation.Member,
+                )
             assertEquals(setOf("s", "m"), fresh.localValues().toSet())
             val refreshedContext = TaigaDocumentationActionContext(project, document)
-            val refreshed = TaigaDocumentationBindingEditor(project, document, requireNotNull(fresh.binding), fresh.localValues(), refreshedContext::isCurrent)
+            val refreshed =
+                TaigaDocumentationBindingEditor(
+                    project,
+                    document,
+                    requireNotNull(fresh.binding),
+                    fresh.localValues(),
+                    refreshedContext::isCurrent,
+                )
             try {
                 assertTrue(refreshed.apply("s").startsWith("Applied"))
                 assertTrue(document.text.contains("size=\"s\""))
@@ -313,11 +332,26 @@ class TaigaQuickDocumentationDxTest : BasePlatformTestCase() {
         val original = member(file, "size")
         val document = myFixture.editor.document
         val context = TaigaDocumentationActionContext(project, document)
-        val adapter = TaigaDocumentationBindingEditor(project, document, requireNotNull(original.binding), original.localValues(), context::isCurrent)
+        val adapter =
+            TaigaDocumentationBindingEditor(
+                project,
+                document,
+                requireNotNull(original.binding),
+                original.localValues(),
+                context::isCurrent,
+            )
         try {
-            val owner = requireNotNull(FileDocumentManager.getInstance().getDocument(myFixture.findFileInTempDir("src/component.ts")))
+            val owner =
+                requireNotNull(
+                    FileDocumentManager.getInstance().getDocument(myFixture.findFileInTempDir("src/component.ts")),
+                )
             WriteCommandAction.runWriteCommandAction(project) {
-                owner.setText(owner.text.replace("imports: [TuiButton, TuiAux, TuiHint, LocalSized]", "imports: [TuiAux, TuiHint, LocalSized]"))
+                owner.setText(
+                    owner.text.replace(
+                        "imports: [TuiButton, TuiAux, TuiHint, LocalSized]",
+                        "imports: [TuiAux, TuiHint, LocalSized]",
+                    ),
+                )
             }
             assertEquals(STALE_DOCUMENTATION_MESSAGE, adapter.apply("l"))
             assertTrue(document.text.contains("size=\"m\""))
@@ -334,9 +368,21 @@ class TaigaQuickDocumentationDxTest : BasePlatformTestCase() {
         val original = member(file, "size")
         val document = myFixture.editor.document
         val context = TaigaDocumentationActionContext(project, document)
-        val adapter = TaigaDocumentationBindingEditor(project, document, requireNotNull(original.binding), original.localValues(), context::isCurrent)
+        val adapter =
+            TaigaDocumentationBindingEditor(
+                project,
+                document,
+                requireNotNull(original.binding),
+                original.localValues(),
+                context::isCurrent,
+            )
         try {
-            val declarations = requireNotNull(FileDocumentManager.getInstance().getDocument(myFixture.findFileInTempDir("node_modules/@taiga-ui/core/index.d.ts")))
+            val declarations =
+                requireNotNull(
+                    FileDocumentManager.getInstance().getDocument(
+                        myFixture.findFileInTempDir("node_modules/@taiga-ui/core/index.d.ts"),
+                    ),
+                )
             WriteCommandAction.runWriteCommandAction(project) {
                 declarations.setText(declarations.text.replace("'s' | 'm' | 'l'", "'m'"))
             }
@@ -354,12 +400,20 @@ class TaigaQuickDocumentationDxTest : BasePlatformTestCase() {
         val old = member(file, "oldSize")
         val document = myFixture.editor.document
         val context = TaigaDocumentationActionContext(project, document)
-        val adapter = TaigaDocumentationTemplateEditor(project, document, requireNotNull(old.element), context::isCurrent)
+        val adapter =
+            TaigaDocumentationTemplateEditor(project, document, requireNotNull(old.element), context::isCurrent)
         val edit = old.templateEdits().single { it.kind == TaigaTemplateEditKind.RENAME_BINDING }
         try {
-            val declarations = requireNotNull(FileDocumentManager.getInstance().getDocument(myFixture.findFileInTempDir("node_modules/@taiga-ui/core/index.d.ts")))
+            val declarations =
+                requireNotNull(
+                    FileDocumentManager.getInstance().getDocument(
+                        myFixture.findFileInTempDir("node_modules/@taiga-ui/core/index.d.ts"),
+                    ),
+                )
             WriteCommandAction.runWriteCommandAction(project) {
-                declarations.setText(declarations.text.replace("@deprecated Use newSize instead.", "This input is still supported."))
+                declarations.setText(
+                    declarations.text.replace("@deprecated Use newSize instead.", "This input is still supported."),
+                )
             }
             PsiDocumentManager.getInstance(project).commitAllDocuments()
             assertEquals(STALE_DOCUMENTATION_MESSAGE, adapter.apply(edit))
@@ -376,7 +430,14 @@ class TaigaQuickDocumentationDxTest : BasePlatformTestCase() {
         val original = member(file, "size")
         val document = myFixture.editor.document
         val context = TaigaDocumentationActionContext(project, document)
-        val adapter = TaigaDocumentationBindingEditor(project, document, requireNotNull(original.binding), original.localValues(), context::isCurrent)
+        val adapter =
+            TaigaDocumentationBindingEditor(
+                project,
+                document,
+                requireNotNull(original.binding),
+                original.localValues(),
+                context::isCurrent,
+            )
         val editor = TextEditorProvider.getInstance().getTextEditor(myFixture.editor)
         try {
             assertTrue(adapter.apply("s").startsWith("Applied"))
@@ -404,7 +465,10 @@ class TaigaQuickDocumentationDxTest : BasePlatformTestCase() {
             assertTrue(adapter.apply(edit).startsWith("Replaced"))
             target.name = requireNotNull(edit.replacement)
             myFixture.doHighlighting()
-            val fresh = resolveDocumentation(requireNotNull(TaigaDocumentationResolver.findRequest(file, requireNotNull(target.offset())))) as? TaigaResolvedDocumentation.Member
+            val fresh =
+                resolveDocumentation(
+                    requireNotNull(TaigaDocumentationResolver.findRequest(file, requireNotNull(target.offset()))),
+                ) as? TaigaResolvedDocumentation.Member
             assertEquals("newSize", fresh?.property?.name)
             assertEquals("value", fresh?.binding?.literal)
         } finally {
