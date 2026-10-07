@@ -18,6 +18,8 @@ internal sealed interface TaigaDocumentationRequest {
         val typeDefinition: String? = null,
         val icons: List<TaigaDocumentationIcon> = emptyList(),
         val bindings: List<TaigaDocumentationBinding> = emptyList(),
+        val element: TaigaDocumentationElement? = null,
+        val contextSubjects: List<TaigaDocumentationSubject> = emptyList(),
     ) : TaigaDocumentationRequest
 
     data class Member(
@@ -29,6 +31,9 @@ internal sealed interface TaigaDocumentationRequest {
         override val usage: String? = null,
         val declaration: TaigaDocumentationSubject? = null,
         val binding: TaigaDocumentationBinding? = null,
+        val element: TaigaDocumentationElement? = null,
+        val icons: List<TaigaDocumentationIcon> = emptyList(),
+        val bindings: List<TaigaDocumentationBinding> = emptyList(),
     ) : TaigaDocumentationRequest
 }
 
@@ -48,6 +53,8 @@ internal sealed interface TaigaResolvedDocumentation {
         val typeDefinition: String?,
         val icons: List<TaigaDocumentationIcon> = emptyList(),
         val bindings: List<TaigaDocumentationBinding> = emptyList(),
+        val element: TaigaDocumentationElement? = null,
+        val contextSubjects: List<TaigaDocumentationSubject> = emptyList(),
     ) : TaigaResolvedDocumentation
 
     data class Member(
@@ -60,56 +67,25 @@ internal sealed interface TaigaResolvedDocumentation {
         val kind: TaigaApiMemberKind,
         val declaration: TaigaDocumentationSubject? = null,
         val binding: TaigaDocumentationBinding? = null,
+        val element: TaigaDocumentationElement? = null,
+        val receivers: List<Member> = emptyList(),
+        val localMember: TaigaLocalApiMember? = null,
+        val icons: List<TaigaDocumentationIcon> = emptyList(),
+        val bindings: List<TaigaDocumentationBinding> = emptyList(),
+        val contextSubjects: List<TaigaDocumentationSubject> = emptyList(),
     ) : TaigaResolvedDocumentation
 }
 
-internal fun TaigaDocsSnapshot.resolve(request: TaigaDocumentationRequest): TaigaResolvedDocumentation? =
-    when (request) {
-        is TaigaDocumentationRequest.Entity ->
-            request.subjects.firstNotNullOfOrNull { subject ->
-                find(subject)?.let { entity ->
-                    TaigaResolvedDocumentation.Entity(
-                        entity = entity,
-                        subject = subject.completedFrom(entity),
-                        startOffset = request.startOffset,
-                        endOffset = request.endOffset,
-                        usage = request.usage,
-                        typeDefinition = request.typeDefinition,
-                        bindings = request.bindings,
-                        icons =
-                            request.icons.filter { icon ->
-                                entity.inputs.any { property ->
-                                    property.name ==
-                                        icon.attribute
-                                }
-                            },
-                    )
+internal val TaigaResolvedDocumentation.documentationIcons: List<TaigaDocumentationIcon>
+    get() =
+        when (this) {
+            is TaigaResolvedDocumentation.Entity -> icons
+            is TaigaResolvedDocumentation.Member ->
+                icons.filter {
+                    kind == TaigaApiMemberKind.INPUT &&
+                        it.attribute == property.name
                 }
-            }
-
-        is TaigaDocumentationRequest.Member ->
-            request.owners.firstNotNullOfOrNull { owner ->
-                val entity = find(owner) ?: return@firstNotNullOfOrNull null
-                val property =
-                    when (request.kind) {
-                        TaigaApiMemberKind.INPUT -> entity.inputs
-                        TaigaApiMemberKind.OUTPUT -> entity.outputs
-                    }.firstOrNull { property -> property.name == request.name }
-                        ?: return@firstNotNullOfOrNull null
-
-                TaigaResolvedDocumentation.Member(
-                    entity = entity,
-                    subject = owner.completedFrom(entity),
-                    startOffset = request.startOffset,
-                    endOffset = request.endOffset,
-                    usage = request.usage,
-                    property = property,
-                    kind = request.kind,
-                    declaration = request.declaration?.takeIf { subject -> subject.packageName != null },
-                    binding = request.binding,
-                )
-            }
-    }
+        }
 
 internal fun TaigaDocsSnapshot.find(subject: TaigaDocumentationSubject): TaigaEntityDoc? =
     buildList {
@@ -161,6 +137,7 @@ internal val TaigaResolvedDocumentation.badge: String
                 when {
                     entity.kind == TaigaDocKind.PIPE -> "Pipe"
                     entity.kind == TaigaDocKind.TYPE -> "Type"
+                    localDocumentation.angularResolved -> entity.kind.displayName()
                     subject.selector?.startsWith("tui-") == true -> "Component"
                     subject.selector != null -> "Directive"
                     entity.selectors.any { selector -> selector.startsWith("tui-") } -> "Component"
@@ -181,7 +158,11 @@ internal val TaigaResolvedDocumentation.ownerName: String?
         when (this) {
             is TaigaResolvedDocumentation.Entity -> null
             is TaigaResolvedDocumentation.Member ->
-                subject.publicSymbol ?: entity.publicSymbols.firstOrNull() ?: entity.title
+                (receivers.ifEmpty { listOf(this) }).joinToString(", ") {
+                    it.subject.publicSymbol
+                        ?: it.entity.publicSymbols.firstOrNull()
+                        ?: it.entity.title
+                }
         }
 
 internal val TaigaResolvedDocumentation.typeText: String?
@@ -189,7 +170,7 @@ internal val TaigaResolvedDocumentation.typeText: String?
         when (this) {
             is TaigaResolvedDocumentation.Entity -> typeDefinition
             is TaigaResolvedDocumentation.Member ->
-                declaration?.localDocumentation?.inputTypes?.get(property.name)
+                localMember?.type ?: declaration?.localDocumentation?.inputTypes?.get(property.name)
                     ?: subject.localDocumentation.inputTypes[property.name]
                     ?: property.documentedType
         }

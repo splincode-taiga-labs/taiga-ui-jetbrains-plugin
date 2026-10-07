@@ -8,6 +8,19 @@ import org.junit.Test
 
 class TaigaLocalDocumentationTest {
     @Test
+    fun `transformed signals expose their write type instead of their stored value type`() {
+        val presentation = inputTypePresentation("i0.InputSignalWithTransform<boolean, boolean | string>")
+        assertEquals("boolean", presentation.readType)
+        assertEquals("boolean | string", presentation.writeType)
+        val local =
+            TaigaLocalDocumentationParser.parse(
+                "enabled: i0.InputSignalWithTransform<boolean, boolean | string>;",
+            )
+        assertEquals("boolean | string", local.inputTypes["enabled"])
+        assertEquals("'s' | 'm'", inputTypePresentation("InputSignal<'s' | 'm'>").writeType)
+    }
+
+    @Test
     fun `reads pipe semantics from source without executing mapper`() {
         val local =
             TaigaLocalDocumentationParser.parse(
