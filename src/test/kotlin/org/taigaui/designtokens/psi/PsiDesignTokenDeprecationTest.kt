@@ -61,7 +61,10 @@ class PsiDesignTokenDeprecationTest : BasePlatformTestCase() {
         )
     }
 
-    private fun extract(content: String, fileName: String = "tokens.css") =
+    private fun extract(
+        content: String,
+        fileName: String = "tokens.css",
+    ) =
         PsiDesignTokenSourceExtractor(project).extract(
             psiFile =
                 PsiFileFactory
