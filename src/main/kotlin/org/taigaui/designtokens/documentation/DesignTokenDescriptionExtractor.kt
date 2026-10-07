@@ -48,7 +48,7 @@ internal object DesignTokenDescriptionExtractor {
                     modifiedAt = modifiedAt,
                     lines = Files.readAllLines(path),
                 )
-        } ?: error("Unable to cache token source: $path")
+        }
     }
 
     private fun findTrailingComment(
