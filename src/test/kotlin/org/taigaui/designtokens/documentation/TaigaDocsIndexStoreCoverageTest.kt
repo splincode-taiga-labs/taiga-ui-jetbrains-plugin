@@ -1,6 +1,5 @@
 package org.taigaui.designtokens.documentation
 
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -13,9 +12,12 @@ import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 class TaigaDocsIndexStoreCoverageTest {
@@ -168,14 +170,14 @@ class TaigaDocsIndexStoreCoverageTest {
     fun `invalidate prevents an in flight refresh from publishing stale data`() =
         runBlocking {
             val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-            val started = CompletableDeferred<Unit>()
-            val release = CompletableDeferred<Unit>()
+            val started = CountDownLatch(1)
+            val release = CountDownLatch(1)
             val repository =
                 TaigaDocsRepository(
                     fetcher =
                         TaigaDocsFetcher {
-                            started.complete(Unit)
-                            release.await()
+                            started.countDown()
+                            check(release.await(5, TimeUnit.SECONDS)) { "Timed out waiting to release docs fetch" }
                             docs("Late")
                         },
                     cache = TaigaDocsCache(temporaryFolder.newFolder("stale-refresh").toPath()),
@@ -185,9 +187,9 @@ class TaigaDocsIndexStoreCoverageTest {
             try {
                 val refresh = async { store.refresh(source) }
 
-                started.await()
+                assertTrue(started.await(5, TimeUnit.SECONDS))
                 store.invalidate(source)
-                release.complete(Unit)
+                release.countDown()
 
                 assertNull(refresh.await())
                 assertNull(store.cached(source))
