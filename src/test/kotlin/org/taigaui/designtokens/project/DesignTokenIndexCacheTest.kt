@@ -225,6 +225,40 @@ class DesignTokenIndexCacheTest {
     }
 
     @Test
+    fun `waiting caller receives original concurrent build failure`() {
+        val buildStarted = CountDownLatch(1)
+        val releaseBuild = CountDownLatch(1)
+        val designTokensPackage = designTokensPackage("workspace/node_modules/@taiga-ui/design-tokens")
+        val cache =
+            DesignTokenIndexCache {
+                buildStarted.countDown()
+                releaseBuild.await(10, TimeUnit.SECONDS)
+                error("concurrent build failed")
+            }
+        val executor = Executors.newFixedThreadPool(2)
+
+        try {
+            val first = executor.submit<DesignTokenIndex> { cache.getOrBuild(designTokensPackage) }
+
+            assertEquals(true, buildStarted.await(10, TimeUnit.SECONDS))
+
+            val second = executor.submit<DesignTokenIndex> { cache.getOrBuild(designTokensPackage) }
+
+            Thread.sleep(100)
+            releaseBuild.countDown()
+
+            val firstFailure = runCatching { first.get(10, TimeUnit.SECONDS) }.exceptionOrNull()
+            val secondFailure = runCatching { second.get(10, TimeUnit.SECONDS) }.exceptionOrNull()
+
+            assertEquals("concurrent build failed", firstFailure?.cause?.message)
+            assertEquals("concurrent build failed", secondFailure?.cause?.message)
+        } finally {
+            releaseBuild.countDown()
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
     fun `builds one index for concurrent requests`() {
         val builds = AtomicInteger()
         val buildStarted = CountDownLatch(1)
