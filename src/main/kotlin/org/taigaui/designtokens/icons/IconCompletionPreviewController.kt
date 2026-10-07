@@ -270,29 +270,34 @@ private fun Lookup.iconPreviewRequest(): IconPreviewRequest? =
         }
     }
 
-private fun Lookup.sourceFilePath(): Path? =
-    psiFile
-        ?.virtualFile
-        ?.path
-        ?.let(::iconPathOrNull)
-        ?: FileDocumentManager
+private fun Lookup.sourceFilePath(): Path? {
+    val psiPath = psiFile?.virtualFile?.path
+    val documentPath =
+        FileDocumentManager
             .getInstance()
             .getFile(topLevelEditor.document)
             ?.path
-            ?.let(::iconPathOrNull)
+
+    return iconPathOrNull(psiPath ?: documentPath ?: return null)
+}
 
 private fun Lookup.currentIconName(): String? =
     currentItem
         ?.lookupString
         ?.takeIf { value -> value.startsWith(ICON_PREFIX) }
 
-private fun Lookup.supportsIconPreview(): Boolean =
-    psiFile?.virtualFile?.extension?.lowercase() in ICON_SUPPORTED_EXTENSIONS ||
+private fun Lookup.supportsIconPreview(): Boolean {
+    val psiExtension = psiFile?.virtualFile?.extension?.lowercase()
+    val documentExtension =
         FileDocumentManager
             .getInstance()
             .getFile(topLevelEditor.document)
             ?.extension
-            ?.lowercase() in ICON_SUPPORTED_EXTENSIONS
+            ?.lowercase()
+
+    return psiExtension in ICON_SUPPORTED_EXTENSIONS ||
+        documentExtension in ICON_SUPPORTED_EXTENSIONS
+}
 
 private fun iconPreviewLocation(
     lookup: Lookup,
