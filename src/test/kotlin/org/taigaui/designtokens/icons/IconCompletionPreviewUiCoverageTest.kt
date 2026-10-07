@@ -99,16 +99,64 @@ class IconCompletionPreviewUiCoverageTest : BasePlatformTestCase() {
         assertSame(listener, readPrivateField(controller, "activeListener"))
     }
 
-    private fun openLookup(): Lookup {
+    fun testPreviewJobStopsWhenRequestBecomesStaleBeforeDebounce() {
+        val lookup = openLookup()
+        val controller = project.service<IconCompletionPreviewController>()
+
+        invokePrivate(controller, "attach", lookup)
+        writePrivateField(controller, "previewKey", null)
+
+        waitForPreviewJob(controller)
+
+        assertNull(readPrivateField(controller, "previewHint"))
+    }
+
+    fun testPreviewHidesWhenSelectedSvgDisappearsBeforeResolution() {
+        val lookup = openLookup()
+        val controller = project.service<IconCompletionPreviewController>()
+        val selected = requireNotNull(lookup.currentItem).lookupString
+        val iconPath =
+            workspaceRoot.resolve(
+                "node_modules/@taiga-ui/icons/src/${selected.removePrefix("@tui.")}.svg",
+            )
+
+        invokePrivate(controller, "attach", lookup)
+        Files.deleteIfExists(iconPath)
+        project.service<IconCompletionService>().clear()
+
+        waitForPreviewJob(controller)
+
+        assertNull(readPrivateField(controller, "previewHint"))
+    }
+
+    fun testPreviewHidesWhenSvgRendererRejectsSelectedIcon() {
+        createFile(
+            workspaceRoot.resolve("node_modules/@taiga-ui/icons/src/0-broken.svg"),
+            "not an svg",
+        )
+        createFile(
+            workspaceRoot.resolve("node_modules/@taiga-ui/icons/src/0-broken-alt.svg"),
+            "still not an svg",
+        )
+        project.service<IconCompletionService>().clear()
+        val lookup = openLookup("@tui.0")
+        val controller = project.service<IconCompletionPreviewController>()
+
+        invokePrivate(controller, "attach", lookup)
+        waitForPreviewJob(controller)
+
+        assertNull(readPrivateField(controller, "previewHint"))
+    }
+
+    private fun openLookup(prefix: String = "@tui."): Lookup {
         val sourcePath = workspaceRoot.resolve("src/icons.html")
         val file =
             createFile(
                 sourcePath,
-                "<button iconStart=\"@tui.\"></button>",
+                "<button iconStart=\"$prefix\"></button>",
             )
 
         myFixture.configureFromExistingVirtualFile(file)
-        val prefix = "@tui."
         val caretOffset =
             myFixture.editor.document.text
                 .indexOf(prefix) + prefix.length
@@ -182,6 +230,32 @@ class IconCompletionPreviewUiCoverageTest : BasePlatformTestCase() {
                 }.apply { isAccessible = true }
 
         runInEdtAndGet { method.invoke(target, *arguments) }
+    }
+
+    private fun writePrivateField(
+        target: Any,
+        fieldName: String,
+        value: Any?,
+    ) {
+        target.javaClass
+            .getDeclaredField(fieldName)
+            .apply { isAccessible = true }
+            .let { field -> runInEdtAndGet { field.set(target, value) } }
+    }
+
+    private fun waitForPreviewJob(controller: IconCompletionPreviewController) {
+        repeat(300) {
+            UIUtil.dispatchAllInvocationEvents()
+            val job = readPrivateField(controller, "previewJob") as? kotlinx.coroutines.Job
+
+            if (job == null || !job.isActive) {
+                return
+            }
+
+            Thread.sleep(10)
+        }
+
+        fail("Preview job did not finish")
     }
 
     private fun readPrivateField(
