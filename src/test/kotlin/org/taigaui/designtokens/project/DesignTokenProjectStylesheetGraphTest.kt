@@ -275,7 +275,7 @@ class DesignTokenProjectStylesheetGraphTest : BasePlatformTestCase() {
             val textFile = createFile(workspaceRoot.resolve("README.md"), "docs")
             val graph = DesignTokenProjectStylesheetGraph(project)
 
-            val request = graph.createRequest(sourceFile)
+            val request = graph.createRequest(sourceFile, workspaceRoot)
             val scope =
                 graph.buildScope(
                     request.copy(
