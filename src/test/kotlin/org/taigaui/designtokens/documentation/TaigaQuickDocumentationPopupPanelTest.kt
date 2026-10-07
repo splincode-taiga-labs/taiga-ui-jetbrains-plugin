@@ -363,7 +363,10 @@ class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
         val value = buttons.first { it.text == "m" }
         val viewport = descendants(panel).filterIsInstance<JViewport>().first()
         val position = SwingUtilities.convertPoint(value.parent, value.location, viewport)
-        assertTrue("Literal buttons must remain visible after invalidation", position.y + value.height <= viewport.height)
+        assertTrue(
+            "Literal buttons must remain visible after invalidation",
+            position.y + value.height <= viewport.height,
+        )
     }
 
     fun testCardKeyboardActionDoesNotRequireMouseHoverSetting() {
