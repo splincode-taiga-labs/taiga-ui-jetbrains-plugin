@@ -48,7 +48,7 @@ internal object DesignTokenDescriptionExtractor {
                     modifiedAt = modifiedAt,
                     lines = Files.readAllLines(path),
                 )
-        }
+        }!!
     }
 
     private fun findTrailingComment(
