@@ -3,6 +3,7 @@ package org.taigaui.designtokens.documentation
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Document
+import com.intellij.openapi.editor.RangeMarker
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.xml.XmlAttribute
@@ -24,7 +25,8 @@ internal data class TaigaDocumentationBinding(
         val literalQuote = if (htmlQuote == '"') "'" else "\""
         val quoted = if (expression) "$literalQuote$value$literalQuote" else value
         val escaped =
-            quoted.replace("&", "&amp;")
+            quoted
+                .replace("&", "&amp;")
                 .replace(htmlQuote.toString(), if (htmlQuote == '"') "&quot;" else "&#39;")
         return text.replaceRange(valueStart, valueEnd, escaped)
     }
@@ -66,7 +68,13 @@ private fun XmlAttribute.documentationBindingContext(): List<TaigaBindingContext
         tag.attributes.filter { it !== this@documentationBindingContext }.forEach { attribute ->
             val name = attribute.bindingName()
             if (name.removeSurrounding("[", "]").startsWith("tui")) {
-                add(TaigaBindingContext(attribute.textRange.startOffset, attribute.textRange.startOffset + name.length, name))
+                add(
+                    TaigaBindingContext(
+                        attribute.textRange.startOffset,
+                        attribute.textRange.startOffset + name.length,
+                        name,
+                    ),
+                )
             }
         }
     }
@@ -90,17 +98,13 @@ internal class TaigaDocumentationBindingEditor(
         if (project.isDisposed || value !in values || binding.literal == null) return "Copy this value instead"
         if (!document.isWritable) return "File is read-only; copy this value instead"
         var result = "Binding changed; reopen its card before applying"
-        WriteCommandAction.writeCommandAction(project)
+        WriteCommandAction
+            .writeCommandAction(project)
             .withName("Change Taiga UI ${binding.name}")
             .run<RuntimeException> {
                 val unchangedContext =
-                    context.all { (original, range) ->
-                        range.isValid &&
-                            document.charsSequence.subSequence(range.startOffset, range.endOffset).toString() == original.text
-                    }
-                if (unchangedContext && marker.isValid &&
-                    document.charsSequence.subSequence(marker.startOffset, marker.endOffset).toString() == expected
-                ) {
+                    context.all { (original, range) -> matchesRange(range, original.text) }
+                if (unchangedContext && matchesRange(marker, expected)) {
                     val start = marker.startOffset
                     val replacement = binding.replacement(value)
                     document.replaceString(start, marker.endOffset, replacement)
@@ -113,6 +117,12 @@ internal class TaigaDocumentationBindingEditor(
                 }
             }
         return result
+    }
+
+    private fun matchesRange(range: RangeMarker, text: String): Boolean {
+        if (!range.isValid) return false
+        val current = document.charsSequence.subSequence(range.startOffset, range.endOffset)
+        return current.toString() == text
     }
 
     override fun dispose() {

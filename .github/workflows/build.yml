@@ -55,6 +55,13 @@ jobs:
                   distribution: temurin
                   java-version: 21
 
+            - name: Verify Kotlin style
+              env:
+                  JAVA_TOOL_OPTIONS: -Djava.io.tmpdir=${{ runner.temp }}
+              run: >-
+                  ./gradlew ktlintCheck detekt
+                  -Djava.net.useSystemProxies=false --continue --stacktrace
+
             - name: Verify contextual documentation
               env:
                   JAVA_TOOL_OPTIONS: -Djava.io.tmpdir=${{ runner.temp }}
