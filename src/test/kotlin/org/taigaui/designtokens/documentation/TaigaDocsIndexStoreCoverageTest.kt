@@ -1,5 +1,6 @@
 package org.taigaui.designtokens.documentation
 
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -157,6 +158,38 @@ class TaigaDocsIndexStoreCoverageTest {
             try {
                 assertNull(store.indexFor(source))
                 assertNull(store.refresh(source))
+                assertNull(store.cached(source))
+            } finally {
+                scope.cancel()
+            }
+        }
+
+    @Test
+    fun `invalidate prevents an in flight refresh from publishing stale data`() =
+        runBlocking {
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+            val started = CompletableDeferred<Unit>()
+            val release = CompletableDeferred<Unit>()
+            val repository =
+                TaigaDocsRepository(
+                    fetcher =
+                        TaigaDocsFetcher {
+                            started.complete(Unit)
+                            release.await()
+                            docs("Late")
+                        },
+                    cache = TaigaDocsCache(temporaryFolder.newFolder("stale-refresh").toPath()),
+                )
+            val store = TaigaDocsIndexStore(scope, repository)
+
+            try {
+                val refresh = async { store.refresh(source) }
+
+                started.await()
+                store.invalidate(source)
+                release.complete(Unit)
+
+                assertNull(refresh.await())
                 assertNull(store.cached(source))
             } finally {
                 scope.cancel()

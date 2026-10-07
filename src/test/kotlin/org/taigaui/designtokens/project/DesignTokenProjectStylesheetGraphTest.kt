@@ -260,6 +260,38 @@ class DesignTokenProjectStylesheetGraphTest : BasePlatformTestCase() {
             assertTrue(scope.sourceFiles.contains(importedFile.normalized()))
         }
 
+    fun testDefaultWorkspaceHintAndScopeSkipInvalidAndDuplicateEntries() =
+        withWorkspace { workspaceRoot ->
+            val sourceFile =
+                createFile(
+                    workspaceRoot.resolve("src/component.css"),
+                    ":root { --tui-test: red; }",
+                )
+            val nodeModulesFile =
+                createFile(
+                    workspaceRoot.resolve("node_modules/pkg/theme.css"),
+                    ":root { --tui-test: blue; }",
+                )
+            val textFile = createFile(workspaceRoot.resolve("README.md"), "docs")
+            val graph = DesignTokenProjectStylesheetGraph(project)
+
+            val request = graph.createRequest(sourceFile)
+            val scope =
+                graph.buildScope(
+                    request.copy(
+                        entryFiles =
+                            listOf(
+                                sourceFile,
+                                sourceFile,
+                                nodeModulesFile,
+                                textFile,
+                            ),
+                    ),
+                )
+
+            assertEquals(listOf(sourceFile.normalized()), scope.sourceFiles)
+        }
+
     private fun withWorkspace(block: (Path) -> Unit) {
         val workspaceRoot = Files.createTempDirectory("project-stylesheet-graph")
 

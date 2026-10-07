@@ -200,6 +200,35 @@ class DesignTokenDescriptionExtractorTest {
     }
 
     @Test
+    fun `leading comment scan stops at preceding non comment content`() {
+        assertEquals(
+            "Description",
+            DesignTokenDescriptionExtractor.extract(
+                listOf(
+                    ".previous { color: red; }",
+                    "// Description",
+                    "--tui-token: red;",
+                ),
+                3,
+            ),
+        )
+    }
+
+    @Test
+    fun `orphan block terminator is not treated as a leading description`() {
+        assertNull(
+            DesignTokenDescriptionExtractor.extract(
+                listOf(
+                    "plain text",
+                    "*/",
+                    "--tui-token: red;",
+                ),
+                3,
+            ),
+        )
+    }
+
+    @Test
     fun `does not scan beyond maximum declaration span for trailing comment`() {
         val lines =
             buildList {

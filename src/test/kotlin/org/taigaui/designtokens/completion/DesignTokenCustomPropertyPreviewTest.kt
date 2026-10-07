@@ -72,6 +72,29 @@ class DesignTokenCustomPropertyPreviewTest : BasePlatformTestCase() {
         assertTrue(rows.all { row -> row.navigationTarget != null })
     }
 
+    fun testProjectSearchSortsSameFileDeclarationsByLine() {
+        val token = "--tui-same-file"
+        myFixture.addFileToProject(
+            "styles/repeated.css",
+            """
+            :root {
+                $token: red;
+            }
+
+            .dark {
+                $token: blue;
+            }
+            """.trimIndent(),
+        )
+        val model =
+            LookupElementBuilder
+                .create(token)
+                .toCustomPropertyPreviewModel(token, project)
+        val rows = requireNotNull(model).sections.single().rows
+
+        assertEquals(listOf("red", "blue"), rows.map { row -> row.resolvedValue })
+    }
+
     fun testReturnsNullWhenLookupAndProjectContainNoDeclaration() {
         val lookup = LookupElementBuilder.create("--tui-missing")
 
@@ -116,6 +139,25 @@ class DesignTokenCustomPropertyPreviewTest : BasePlatformTestCase() {
         assertEquals("Project styles", platform)
         assertEquals("1rem", resolvedValue)
         assertNull(navigationTarget)
+
+        val withoutLine =
+            declarationType.declaredConstructors
+                .single()
+                .apply { isAccessible = true }
+                .newInstance("2rem", java.nio.file.Path.of("styles.css"), null)
+        val rowWithoutLine =
+            supportType.declaredMethods
+                .single { method ->
+                    method.name == "toHoverValueRow" &&
+                        method.parameterCount == 1
+                }.apply { isAccessible = true }
+                .invoke(null, withoutLine)
+        val targetWithoutLine =
+            rowWithoutLine.javaClass
+                .getMethod("getNavigationTarget")
+                .invoke(rowWithoutLine)
+
+        assertNull(targetWithoutLine)
     }
 
     fun testExtractCustomPropertyValueRejectsEmptyAndNestedBlocks() {

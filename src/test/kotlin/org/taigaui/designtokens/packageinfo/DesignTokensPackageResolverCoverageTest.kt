@@ -106,6 +106,35 @@ class DesignTokensPackageResolverCoverageTest {
         }
     }
 
+    @Test
+    fun `source package comparator uses version and path tie breakers`() {
+        @Suppress("UNCHECKED_CAST")
+        val comparator =
+            DesignTokensPackageResolver::class.java
+                .getDeclaredField("SOURCE_PACKAGE_COMPARATOR")
+                .apply { isAccessible = true }
+                .get(null) as Comparator<DesignTokenSourcePackage>
+        val root = Path.of("build/comparator").toAbsolutePath().normalize()
+        val first =
+            DesignTokenSourcePackage(
+                name = "@taiga-ui/core",
+                root = root.resolve("a"),
+                realRoot = root.resolve("a"),
+                version = "1.0.0",
+                sourceRoots = listOf(root.resolve("a/styles")),
+            )
+        val newer = first.copy(version = "2.0.0")
+        val otherRoot =
+            first.copy(
+                root = root.resolve("b"),
+                realRoot = root.resolve("b"),
+                sourceRoots = listOf(root.resolve("b/styles")),
+            )
+
+        assertTrue(comparator.compare(first, newer) < 0)
+        assertTrue(comparator.compare(first, otherRoot) < 0)
+    }
+
     private fun createPackage(
         scope: Path,
         name: String,
