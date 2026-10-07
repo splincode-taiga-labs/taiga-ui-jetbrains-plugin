@@ -1,7 +1,6 @@
 package org.taigaui.designtokens.psi
 
 import com.intellij.psi.PsiComment
-import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiWhiteSpace
 import com.intellij.psi.css.CssDeclaration
 import org.taigaui.designtokens.index.DesignTokenDeprecation
