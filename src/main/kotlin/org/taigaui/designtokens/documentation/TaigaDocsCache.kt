@@ -3,6 +3,7 @@ package org.taigaui.designtokens.documentation
 import com.intellij.openapi.application.PathManager
 import java.nio.charset.StandardCharsets
 import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.CopyOption
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
@@ -14,6 +15,9 @@ internal class TaigaDocsCache(
             "taiga-ui-companion",
             "documentation",
         ),
+    private val moveFile: (Path, Path, Array<CopyOption>) -> Path = { source, target, options ->
+        Files.move(source, target, *options)
+    },
 ) {
     fun read(source: TaigaDocsSource): String? {
         val path = cacheFile(source)
@@ -59,14 +63,20 @@ internal class TaigaDocsCache(
         target: Path,
     ) {
         try {
-            Files.move(
+            moveFile(
                 source,
                 target,
-                StandardCopyOption.ATOMIC_MOVE,
-                StandardCopyOption.REPLACE_EXISTING,
+                arrayOf(
+                    StandardCopyOption.ATOMIC_MOVE,
+                    StandardCopyOption.REPLACE_EXISTING,
+                ),
             )
         } catch (_: AtomicMoveNotSupportedException) {
-            Files.move(source, target, StandardCopyOption.REPLACE_EXISTING)
+            moveFile(
+                source,
+                target,
+                arrayOf(StandardCopyOption.REPLACE_EXISTING),
+            )
         }
     }
 }
