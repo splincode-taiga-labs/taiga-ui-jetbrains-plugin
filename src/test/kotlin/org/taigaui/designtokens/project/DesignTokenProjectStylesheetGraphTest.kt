@@ -292,6 +292,22 @@ class DesignTokenProjectStylesheetGraphTest : BasePlatformTestCase() {
             assertEquals(listOf(sourceFile.normalized()), scope.sourceFiles)
         }
 
+    fun testFindsWorkspaceWithoutAnExplicitRootHint() =
+        withWorkspace { workspaceRoot ->
+            createFile(workspaceRoot.resolve("package.json"), "{}")
+            val sourceFile =
+                createFile(
+                    workspaceRoot.resolve("src/styles.css"),
+                    ":root { --tui-test: red; }",
+                )
+
+            val request = DesignTokenProjectStylesheetGraph(project).createRequest(sourceFile)
+
+            assertEquals(workspaceRoot.normalized(), request.workspaceRoot)
+            assertEquals(workspaceRoot.normalized(), request.projectRoot)
+            assertTrue(request.entryFiles.contains(sourceFile.normalized()))
+        }
+
     private fun withWorkspace(block: (Path) -> Unit) {
         val workspaceRoot = Files.createTempDirectory("project-stylesheet-graph")
 
