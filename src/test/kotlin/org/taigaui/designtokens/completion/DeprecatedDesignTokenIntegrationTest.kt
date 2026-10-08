@@ -44,17 +44,19 @@ class DeprecatedDesignTokenIntegrationTest : BasePlatformTestCase() {
         repeat(500) {
             UIUtil.dispatchAllInvocationEvents()
 
-            if (!indexService.isIndexCached(sourcePath)) {
-                Thread.sleep(10)
+            if (
+                myFixture
+                    .doHighlighting()
+                    .any { info -> info.description?.startsWith(DEPRECATED_TOKEN_MESSAGE) == true }
+            ) {
+                assertTrue(indexService.isIndexCached(sourcePath))
+                return
             }
+
+            Thread.sleep(10)
         }
 
-        assertTrue(indexService.isIndexCached(sourcePath))
-        assertTrue(
-            myFixture
-                .doHighlighting()
-                .any { info -> info.description?.startsWith(DEPRECATED_TOKEN_MESSAGE) == true },
-        )
+        fail("Deprecated token warning was not shown after the cold catalog warmup")
     }
 
     fun testKeepsDeprecatedTokenInCompletionAndMarksIt() {
