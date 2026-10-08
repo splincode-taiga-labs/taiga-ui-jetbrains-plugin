@@ -41,14 +41,13 @@ class DeprecatedDesignTokenIntegrationTest : BasePlatformTestCase() {
 
         myFixture.doHighlighting()
 
+        var descriptions = emptyList<String?>()
+
         repeat(500) {
             UIUtil.dispatchAllInvocationEvents()
+            descriptions = myFixture.doHighlighting().map { info -> info.description }
 
-            if (
-                myFixture
-                    .doHighlighting()
-                    .any { info -> info.description?.startsWith(DEPRECATED_TOKEN_MESSAGE) == true }
-            ) {
+            if (descriptions.any { description -> description?.startsWith(DEPRECATED_TOKEN_MESSAGE) == true }) {
                 assertTrue(indexService.isIndexCached(sourcePath))
                 return
             }
@@ -56,7 +55,13 @@ class DeprecatedDesignTokenIntegrationTest : BasePlatformTestCase() {
             Thread.sleep(10)
         }
 
-        fail("Deprecated token warning was not shown after the cold catalog warmup")
+        val cached = indexService.isIndexCached(sourcePath)
+        val catalog = if (cached) myFixture.file.designTokenCatalogForInspection() else null
+
+        fail(
+            "Deprecated token warning was not shown after the cold catalog warmup: " +
+                "indexCached=$cached, catalog=$catalog, highlights=$descriptions",
+        )
     }
 
     fun testKeepsDeprecatedTokenInCompletionAndMarksIt() {

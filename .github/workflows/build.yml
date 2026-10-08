@@ -63,6 +63,17 @@ jobs:
                   ./gradlew ktlintCheck detekt
                   -Djava.net.useSystemProxies=false --continue --stacktrace
 
+            - name: Verify token cache and inspection regressions
+              env:
+                  JAVA_TOOL_OPTIONS: -Djava.io.tmpdir=${{ runner.temp }}
+              run: >-
+                  ./gradlew
+                  test
+                  --tests 'org.taigaui.designtokens.documentation.TaigaDocsIndexStoreCoverageTest'
+                  --tests 'org.taigaui.designtokens.completion.DeprecatedDesignTokenIntegrationTest'
+                  -Djava.net.useSystemProxies=false
+                  --stacktrace
+
             - name: Verify contextual documentation
               env:
                   JAVA_TOOL_OPTIONS: -Djava.io.tmpdir=${{ runner.temp }}
