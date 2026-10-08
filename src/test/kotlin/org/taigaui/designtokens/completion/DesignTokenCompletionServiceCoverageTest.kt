@@ -106,6 +106,36 @@ class DesignTokenCompletionServiceCoverageTest : BasePlatformTestCase() {
         assertTrue(entries.any { entry -> entry.name == TOKEN_NAME })
     }
 
+    fun testConcurrentCompletionRequestsShareOneWarmup() {
+        val sourceFile = createFixture(tempRoot.resolve("coalesced-workspace"))
+        val firstUpdates = AtomicInteger()
+        val secondUpdates = AtomicInteger()
+
+        assertNull(
+            service.entriesFor(
+                sourceFile,
+                RefreshCallback(Any(), "first-warmup") {
+                    firstUpdates.incrementAndGet()
+                },
+            ),
+        )
+        assertNull(
+            service.entriesFor(
+                sourceFile,
+                RefreshCallback(Any(), "second-warmup") {
+                    secondUpdates.incrementAndGet()
+                },
+            ),
+        )
+
+        waitUntil { firstUpdates.get() == 1 && secondUpdates.get() == 1 }
+        assertTrue(
+            requireNotNull(
+                service.entriesFor(sourceFile, RefreshCallback(Any(), "cached") {}),
+            ).any { entry -> entry.name == TOKEN_NAME },
+        )
+    }
+
     private fun createFixture(workspace: Path): Path {
         val sourceFile = workspace.resolve("src/app.ts")
         val packageRoot = workspace.resolve("node_modules/@taiga-ui/design-tokens")
