@@ -144,7 +144,6 @@
             groupName="Taiga UI"
             enabledByDefault="true"
             level="WARNING"
-            runForWholeFile="true"
             implementationClass="org.taigaui.designtokens.completion.UnknownDesignTokenInspection"
         />
         <localInspection
@@ -153,7 +152,6 @@
             groupName="Taiga UI"
             enabledByDefault="true"
             level="WARNING"
-            runForWholeFile="true"
             implementationClass="org.taigaui.designtokens.completion.DeprecatedDesignTokenInspection"
         />
         <localInspection

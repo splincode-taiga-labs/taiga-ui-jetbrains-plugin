@@ -37,8 +37,6 @@ internal object DesignTokenCompletionContextFinder {
 class UnknownDesignTokenInspection :
     LocalInspectionTool(),
     DumbAware {
-    override fun runForWholeFile(): Boolean = true
-
     override fun buildVisitor(
         holder: ProblemsHolder,
         isOnTheFly: Boolean,
@@ -69,7 +67,9 @@ private fun inspectUnknownDesignTokens(
         }
 }
 
-internal fun PsiFile.designTokenCatalogForInspection(): List<DesignTokenCatalogEntry>? {
+internal fun PsiFile.designTokenCatalogForInspection(
+    restartInspection: (PsiFile) -> Unit = ::restartDesignTokenInspection,
+): List<DesignTokenCatalogEntry>? {
     val sourceFile = inspectionSourceFile() ?: return null
     val project = project
 
@@ -83,11 +83,15 @@ internal fun PsiFile.designTokenCatalogForInspection(): List<DesignTokenCatalogE
                 notifyWhenUnchanged = true,
                 isActivePredicate = { file -> file.isValid },
             ) { file ->
-                DaemonCodeAnalyzer
-                    .getInstance(file.project)
-                    .restart(file, INSPECTION_RESTART_REASON)
+                restartInspection(file)
             },
         )
+}
+
+internal fun restartDesignTokenInspection(file: PsiFile) {
+    DaemonCodeAnalyzer
+        .getInstance(file.project)
+        .restart(file, INSPECTION_RESTART_REASON)
 }
 
 private fun PsiFile.inspectionSourceFile(): Path? =
