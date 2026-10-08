@@ -58,7 +58,9 @@ class IconCompletionContributorTest : BasePlatformTestCase() {
             )
 
         myFixture.configureFromExistingVirtualFile(sourceFile)
-        val caretOffset = myFixture.editor.document.text.indexOf("@tui.") + "@tui.".length
+        val caretOffset =
+            myFixture.editor.document.text
+                .indexOf("@tui.") + "@tui.".length
 
         myFixture.editor.caretModel.moveToOffset(caretOffset)
         val coldResults = myFixture.completeBasic()?.map { item -> item.lookupString }.orEmpty()
