@@ -49,6 +49,7 @@ class IconCompletionContributorTest : BasePlatformTestCase() {
 
     fun testColdIconCatalogDoesNotOfferUninitializedResults() {
         createIcon("icons/src/a-arrow-down.svg")
+        createIcon("icons/src/a-arrow-up.svg")
         val sourcePath = workspaceRoot.resolve("src/cold-icons.html")
         val sourceFile =
             createFile(
@@ -67,7 +68,7 @@ class IconCompletionContributorTest : BasePlatformTestCase() {
         project.service<IconCompletionService>().loadNow(sourcePath)
         val warmedResults = myFixture.completeBasic()?.map { item -> item.lookupString }.orEmpty()
 
-        assertContainsElements(warmedResults, "@tui.a-arrow-down")
+        assertContainsElements(warmedResults, "@tui.a-arrow-down", "@tui.a-arrow-up")
     }
 
     fun testIconCompletionSuppressesNativeDocumentationPopups() {
