@@ -3,11 +3,13 @@ package org.taigaui.designtokens.icons
 import com.intellij.codeInsight.lookup.Lookup
 import com.intellij.codeInsight.lookup.LookupManager
 import com.intellij.openapi.components.service
+import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.testFramework.runInEdtAndGet
 import com.intellij.util.ui.UIUtil
+import java.lang.reflect.Proxy
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -151,6 +153,37 @@ class IconCompletionAutoPopupHandlerCoverageTest : BasePlatformTestCase() {
 
         invokeShowIconLookup(listOf("@tui.a-arrow-up", "@tui.a-arrow-down"))
         UIUtil.dispatchAllInvocationEvents()
+
+        assertNull(waitForLookup(short = true))
+    }
+
+    fun testDisposedEditorStopsQueuedLookupAndSuffixCleanup() {
+        configure("@tui.")
+        val disposedEditor =
+            Proxy.newProxyInstance(
+                Editor::class.java.classLoader,
+                arrayOf(Editor::class.java),
+            ) { _, method, _ ->
+                when (method.name) {
+                    "isDisposed" -> true
+                    "toString" -> "DisposedEditor"
+                    else -> error("Unexpected call to disposed editor: ${method.name}")
+                }
+            } as Editor
+        val handlerClass =
+            Class.forName("org.taigaui.designtokens.icons.IconCompletionAutoPopupHandlerKt")
+        val queuedLookup =
+            handlerClass.declaredMethods
+                .single { method -> method.name == "showIconLookup" && method.parameterCount == 3 }
+                .apply { isAccessible = true }
+        val suffixCleanup =
+            handlerClass.declaredMethods
+                .single { method -> method.name == "removeExistingIconSuffix" && method.parameterCount == 1 }
+                .apply { isAccessible = true }
+
+        queuedLookup.invoke(null, project, disposedEditor, listOf("@tui.a-arrow-down"))
+        UIUtil.dispatchAllInvocationEvents()
+        suffixCleanup.invoke(null, disposedEditor)
 
         assertNull(waitForLookup(short = true))
     }
