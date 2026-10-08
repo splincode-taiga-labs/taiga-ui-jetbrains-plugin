@@ -12,8 +12,8 @@ import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.testFramework.runInEdtAndGet
 import com.intellij.util.ui.UIUtil
 import org.taigaui.designtokens.project.DesignTokenIndexService
-import org.taigaui.designtokens.visiblePopupStub
 import org.taigaui.designtokens.settings.TaigaDesignTokensSettings
+import org.taigaui.designtokens.visiblePopupStub
 import java.awt.Container
 import java.awt.GraphicsConfiguration
 import java.awt.GraphicsDevice
