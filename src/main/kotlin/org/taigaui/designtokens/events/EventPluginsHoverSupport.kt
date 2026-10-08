@@ -91,7 +91,11 @@ internal class EventPluginsHoverPopupController(
         }
     }
 
-    fun dismissHover(editor: Editor? = null) {
+    fun dismissHover() {
+        dismissHover(null)
+    }
+
+    fun dismissHover(editor: Editor?) {
         if (editor == null || editor.project == project) {
             activeKey = null
             hoverJob?.cancel()

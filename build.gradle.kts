@@ -1,3 +1,5 @@
+import org.gradle.api.tasks.testing.Test
+import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 
@@ -119,12 +121,20 @@ intellijPlatform {
     }
 }
 
+tasks.withType<Test>().configureEach {
+    extensions.configure<JacocoTaskExtension> {
+        isIncludeNoLocationClasses = true
+        excludes = listOf("jdk.internal.*")
+    }
+}
+
 tasks.test {
     finalizedBy(tasks.jacocoTestReport)
 }
 
 tasks.jacocoTestReport {
     dependsOn(tasks.test)
+    classDirectories.setFrom(tasks.named("instrumentCode"))
 
     reports {
         xml.required.set(true)

@@ -43,7 +43,9 @@ class DesignTokensPackageScannerTest {
             )
 
         val result = scanner.scan(designTokensPackage)
+        val all = scanner.scanAll(designTokensPackage)
 
+        assertEquals(result, all)
         assertEquals(
             listOf(
                 "--tui-text-primary",

@@ -108,7 +108,7 @@ internal class DesignTokenIndexCache(
         runCatching { indexBuilder.build(designTokensPackage) }
             .fold(
                 onSuccess = { index -> publishSuccess(identity, pendingBuild, index) },
-                onFailure = { error -> publishFailure(identity, pendingBuild, error) },
+                onFailure = { error -> throw recordFailure(identity, pendingBuild, error) },
             )
 
     private fun publishSuccess(
@@ -127,11 +127,11 @@ internal class DesignTokenIndexCache(
         return index
     }
 
-    private fun publishFailure(
+    private fun recordFailure(
         identity: DesignTokensPackageIdentity,
         pendingBuild: PendingBuild,
         error: Throwable,
-    ): Nothing {
+    ): Throwable {
         synchronized(lock) {
             if (pendingBuilds[identity] === pendingBuild) {
                 pendingBuilds.remove(identity)
@@ -139,7 +139,7 @@ internal class DesignTokenIndexCache(
         }
         pendingBuild.completeExceptionally(error)
 
-        throw error
+        return error
     }
 
     private fun removeReplacedPackages(

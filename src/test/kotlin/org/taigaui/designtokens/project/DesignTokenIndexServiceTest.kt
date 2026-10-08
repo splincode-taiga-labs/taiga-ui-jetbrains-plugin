@@ -7,10 +7,12 @@ import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import org.taigaui.designtokens.index.DesignTokenDeclaration
 import org.taigaui.designtokens.index.DesignTokenIndex
 import org.taigaui.designtokens.index.DesignTokenPlatform
 import org.taigaui.designtokens.index.PROJECT_STYLES_PACKAGE
 import org.taigaui.designtokens.resolution.DesignTokenValueResolution
+import java.lang.reflect.Proxy
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -248,11 +250,38 @@ class DesignTokenIndexServiceTest : BasePlatformTestCase() {
             ":root { --tui-proprietary-only: red; }",
         )
 
-        val resolutionIndex = requireNotNull(service.getIndexOrThrow(sourcePath))
+        val resolutionIndex = requireNotNull(service.getIndex(sourcePath))
         val completionNames = service.completionTokenNames(sourcePath)
 
         assertTrue(resolutionIndex.find(CORE_FONT_TOKEN).isEmpty())
         assertTrue(completionNames.contains(CORE_FONT_TOKEN))
+    }
+
+    fun testLocalOverridesResolveWithoutInstalledPackage() {
+        val sourcePath = tempRoot.resolve("local-overrides/src/component.css")
+        createFile(sourcePath, ".demo { color: var(--tui-local-color); }")
+        val override =
+            DesignTokenDeclaration(
+                name = "--tui-local-color",
+                value = "hotpink",
+                sourceFile = sourcePath,
+                line = 1,
+            )
+
+        val resolutions =
+            service
+                .resolveToken(
+                    sourceFile = sourcePath,
+                    tokenName = "--tui-local-color",
+                    localOverrides = listOf(override),
+                ).flatMap { group -> group.resolutions }
+
+        assertTrue(resolutions.isNotEmpty())
+        assertTrue(
+            resolutions.any { resolution ->
+                (resolution.result as? DesignTokenValueResolution.Resolved)?.value == "hotpink"
+            },
+        )
     }
 
     fun testServiceReturnsNullWhenNoInstalledPackageCanBeResolved() {
@@ -261,6 +290,44 @@ class DesignTokenIndexServiceTest : BasePlatformTestCase() {
 
         assertNull(service.getIndex(sourcePath))
         assertEquals(0, service.cachedPackageCount)
+    }
+
+    fun testDefensiveIndexBoundaryReturnsNullOnUnexpectedFailure() {
+        val brokenPath =
+            Proxy.newProxyInstance(
+                javaClass.classLoader,
+                arrayOf(Path::class.java),
+            ) { proxy, method, arguments ->
+                when (method.name) {
+                    "toString" -> "broken/app.css"
+                    "hashCode" -> System.identityHashCode(proxy)
+                    "equals" -> proxy === arguments?.firstOrNull()
+                    else -> error("broken path")
+                }
+            } as Path
+
+        assertNull(service.getIndex(brokenPath))
+    }
+
+    fun testContextKeyBoundaryFallsBackToSourceDirectoryOnUnexpectedFailure() {
+        val sourcePath =
+            tempRoot
+                .resolve("fallback/src/app.css")
+                .toAbsolutePath()
+                .normalize()
+        val method =
+            service.javaClass.declaredMethods
+                .single { candidate ->
+                    candidate.name == "contextKeyOrFallback" &&
+                        candidate.parameterCount == 2
+                }.apply { isAccessible = true }
+        val operation: () -> TokenContextKey = { error("broken resolver") }
+        val key = method.invoke(service, sourcePath, operation) as TokenContextKey
+
+        assertEquals(sourcePath.parent, key.workspaceRoot)
+        assertEquals(sourcePath.parent, key.projectRoot)
+        assertNull(key.packageRoot)
+        assertEquals(listOf(sourcePath), key.projectEntryFiles)
     }
 
     private fun createPackage(
@@ -290,7 +357,7 @@ class DesignTokenIndexServiceTest : BasePlatformTestCase() {
 
     private fun index(packageFixture: PackageFixture): DesignTokenIndex =
         requireNotNull(
-            service.getIndexOrThrow(packageFixture.sourcePath),
+            service.getIndex(packageFixture.sourcePath),
         )
 
     private fun tokenValue(index: DesignTokenIndex): String =

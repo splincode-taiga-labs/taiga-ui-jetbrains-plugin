@@ -8,6 +8,7 @@ import org.taigaui.designtokens.documentation.DesignTokenHoverValueRow
 import java.awt.Color
 import java.awt.Component
 import java.awt.Container
+import java.awt.image.BufferedImage
 import javax.swing.JTextArea
 
 class DesignTokenCompletionPreviewAccessibilityTest : BasePlatformTestCase() {
@@ -58,6 +59,40 @@ class DesignTokenCompletionPreviewAccessibilityTest : BasePlatformTestCase() {
                 .any { component ->
                     component is JTextArea && component.text == "#ff0000"
                 },
+        )
+    }
+
+    fun testColorPreviewPaintsOpaqueColorIntoBufferedImage() {
+        val panel = DesignTokenCompletionPreviewPanel()
+
+        panel.showModel(model())
+
+        val iconLabel =
+            panel
+                .descendants()
+                .filterIsInstance<JBLabel>()
+                .single { label -> label.icon != null }
+        val icon = requireNotNull(iconLabel.icon)
+        val image =
+            BufferedImage(
+                icon.iconWidth + 4,
+                icon.iconHeight + 4,
+                BufferedImage.TYPE_INT_ARGB,
+            )
+        val graphics = image.createGraphics()
+
+        try {
+            icon.paintIcon(iconLabel, graphics, 2, 2)
+        } finally {
+            graphics.dispose()
+        }
+
+        assertEquals(
+            Color.RED.rgb,
+            image.getRGB(
+                2 + icon.iconWidth / 2,
+                2 + icon.iconHeight / 2,
+            ),
         )
     }
 

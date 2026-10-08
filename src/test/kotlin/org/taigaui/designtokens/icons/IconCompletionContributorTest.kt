@@ -1,5 +1,6 @@
 package org.taigaui.designtokens.icons
 
+import com.intellij.codeInsight.lookup.LookupManager
 import com.intellij.lang.documentation.ide.IdeDocumentationTargetProvider
 import com.intellij.openapi.application.runReadAction
 import com.intellij.openapi.components.service
@@ -7,9 +8,13 @@ import com.intellij.openapi.util.Key
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import com.intellij.testFramework.runInEdtAndGet
+import com.intellij.util.ui.UIUtil
 import org.junit.Assert.assertFalse
+import java.awt.image.BufferedImage
 import java.nio.file.Files
 import java.nio.file.Path
+import javax.swing.ImageIcon
 
 class IconCompletionContributorTest : BasePlatformTestCase() {
     private lateinit var workspaceRoot: Path
@@ -49,6 +54,94 @@ class IconCompletionContributorTest : BasePlatformTestCase() {
 
         assertEquals(true, item.getUserData(autoPopupKey))
         assertEquals(true, item.getUserData(quickDocumentationKey))
+    }
+
+    fun testIconCompletionPreviewControllerBuildsPreviewForActiveLookup() {
+        createIcon("icons/src/a-arrow-down.svg")
+        createIcon("icons/src/a-arrow-up.svg")
+
+        val sourcePath = workspaceRoot.resolve("src/icons.html")
+        val sourceFile =
+            createFile(
+                sourcePath,
+                "<button iconStart=\"@tui.\"></button>",
+            )
+
+        myFixture.configureFromExistingVirtualFile(sourceFile)
+        val caretOffset =
+            myFixture.editor.document.text
+                .indexOf("@tui.") + "@tui.".length
+
+        myFixture.editor.caretModel.moveToOffset(caretOffset)
+        project.service<IconCompletionService>().loadNow(sourcePath)
+
+        val variants = requireNotNull(myFixture.completeBasic())
+
+        assertTrue(variants.size > 1)
+
+        val controller = project.service<IconCompletionPreviewController>()
+        val lookup =
+            requireNotNull(
+                runInEdtAndGet { LookupManager.getActiveLookup(myFixture.editor) },
+            )
+
+        invokePrivate(controller, "attach", lookup)
+
+        val previewKey = requireNotNull(waitForPrivateField(controller, "previewKey"))
+        exerciseDataClass(previewKey)
+
+        invokePrivate(
+            controller,
+            "showIcon",
+            lookup,
+            requireNotNull(lookup.currentItem).lookupString,
+            ImageIcon(BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB)),
+        )
+
+        assertNotNull(waitForPrivateField(controller, "previewPanel"))
+    }
+
+    fun testIconCompletionPreviewControllerResolvesSvgAsynchronously() {
+        createIcon("icons/src/a-arrow-down.svg")
+        createIcon("icons/src/a-arrow-up.svg")
+
+        val sourcePath = workspaceRoot.resolve("src/icons-async.html")
+        val sourceFile =
+            createFile(
+                sourcePath,
+                "<button iconStart=\"@tui.\"></button>",
+            )
+
+        myFixture.configureFromExistingVirtualFile(sourceFile)
+        val caretOffset =
+            myFixture.editor.document.text
+                .indexOf("@tui.") + "@tui.".length
+
+        myFixture.editor.caretModel.moveToOffset(caretOffset)
+        project.service<IconCompletionService>().loadNow(sourcePath)
+
+        val variants = requireNotNull(myFixture.completeBasic())
+
+        assertTrue(variants.size > 1)
+
+        val controller = project.service<IconCompletionPreviewController>()
+        val lookup =
+            requireNotNull(
+                runInEdtAndGet { LookupManager.getActiveLookup(myFixture.editor) },
+            )
+
+        invokePrivate(controller, "attach", lookup)
+
+        val panel =
+            requireNotNull(
+                waitForPrivateField(controller, "previewPanel"),
+            ) as IconCompletionPreviewPanel
+
+        assertTrue(
+            panel.accessibleContext
+                ?.accessibleDescription
+                ?.startsWith("Visual preview of @tui.") == true,
+        )
     }
 
     fun testIconCompletionDoesNotExposeNativeDocumentationTarget() {
@@ -121,6 +214,67 @@ class IconCompletionContributorTest : BasePlatformTestCase() {
         myFixture.completeBasic()
 
         return myFixture.lookupElementStrings.orEmpty()
+    }
+
+    private fun invokePrivate(
+        target: Any,
+        methodName: String,
+        vararg arguments: Any?,
+    ) {
+        val method =
+            target.javaClass.declaredMethods
+                .single { candidate ->
+                    candidate.name == methodName &&
+                        candidate.parameterCount == arguments.size
+                }.apply { isAccessible = true }
+
+        runInEdtAndGet { method.invoke(target, *arguments) }
+    }
+
+    private fun waitForPrivateField(
+        target: Any,
+        fieldName: String,
+    ): Any? {
+        val field =
+            target.javaClass
+                .getDeclaredField(fieldName)
+                .apply { isAccessible = true }
+
+        repeat(500) {
+            UIUtil.dispatchAllInvocationEvents()
+            val value = runInEdtAndGet { field.get(target) }
+
+            if (value != null) {
+                return value
+            }
+
+            Thread.sleep(10)
+        }
+
+        return runInEdtAndGet { field.get(target) }
+    }
+
+    private fun exerciseDataClass(value: Any) {
+        value.toString()
+        value.hashCode()
+        assertEquals(value, value)
+
+        val components =
+            value.javaClass.declaredMethods
+                .filter { method ->
+                    method.name.startsWith("component") &&
+                        method.parameterCount == 0
+                }.sortedBy { method -> method.name }
+                .onEach { method -> method.isAccessible = true }
+                .map { method -> method.invoke(value) }
+        val copy =
+            value.javaClass.declaredMethods
+                .singleOrNull { method ->
+                    method.name == "copy" &&
+                        method.parameterCount == components.size
+                }?.apply { isAccessible = true }
+
+        copy?.invoke(value, *components.toTypedArray())
     }
 
     private fun createPackage(name: String) {

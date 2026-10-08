@@ -56,6 +56,81 @@ class GenerationAwareSingleFlightTest {
     }
 
     @Test
+    fun `propagates build and publication failures and allows a later retry`() {
+        val singleFlight = GenerationAwareSingleFlight<String, Int, Unit> { Unit }
+
+        val buildFailure =
+            runCatching {
+                singleFlight.getOrBuild(
+                    key = "build",
+                    build = { error("build failed") },
+                )
+            }.exceptionOrNull()
+
+        assertEquals("build failed", buildFailure?.message)
+        assertEquals(
+            2,
+            singleFlight.getOrBuild(
+                key = "build",
+                build = { 2 },
+            ),
+        )
+
+        val publishFailure =
+            runCatching {
+                singleFlight.getOrBuild(
+                    key = "publish",
+                    build = { 3 },
+                    publish = { error("publish failed") },
+                )
+            }.exceptionOrNull()
+
+        assertEquals("publish failed", publishFailure?.message)
+        assertEquals(
+            4,
+            singleFlight.getOrBuild(
+                key = "publish",
+                build = { 4 },
+            ),
+        )
+    }
+
+    @Test
+    fun `clear invalidates an in flight build and retries in a new epoch`() {
+        val builds = AtomicInteger()
+        val buildStarted = CountDownLatch(1)
+        val releaseBuild = CountDownLatch(1)
+        val singleFlight = GenerationAwareSingleFlight<String, Int, Unit> { Unit }
+        val executor = Executors.newSingleThreadExecutor()
+
+        try {
+            val result =
+                executor.submit<Int> {
+                    singleFlight.getOrBuild(
+                        key = "token",
+                        build = {
+                            val currentBuild = builds.incrementAndGet()
+
+                            buildStarted.countDown()
+                            releaseBuild.await(10, TimeUnit.SECONDS)
+                            currentBuild
+                        },
+                    )
+                }
+
+            assertTrue(buildStarted.await(10, TimeUnit.SECONDS))
+            singleFlight.clear()
+            releaseBuild.countDown()
+
+            assertEquals(2, result.get(10, TimeUnit.SECONDS))
+            assertEquals(2, builds.get())
+        } finally {
+            releaseBuild.countDown()
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
     fun `retries build when pending generation is invalidated`() {
         val builds = AtomicInteger()
         val buildStarted = CountDownLatch(1)

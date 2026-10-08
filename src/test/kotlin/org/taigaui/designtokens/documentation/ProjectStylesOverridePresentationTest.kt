@@ -80,6 +80,137 @@ class ProjectStylesOverridePresentationTest {
         assertTrue(decorated.any { item -> item.packageName == PROJECT_STYLES_PACKAGE && item.overrideMessage == null })
     }
 
+    @Test
+    fun `known package precedence marks lower layer as overridden`() {
+        val context = DARK_DESKTOP
+        val designTokens =
+            resolution(
+                variant(
+                    packageName = DESIGN_TOKENS_PACKAGE,
+                    context = context,
+                    value = "design-tokens",
+                    sharedAcrossPlatforms = false,
+                ),
+                context,
+            )
+        val core =
+            resolution(
+                variant(
+                    packageName = "@taiga-ui/core",
+                    context = context,
+                    value = "core",
+                    sharedAcrossPlatforms = false,
+                ),
+                context,
+            )
+
+        val decorated = listOf(designTokens, core).withOverrideState()
+
+        assertEquals(
+            "Overridden by @taiga-ui/core",
+            decorated.single { item -> item.packageName == DESIGN_TOKENS_PACKAGE }.overrideMessage,
+        )
+        assertNull(decorated.single { item -> item.packageName == "@taiga-ui/core" }.overrideMessage)
+    }
+
+    @Test
+    fun `unknown package layer stays active instead of guessing precedence`() {
+        val context = DARK_DESKTOP
+        val first =
+            resolution(
+                variant(
+                    packageName = "@custom/first",
+                    context = context,
+                    value = "first",
+                    sharedAcrossPlatforms = false,
+                ),
+                context,
+            )
+        val second =
+            resolution(
+                variant(
+                    packageName = "@custom/second",
+                    context = context,
+                    value = "second",
+                    sharedAcrossPlatforms = false,
+                ),
+                context,
+            )
+
+        assertTrue(
+            listOf(first, second)
+                .withOverrideState()
+                .all { item -> item.overrideMessage == null },
+        )
+    }
+
+    @Test
+    fun `platform and theme specificity explain package overrides`() {
+        val shared =
+            resolution(
+                packageVariant(ANY_DESKTOP, sharedAcrossPlatforms = true),
+                DARK_IOS,
+            )
+        val ios =
+            resolution(
+                packageVariant(DARK_IOS, sharedAcrossPlatforms = false),
+                DARK_IOS,
+            )
+        val platformDecorated = listOf(shared, ios).withOverrideState()
+
+        assertEquals(
+            "Overridden by a platform-specific declaration",
+            platformDecorated.single { item -> item.resolution === shared }.overrideMessage,
+        )
+
+        val anyTheme =
+            resolution(
+                packageVariant(ANY_DESKTOP, sharedAcrossPlatforms = false),
+                DARK_DESKTOP,
+            )
+        val dark =
+            resolution(
+                packageVariant(DARK_DESKTOP, sharedAcrossPlatforms = false),
+                DARK_DESKTOP,
+            )
+        val themeDecorated = listOf(anyTheme, dark).withOverrideState()
+
+        assertEquals(
+            "Overridden by a theme-specific declaration",
+            themeDecorated.single { item -> item.resolution === anyTheme }.overrideMessage,
+        )
+    }
+
+    @Test
+    fun `later project cascade overrides earlier declaration in same scope`() {
+        val early =
+            resolution(
+                projectVariant(
+                    context = DARK_DESKTOP,
+                    sharedAcrossPlatforms = false,
+                    cascadeOrder = 1,
+                ),
+                DARK_DESKTOP,
+            )
+        val late =
+            resolution(
+                projectVariant(
+                    context = DARK_DESKTOP,
+                    sharedAcrossPlatforms = false,
+                    cascadeOrder = 2,
+                ),
+                DARK_DESKTOP,
+            )
+
+        val decorated = listOf(early, late).withOverrideState()
+
+        assertEquals(
+            "Overridden by a later $PROJECT_STYLES_PACKAGE declaration",
+            decorated.single { item -> item.resolution === early }.overrideMessage,
+        )
+        assertNull(decorated.single { item -> item.resolution === late }.overrideMessage)
+    }
+
     private fun packageVariant(
         context: DesignTokenContext,
         sharedAcrossPlatforms: Boolean,
@@ -94,12 +225,14 @@ class ProjectStylesOverridePresentationTest {
     private fun projectVariant(
         context: DesignTokenContext,
         sharedAcrossPlatforms: Boolean,
+        cascadeOrder: Int? = null,
     ): DesignTokenVariant =
         variant(
             packageName = PROJECT_STYLES_PACKAGE,
             context = context,
             value = "project",
             sharedAcrossPlatforms = sharedAcrossPlatforms,
+            cascadeOrder = cascadeOrder,
         )
 
     private fun variant(
@@ -107,6 +240,7 @@ class ProjectStylesOverridePresentationTest {
         context: DesignTokenContext,
         value: String,
         sharedAcrossPlatforms: Boolean,
+        cascadeOrder: Int? = null,
     ): DesignTokenVariant =
         DesignTokenVariant(
             name = TOKEN,
@@ -122,6 +256,7 @@ class ProjectStylesOverridePresentationTest {
                         packageName = packageName,
                         packageVersion = "1.0.0",
                         sharedAcrossPlatforms = sharedAcrossPlatforms,
+                        cascadeOrder = cascadeOrder,
                     ),
                 ),
         )

@@ -15,6 +15,24 @@ class RemValueAtOffsetFinderTest {
     }
 
     @Test
+    fun `returns null for empty content and invalid offsets`() {
+        assertNull(RemValueAtOffsetFinder.find("", 0))
+        assertNull(RemValueAtOffsetFinder.find("1rem", -1))
+        assertNull(RemValueAtOffsetFinder.find("1rem", 5))
+    }
+
+    @Test
+    fun `accepts caret immediately after a rem value`() {
+        val text = "width: 1rem"
+        val end = text.length
+
+        assertEquals(
+            "1rem = 16px",
+            RemValueAtOffsetFinder.find(text, end)?.presentation(),
+        )
+    }
+
+    @Test
     fun `finds rem value inside a stylesheet declaration`() {
         val text = ".button { padding: 0.75rem 1rem; }"
         val start = text.indexOf("0.75rem")

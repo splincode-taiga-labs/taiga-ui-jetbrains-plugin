@@ -55,10 +55,6 @@ internal class IconPreviewCache(
         while (entries.size > maxEntries) {
             val iterator = entries.entries.iterator()
 
-            if (!iterator.hasNext()) {
-                return
-            }
-
             iterator.next()
             iterator.remove()
         }

@@ -2,6 +2,7 @@ package org.taigaui.designtokens.icons
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class IconCompletionContextFinderTest {
@@ -74,6 +75,28 @@ class IconCompletionContextFinderTest {
             IconCompletionContext("@tui.pr"),
             contextAfterTyping("<button iconStart=\"@tui.p|\"></button>", 'r'),
         )
+    }
+
+    @Test
+    fun `rejects invalid offsets and non icon characters`() {
+        val text = "'@tui.flags.a'"
+
+        assertNull(IconCompletionContextFinder.find(text, -1))
+        assertNull(IconCompletionContextFinder.find(text, text.length + 1))
+        assertNull(IconCompletionContextFinder.findPartialPrefix(text, -1))
+        assertNull(IconCompletionContextFinder.findPartialPrefix(text, text.length + 1))
+        assertNull(IconCompletionContextFinder.findAfterTyping(text, 6, '!'))
+    }
+
+    @Test
+    fun `icon completion context data class exposes stable value semantics`() {
+        val context = IconCompletionContext("@tui.flags.a")
+        val copy = context.copy()
+
+        assertEquals("@tui.flags.a", context.component1())
+        assertEquals(context, copy)
+        assertEquals(context.hashCode(), copy.hashCode())
+        assertTrue(context.toString().contains("@tui.flags.a"))
     }
 
     @Test

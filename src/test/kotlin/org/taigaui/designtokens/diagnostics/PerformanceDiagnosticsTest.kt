@@ -24,6 +24,35 @@ class PerformanceDiagnosticsTest {
     }
 
     @Test
+    fun `reads diagnostics toggle from system property when test override is absent`() {
+        val property = "taiga.design.tokens.performanceDiagnostics"
+        val previous = System.getProperty(property)
+
+        PerformanceDiagnostics.setEnabledForTests(null)
+        System.setProperty(property, "true")
+
+        try {
+            PerformanceDiagnostics.measure(PerformanceMetric.VALUE_RESOLUTION) {
+                Unit
+            }
+
+            assertEquals(
+                1L,
+                PerformanceDiagnostics
+                    .snapshot()
+                    .getValue(PerformanceMetric.VALUE_RESOLUTION)
+                    .count,
+            )
+        } finally {
+            if (previous == null) {
+                System.clearProperty(property)
+            } else {
+                System.setProperty(property, previous)
+            }
+        }
+    }
+
+    @Test
     fun `records count total and maximum duration when diagnostics are enabled`() {
         PerformanceDiagnostics.setEnabledForTests(true)
 

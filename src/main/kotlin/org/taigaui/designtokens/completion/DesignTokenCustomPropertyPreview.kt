@@ -146,14 +146,12 @@ private fun PsiElement.toCustomPropertyPreviewModel(tokenName: String): DesignTo
             ?.let { file -> PsiDocumentManager.getInstance(project).getDocument(file) }
             ?.getLineNumber(declaration.offset)
             ?.plus(1)
-    val sourceLabel =
-        buildString {
-            append(sourceFile?.fileName ?: "Project styles")
-            line?.let { value ->
-                append(':')
-                append(value)
-            }
-        }
+    val row =
+        ProjectCustomPropertyDeclaration(
+            value = declaration.value,
+            sourceFile = sourceFile,
+            line = line,
+        ).toHoverValueRow()
 
     return DesignTokenHoverPopupModel(
         tokenName = tokenName,
@@ -162,20 +160,7 @@ private fun PsiElement.toCustomPropertyPreviewModel(tokenName: String): DesignTo
             listOf(
                 DesignTokenHoverPackageSection(
                     packageName = "Project custom property",
-                    rows =
-                        listOf(
-                            DesignTokenHoverValueRow(
-                                platform = sourceLabel,
-                                resolvedValue = declaration.value,
-                                color = null,
-                                navigationTarget =
-                                    if (sourceFile != null && line != null) {
-                                        DesignTokenNavigationTarget(sourceFile, line)
-                                    } else {
-                                        null
-                                    },
-                            ),
-                        ),
+                    rows = listOf(row),
                     chains = emptyList(),
                 ),
             ),

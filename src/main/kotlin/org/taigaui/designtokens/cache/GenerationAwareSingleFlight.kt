@@ -1,7 +1,6 @@
 package org.taigaui.designtokens.cache
 
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.CompletionException
 
 internal enum class PendingBuildAction {
     KEEP,
@@ -113,6 +112,7 @@ internal class GenerationAwareSingleFlight<K, V, M>(
         publish: (V) -> Unit,
     ): BuildOutcome<V> {
         val result = runCatching(build)
+        val failure = result.exceptionOrNull()
         val outcome =
             synchronized(lock) {
                 val isCurrentGeneration =
@@ -120,9 +120,9 @@ internal class GenerationAwareSingleFlight<K, V, M>(
 
                 when {
                     !isCurrentGeneration -> BuildOutcome.Stale
-                    result.isFailure -> {
+                    failure != null -> {
                         pendingBuilds.remove(key)
-                        BuildOutcome.Failure(result.exceptionOrNull() ?: IllegalStateException("Build failed"))
+                        BuildOutcome.Failure(failure)
                     }
                     !isCurrent(pending.metadata, result.getOrThrow()) -> {
                         generations[key] = (generations[key] ?: 0L) + 1L
@@ -169,12 +169,7 @@ private class PendingBuild<V, M>(
         future.complete(outcome)
     }
 
-    fun await(): BuildOutcome<V> =
-        try {
-            future.join()
-        } catch (error: CompletionException) {
-            BuildOutcome.Failure(error.cause ?: error)
-        }
+    fun await(): BuildOutcome<V> = future.join()
 }
 
 private data class BuildAccess<V, M>(

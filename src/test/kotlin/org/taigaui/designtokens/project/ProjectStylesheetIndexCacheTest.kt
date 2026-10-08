@@ -99,6 +99,39 @@ class ProjectStylesheetIndexCacheTest {
     }
 
     @Test
+    fun `broad invalidation during build retries before publishing project index`() {
+        val workspaceRoot = Path.of("build/fixtures/project-cache-broad-concurrency").toAbsolutePath().normalize()
+        val request = request(workspaceRoot, "src/component.scss")
+        val buildStarted = CountDownLatch(1)
+        val releaseBuild = CountDownLatch(1)
+        val builds = AtomicInteger()
+        val cache =
+            ProjectStylesheetIndexCache { cacheRequest ->
+                builds.incrementAndGet()
+                buildStarted.countDown()
+                releaseBuild.await(10, TimeUnit.SECONDS)
+                buildResult(cacheRequest, cacheRequest.entryFiles.toSet())
+            }
+        val executor = Executors.newSingleThreadExecutor()
+
+        try {
+            val buildFuture = executor.submit<DesignTokenIndex> { cache.getOrBuild(request) }
+
+            assertTrue(buildStarted.await(10, TimeUnit.SECONDS))
+            assertEquals(0, cache.invalidate(listOf(workspaceRoot.resolve("angular.json"))))
+
+            releaseBuild.countDown()
+            buildFuture.get(10, TimeUnit.SECONDS)
+
+            assertEquals(2, builds.get())
+            assertTrue(cache.contains(request))
+        } finally {
+            releaseBuild.countDown()
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
     fun `unrelated invalidation during build keeps completed project index`() {
         val workspaceRoot = Path.of("build/fixtures/project-cache-unrelated-concurrency").toAbsolutePath().normalize()
         val request = request(workspaceRoot, "apps/first/src/component.scss")
@@ -166,6 +199,66 @@ class ProjectStylesheetIndexCacheTest {
             releaseBuild.countDown()
             executor.shutdownNow()
         }
+    }
+
+    @Test
+    fun `clear drops cached entries`() {
+        val workspaceRoot = Path.of("build/fixtures/project-cache-clear").toAbsolutePath().normalize()
+        val request = request(workspaceRoot, "src/component.scss")
+        val cache =
+            ProjectStylesheetIndexCache { cacheRequest ->
+                buildResult(cacheRequest, emptySet())
+            }
+
+        cache.getOrBuild(request)
+        assertEquals(1, cache.size)
+
+        cache.clear()
+
+        assertEquals(0, cache.size)
+        assertFalse(cache.contains(request))
+    }
+
+    @Test
+    fun `workspace ancestors and structural files trigger broad invalidation`() {
+        val workspaceRoot = Path.of("build/fixtures/project-cache-broad").toAbsolutePath().normalize()
+        val request = request(workspaceRoot, "src/component.scss")
+        val cache =
+            ProjectStylesheetIndexCache { cacheRequest ->
+                buildResult(cacheRequest, emptySet())
+            }
+
+        listOf(
+            workspaceRoot.parent,
+            workspaceRoot.resolve("angular.json"),
+            workspaceRoot.resolve("nx.json"),
+            workspaceRoot.resolve("package.json"),
+            workspaceRoot.resolve("apps/app"),
+        ).forEach { changedPath ->
+            cache.getOrBuild(request)
+            assertEquals(changedPath.toString(), 1, cache.invalidate(listOf(changedPath)))
+            assertFalse(changedPath.toString(), cache.contains(request))
+        }
+    }
+
+    @Test
+    fun `node modules changes are not treated as broad project invalidation`() {
+        val workspaceRoot = Path.of("build/fixtures/project-cache-node-modules").toAbsolutePath().normalize()
+        val request = request(workspaceRoot, "src/component.scss")
+        val cache =
+            ProjectStylesheetIndexCache { cacheRequest ->
+                buildResult(cacheRequest, emptySet())
+            }
+
+        cache.getOrBuild(request)
+
+        assertEquals(
+            0,
+            cache.invalidate(
+                listOf(workspaceRoot.resolve("node_modules/pkg/package.json")),
+            ),
+        )
+        assertTrue(cache.contains(request))
     }
 
     private fun request(

@@ -21,6 +21,8 @@ internal class YarnPnpPackageMaterializer(
             "yarn-pnp-packages",
             ProcessHandle.current().pid().toString(),
         ),
+    private val maxExtractedFiles: Int = MAX_EXTRACTED_FILES,
+    private val maxExtractedBytes: Long = MAX_EXTRACTED_BYTES,
 ) {
     fun materialize(
         manifestRoot: Path,
@@ -160,7 +162,7 @@ internal class YarnPnpPackageMaterializer(
 
                     extractedFiles++
 
-                    if (extractedFiles > MAX_EXTRACTED_FILES) {
+                    if (extractedFiles > maxExtractedFiles) {
                         return@runCatching false
                     }
 
@@ -186,7 +188,7 @@ internal class YarnPnpPackageMaterializer(
 
                                         extractedBytes += count
 
-                                        if (extractedBytes > MAX_EXTRACTED_BYTES) {
+                                        if (extractedBytes > maxExtractedBytes) {
                                             return@runCatching false
                                         }
 

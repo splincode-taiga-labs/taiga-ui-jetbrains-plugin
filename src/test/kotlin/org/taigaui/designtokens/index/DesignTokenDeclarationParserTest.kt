@@ -99,6 +99,86 @@ class DesignTokenDeclarationParserTest {
     }
 
     @Test
+    fun `keeps semicolons braces and comment markers inside nested values`() {
+        val sourceFile =
+            createSourceFile(
+                "nested.less",
+                """
+                :root {
+                    --tui-array: [one; two; three];
+                    --tui-function: fn(one; two, nested(three; four));
+                    --tui-url: url("https://example.com/a;b");
+                    --tui-escaped: "quote \" ; still string";
+                }
+                """.trimIndent(),
+            )
+
+        val result = extractor.extract(sourceFile).associateBy(DesignTokenDeclaration::name)
+
+        assertEquals("[one; two; three]", result.getValue("--tui-array").value)
+        assertEquals(
+            "fn(one; two, nested(three; four))",
+            result.getValue("--tui-function").value,
+        )
+        assertEquals(
+            """url("https://example.com/a;b")""",
+            result.getValue("--tui-url").value,
+        )
+        assertEquals(
+            """"quote \" ; still string"""",
+            result.getValue("--tui-escaped").value,
+        )
+    }
+
+    @Test
+    fun `handles comments strings and line comments that reach end of file`() {
+        val sourceFile =
+            createSourceFile(
+                "unterminated.less",
+                """
+                :root {
+                    --tui-before: red;
+                    content: "unterminated --tui-fake: blue;
+                    /* --tui-block-fake: green
+                    // --tui-line-fake: pink;
+                }
+                """.trimIndent(),
+            )
+
+        val result = extractor.extract(sourceFile)
+
+        assertEquals(listOf("--tui-before"), result.map(DesignTokenDeclaration::name))
+    }
+
+    @Test
+    fun `ignores empty declaration values`() {
+        val sourceFile =
+            createSourceFile(
+                "empty.css",
+                """
+                :root {
+                    --tui-empty: ;
+                    --tui-empty-before-brace: }
+                """.trimIndent(),
+            )
+
+        assertEquals(emptyList<DesignTokenDeclaration>(), extractor.extract(sourceFile))
+    }
+
+    @Test
+    fun `tracks declarations beginning exactly at a new line`() {
+        val sourceFile =
+            createSourceFile(
+                "lines.css",
+                "--tui-first: red;\n--tui-second: blue;",
+            )
+
+        val result = extractor.extract(sourceFile)
+
+        assertEquals(listOf(1, 2), result.map(DesignTokenDeclaration::line))
+    }
+
+    @Test
     fun `returns empty list when source file cannot be read`() {
         val missingFile = temporaryFolder.root.toPath().resolve("missing.css")
 

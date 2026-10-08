@@ -8,7 +8,9 @@ internal object GlobalDesignTokenContext {
                     .split(',')
                     .map(String::trim)
                     .filter(String::isNotEmpty)
-                    .all(::isGlobalSelector)
+                    .let { selectors ->
+                        selectors.isNotEmpty() && selectors.all(::isGlobalSelector)
+                    }
             }
 
     private fun isGlobalSelector(selector: String): Boolean {

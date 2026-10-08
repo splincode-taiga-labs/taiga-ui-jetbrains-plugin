@@ -11,7 +11,10 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.taigaui.designtokens.completion.designTokenCompletionContextAt
+import org.taigaui.designtokens.units.AngularHostRemStyleBindingHintCollector
+import org.taigaui.designtokens.units.RemInlayHint
 
+@Suppress("LargeClass")
 class AngularHostBindingSupportTest : LightPlatformCodeInsightFixture4TestCase() {
     override fun setUp() {
         super.setUp()
@@ -91,6 +94,36 @@ class AngularHostBindingSupportTest : LightPlatformCodeInsightFixture4TestCase()
             token,
             myFixture.editor.designTokenCompletionContextAt(tokenEnd)?.prefix,
         )
+    }
+
+    @Test
+    fun `host property helpers handle empty files and PSI elements`() {
+        val emptyFile =
+            configureAngularFile(
+                "empty.ts",
+                "",
+            )
+
+        assertNull(AngularHostBindingSupport.findPropertyContext(emptyFile, 0))
+
+        val hostFile =
+            configureAngularFile(
+                "host-property.ts",
+                """
+                import {Directive} from '@angular/core';
+
+                @Directive({
+                    selector: '[example]',
+                    host: {'(click.stop)': 'onClick()'},
+                })
+                export class ExampleDirective {}
+                """.trimIndent(),
+            )
+        val offset = hostFile.text.indexOf("click") + 1
+        val element = requireNotNull(hostFile.findElementAt(offset))
+
+        assertTrue(AngularHostBindingSupport.isInsideHostProperty(element))
+        assertTrue(AngularHostBindingSupport.isInsideHostProperty(hostFile, offset))
     }
 
     @Test
@@ -657,6 +690,39 @@ class AngularHostBindingSupportTest : LightPlatformCodeInsightFixture4TestCase()
 
         assertEquals("captre", file.text.substring(unknown.startOffset, unknown.endOffset))
         assertEquals("zoneless", file.text.substring(duplicate.startOffset, duplicate.endOffset))
+    }
+
+    @Test
+    fun `collects rem hints only from Angular host style bindings`() {
+        val file =
+            configureAngularFile(
+                "rem-hints.ts",
+                """
+                import {Component} from '@angular/core';
+
+                const ordinary = {'[style.height.rem]': '3'};
+
+                @Component({
+                    selector: 'example',
+                    host: {
+                        '[style.width.rem]': '2',
+                        '[style.margin-left.rem]': '-0.5',
+                    },
+                })
+                export class ExampleComponent {}
+                """.trimIndent(),
+            )
+
+        val hints = AngularHostRemStyleBindingHintCollector.collect(file)
+
+        assertEquals(
+            listOf(" 32px", " -8px"),
+            hints.map(RemInlayHint::text),
+        )
+        assertEquals(
+            listOf("2rem = 32px", "-0.5rem = -8px"),
+            hints.map(RemInlayHint::tooltip),
+        )
     }
 
     private fun configureAngularFile(

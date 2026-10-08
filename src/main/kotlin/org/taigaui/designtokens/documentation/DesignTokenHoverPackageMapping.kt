@@ -35,14 +35,13 @@ private fun DesignTokenVariantResolution.splitBySourcePackage(): List<DesignToke
     val originsByPackage =
         variant.origins.groupBy { origin -> origin.packageName ?: DEFAULT_SOURCE_PACKAGE }
 
-    return originsByPackage
-        .takeIf(Map<String, *>::isNotEmpty)
-        ?.map { (_, origins) -> copy(variant = variant.copy(origins = origins)) }
-        ?: listOf(this)
+    return originsByPackage.map { (_, origins) ->
+        copy(variant = variant.copy(origins = origins))
+    }
 }
 
 internal fun DesignTokenVariantResolution.sourcePackageName(): String =
-    variant.origins.firstOrNull()?.packageName ?: DEFAULT_SOURCE_PACKAGE
+    variant.origins.first().packageName ?: DEFAULT_SOURCE_PACKAGE
 
 private fun String.packageSortKey(): String = "${packageDisplayRank()}:$this"
 

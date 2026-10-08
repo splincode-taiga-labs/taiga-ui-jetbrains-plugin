@@ -74,6 +74,62 @@ class EventPluginBindingTest {
     }
 
     @Test
+    fun `parses every built in modifier behavior`() {
+        val expected =
+            listOf(
+                "capture",
+                "once",
+                "passive",
+                "prevent",
+                "self",
+                "silent",
+                "zoneless",
+                "stop",
+                "debounce~250ms",
+                "throttle~2s",
+            )
+
+        expected.forEach { source ->
+            val modifier = requireNotNull(EventPluginModifier.parse(source))
+
+            assertEquals(source, modifier.source)
+            assertTrue(modifier.description.isNotBlank())
+            assertTrue(modifier.behavior.isNotBlank())
+        }
+
+        assertNull(EventPluginModifier.parse("debounce~ms"))
+        assertNull(EventPluginModifier.parse("throttle~1m"))
+        assertNull(EventPluginModifier.parse("unknown"))
+    }
+
+    @Test
+    fun `rejects malformed event binding boundaries and empty base event`() {
+        assertNull(EventPluginBinding.parse("click.stop)"))
+        assertNull(EventPluginBinding.parse("(click.stop"))
+        assertNull(EventPluginBinding.parse("()"))
+        assertNull(EventPluginBinding.parse("(stop)"))
+    }
+
+    @Test
+    fun `global binding supports identifiers dots dollars and modifier-like event suffixes`() {
+        val binding = requireNotNull(GlobalEventPluginBindingSupport.parse("(window.visualViewport$>resize.zoneless)"))
+
+        assertEquals("window.visualViewport$", binding.target)
+        assertEquals("resize.zoneless", binding.event)
+        assertEquals("(window.visualViewport$>resize.zoneless)", binding.source)
+    }
+
+    @Test
+    fun `global binding rejects invalid target and event characters`() {
+        assertNull(GlobalEventPluginBindingSupport.parse("window>resize"))
+        assertNull(GlobalEventPluginBindingSupport.parse("(window>resize"))
+        assertNull(GlobalEventPluginBindingSupport.parse("(window>resize)extra"))
+        assertNull(GlobalEventPluginBindingSupport.parse("(1window>resize)"))
+        assertNull(GlobalEventPluginBindingSupport.parse("(window>resize space)"))
+        assertNull(GlobalEventPluginBindingSupport.parse("(window>resize>again)"))
+    }
+
+    @Test
     fun `finds unknown taiga modifier typos`() {
         val text =
             """

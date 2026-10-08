@@ -8,6 +8,8 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiPolyVariantReference
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.util.ProcessingContext
+import org.taigaui.designtokens.index.DesignTokenOrigin
+import org.taigaui.designtokens.index.DesignTokenSourceFormat
 import org.taigaui.designtokens.project.DesignTokenIndexService
 import java.nio.file.Files
 import java.nio.file.Path
@@ -172,6 +174,38 @@ class DesignTokenReferenceContributorTest : BasePlatformTestCase() {
             0,
             referencesAtToken(myFixture.file, "--tui-project").size,
         )
+    }
+
+    fun testReferenceRenameReturnsOriginalElement() {
+        val sourcePath = workspaceRoot.resolve("src/rename.less")
+        val sourceFile = createFile(sourcePath, ".demo { color: var(--tui-project); }")
+        val reference = reference(sourceFile, sourcePath, "--tui-project")
+
+        assertSame(reference.element, reference.handleElementRename("--tui-renamed"))
+    }
+
+    fun testOriginResolutionFallsBackToLeafWhenPsiHasNoNamedTokenElement() {
+        val sourcePath = workspaceRoot.resolve("src/plain-token.txt")
+        createFile(sourcePath, "--tui-plain")
+        val origin =
+            DesignTokenOrigin(
+                sourceFile = sourcePath,
+                line = 1,
+                format = DesignTokenSourceFormat.CSS,
+            )
+        val method =
+            Class
+                .forName("org.taigaui.designtokens.navigation.DesignTokenReferenceContributorKt")
+                .declaredMethods
+                .single { candidate ->
+                    candidate.name == "toPsiTarget" &&
+                        candidate.parameterCount == 3
+                }.apply { isAccessible = true }
+
+        val target = method.invoke(null, origin, project, "--tui-plain") as PsiElement?
+
+        assertNotNull(target)
+        assertEquals("--tui-plain", target?.text)
     }
 
     fun testUsesTopLevelSourceFileForInjectedAngularStyles() {
