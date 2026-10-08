@@ -2,10 +2,10 @@ package org.taigaui.designtokens.project
 
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import org.taigaui.designtokens.index.DesignTokenSourceExtractor
-import org.taigaui.designtokens.psi.PsiDesignTokenSourceExtractor
 import org.taigaui.designtokens.packageinfo.DesignTokenSourcePackage
 import org.taigaui.designtokens.packageinfo.DesignTokensPackage
 import org.taigaui.designtokens.packageinfo.DesignTokensPackageResolver
+import org.taigaui.designtokens.psi.PsiDesignTokenSourceExtractor
 import java.nio.file.Files
 import java.nio.file.Path
 
