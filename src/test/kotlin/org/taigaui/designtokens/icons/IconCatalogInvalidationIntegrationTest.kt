@@ -1,10 +1,14 @@
 package org.taigaui.designtokens.icons
 
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import com.intellij.util.ui.UIUtil
+import org.taigaui.designtokens.cache.CoalescingRefreshCallbacks
+import org.taigaui.designtokens.cache.RefreshCallback
 import org.taigaui.designtokens.diagnostics.PerformanceDiagnostics
 import org.taigaui.designtokens.diagnostics.PerformanceMetric
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.concurrent.atomic.AtomicInteger
 
 class IconCatalogInvalidationIntegrationTest : BasePlatformTestCase() {
     private lateinit var tempRoot: Path
@@ -68,6 +72,268 @@ class IconCatalogInvalidationIntegrationTest : BasePlatformTestCase() {
             listOf("@tui.fancy.medium.private"),
             service.loadNow(sourceFile),
         )
+    }
+
+    fun testAsyncWarmupPublishesNamesCallbacksAndSvgSources() {
+        val workspace = tempRoot.resolve("async-workspace")
+        val firstIcon = createIcon(workspace, "icons/src/first.svg")
+        val sourceFile = createSourceFile(workspace)
+        val owner = Any()
+        val updates = AtomicInteger()
+        val scopeRoot =
+            workspace
+                .resolve("node_modules/@taiga-ui")
+                .toAbsolutePath()
+                .normalize()
+
+        assertNull(
+            namesForScope(
+                scopeRoot,
+                RefreshCallback(owner, "initial") {
+                    updates.incrementAndGet()
+                },
+            ),
+        )
+        waitUntil { updates.get() == 1 }
+
+        assertEquals(
+            listOf("@tui.first"),
+            namesForScope(
+                scopeRoot,
+                RefreshCallback(owner, "cached") {},
+            ),
+        )
+        assertNotNull(service.svgSourceFor(sourceFile, "@tui.first"))
+        assertNull(service.svgSourceFor(sourceFile, "@tui.missing"))
+
+        val secondIcon = createIcon(workspace, "icons/src/second.svg")
+
+        assertEquals(1, service.invalidate(listOf(secondIcon)))
+
+        val refreshes = AtomicInteger()
+
+        namesForScope(
+            scopeRoot,
+            RefreshCallback(owner, "refresh") {
+                refreshes.incrementAndGet()
+            },
+        )
+        waitUntil { refreshes.get() > 0 }
+
+        assertEquals(
+            listOf("@tui.first", "@tui.second"),
+            namesForScope(
+                scopeRoot,
+                RefreshCallback(owner, "after-refresh") {},
+            ),
+        )
+        assertNotNull(service.svgSourceFor(sourceFile, "@tui.second"))
+        assertTrue(Files.isRegularFile(firstIcon))
+    }
+
+    fun testMissingScopeReturnsEmptyNamesAndNoSvgSource() {
+        val sourceFile = tempRoot.resolve("standalone/app.ts")
+
+        Files.createDirectories(sourceFile.parent)
+        Files.writeString(sourceFile, "const value = 1;")
+
+        assertTrue(
+            service
+                .namesFor(
+                    sourceFile,
+                    RefreshCallback(Any(), "missing") {},
+                ).orEmpty()
+                .isEmpty(),
+        )
+        assertNull(service.svgSourceFor(sourceFile, "@tui.missing"))
+        assertTrue(service.loadNow(sourceFile).isEmpty())
+        assertEquals(0, service.invalidate(emptyList()))
+    }
+
+    fun testColdSvgLookupSchedulesWarmupWithoutCallback() {
+        val workspace = tempRoot.resolve("svg-warmup")
+        createIcon(workspace, "icons/src/first.svg")
+        val sourceFile = createSourceFile(workspace)
+
+        assertNull(service.svgSourceFor(sourceFile, "@tui.first"))
+        waitUntil { service.svgSourceFor(sourceFile, "@tui.first") != null }
+
+        assertNotNull(service.svgSourceFor(sourceFile, "@tui.first"))
+    }
+
+    fun testScheduleWarmupCoalescesCallbackIntoExistingPendingRequest() {
+        val scopeRoot = tempRoot.resolve("coalesced-scope").toAbsolutePath().normalize()
+        val pending = newPendingWarmup(generation = 0L)
+        val pendingWarmups = pendingWarmups()
+
+        pendingWarmups[scopeRoot] = pending
+
+        invokePrivate(
+            service,
+            "scheduleWarmup",
+            scopeRoot,
+            RefreshCallback(Any(), "coalesced") {},
+        )
+
+        assertSame(pending, pendingWarmups[scopeRoot])
+        pendingWarmups.clear()
+    }
+
+    fun testWarmupFailureRemovesCurrentPendingRequest() {
+        val scopeRoot = tempRoot.resolve("failing-scope").toAbsolutePath().normalize()
+        val originalLoader = readPrivateField(service, "loader")
+        val pending = newPendingWarmup(generation = 0L)
+        val pendingWarmups = pendingWarmups()
+        val failingLoader =
+            IconCatalogLoader(
+                listOf(
+                    object : IconCatalogSource {
+                        override fun supports(context: IconCatalogContext): Boolean = true
+
+                        override fun load(context: IconCatalogContext): IconCatalogLoadResult =
+                            error("expected catalog failure")
+                    },
+                ),
+            )
+
+        try {
+            writePrivateField(service, "loader", failingLoader)
+            pendingWarmups[scopeRoot] = pending
+
+            invokePrivate(service, "launchWarmup", scopeRoot, pending)
+            waitUntil { scopeRoot !in pendingWarmups }
+
+            assertFalse(scopeRoot in pendingWarmups)
+        } finally {
+            writePrivateField(service, "loader", originalLoader)
+            pendingWarmups.clear()
+        }
+    }
+
+    fun testWarmupIgnoresObsoletePendingAndRetriesStaleGeneration() {
+        val scopeRoot = tempRoot.resolve("retry-scope").toAbsolutePath().normalize()
+        val originalLoader = readPrivateField(service, "loader")
+        val successLoader =
+            IconCatalogLoader(
+                listOf(
+                    object : IconCatalogSource {
+                        override fun supports(context: IconCatalogContext): Boolean = true
+
+                        override fun load(context: IconCatalogContext): IconCatalogLoadResult =
+                            IconCatalogLoadResult(
+                                catalog = IconCatalog(emptyList()),
+                                cachePolicy = IconCatalogCachePolicy.LOCAL,
+                            )
+                    },
+                ),
+            )
+        val pendingWarmups = pendingWarmups()
+        val cache = readPrivateField(service, "cache") as IconCatalogCache
+
+        try {
+            writePrivateField(service, "loader", successLoader)
+
+            val obsolete = newPendingWarmup(cache.generation(scopeRoot))
+            invokePrivate(service, "launchWarmup", scopeRoot, obsolete)
+            waitUntil { scopeRoot !in pendingWarmups }
+
+            val stale = newPendingWarmup(cache.generation(scopeRoot))
+            pendingWarmups[scopeRoot] = stale
+            cache.invalidate(scopeRoot)
+
+            invokePrivate(service, "launchWarmup", scopeRoot, stale)
+            waitUntil { scopeRoot !in pendingWarmups }
+
+            assertFalse(scopeRoot in pendingWarmups)
+        } finally {
+            writePrivateField(service, "loader", originalLoader)
+            pendingWarmups.clear()
+        }
+    }
+
+    private fun newPendingWarmup(generation: Long): Any {
+        val type =
+            service.javaClass.declaredClasses
+                .single { nested -> nested.simpleName == "PendingWarmup" }
+        val constructor =
+            type.declaredConstructors
+                .single()
+                .apply { isAccessible = true }
+
+        return constructor.newInstance(
+            generation,
+            CoalescingRefreshCallbacks(),
+        )
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun pendingWarmups(): MutableMap<Path, Any> =
+        readPrivateField(service, "pendingWarmups") as MutableMap<Path, Any>
+
+    private fun invokePrivate(
+        target: Any,
+        methodName: String,
+        vararg arguments: Any?,
+    ) {
+        val method =
+            target.javaClass.declaredMethods
+                .single { candidate ->
+                    candidate.name == methodName &&
+                        candidate.parameterCount == arguments.size
+                }.apply { isAccessible = true }
+
+        method.invoke(target, *arguments)
+    }
+
+    private fun readPrivateField(
+        target: Any,
+        fieldName: String,
+    ): Any =
+        requireNotNull(
+            target.javaClass
+                .getDeclaredField(fieldName)
+                .apply { isAccessible = true }
+                .get(target),
+        )
+
+    private fun writePrivateField(
+        target: Any,
+        fieldName: String,
+        value: Any,
+    ) {
+        target.javaClass
+            .getDeclaredField(fieldName)
+            .apply { isAccessible = true }
+            .set(target, value)
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun namesForScope(
+        scopeRoot: Path,
+        callback: RefreshCallback<*>,
+    ): List<String>? {
+        val method =
+            service.javaClass.declaredMethods
+                .single { candidate ->
+                    candidate.name == "namesForScope" &&
+                        candidate.parameterCount == 2
+                }.apply { isAccessible = true }
+
+        return method.invoke(service, scopeRoot, callback) as? List<String>
+    }
+
+    private fun waitUntil(condition: () -> Boolean) {
+        repeat(500) {
+            UIUtil.dispatchAllInvocationEvents()
+
+            if (condition()) {
+                return
+            }
+
+            Thread.sleep(10)
+        }
+
+        assertTrue(condition())
     }
 
     private fun iconLoads(): Long =

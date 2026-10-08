@@ -260,8 +260,9 @@ internal class DesignTokenCompletionPreviewController(
                 anchorY = previewAnchorY,
             )
         previewAnchorY = location.y
+        val existingHint = previewHint
         val hint =
-            previewHint
+            existingHint
                 ?: LightweightHint(requireNotNull(previewPanel))
                     .apply {
                         setForceLightweightPopup(true)
@@ -270,10 +271,12 @@ internal class DesignTokenCompletionPreviewController(
                         setCancelOnOtherWindowOpen(false)
                     }.also { previewHint = it }
 
-        if (hint.isVisible) {
+        if (existingHint != null) {
             hint.pack()
             hint.updateLocation(location.x, location.y)
-        } else {
+        }
+
+        if (!hint.isVisible) {
             hint.show(
                 layeredPane,
                 location.x,
@@ -308,16 +311,16 @@ private fun Lookup.previewCandidate(): CompletionPreviewCandidate? {
     }
 }
 
-private fun Lookup.sourceFilePath(): Path? =
-    FileDocumentManager
-        .getInstance()
-        .getFile(topLevelEditor.document)
-        ?.path
-        ?.let(::pathOrNull)
-        ?: psiFile
-            ?.virtualFile
+private fun Lookup.sourceFilePath(): Path? {
+    val documentPath =
+        FileDocumentManager
+            .getInstance()
+            .getFile(topLevelEditor.document)
             ?.path
-            ?.let(::pathOrNull)
+    val psiPath = psiFile?.virtualFile?.path
+
+    return pathOrNull(documentPath ?: psiPath ?: return null)
+}
 
 internal fun normalizeDesignTokenLookupString(value: String): String? =
     when {

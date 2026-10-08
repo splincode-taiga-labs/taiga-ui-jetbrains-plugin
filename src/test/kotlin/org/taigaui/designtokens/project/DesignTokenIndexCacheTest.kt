@@ -225,6 +225,40 @@ class DesignTokenIndexCacheTest {
     }
 
     @Test
+    fun `waiting caller receives original concurrent build failure`() {
+        val buildStarted = CountDownLatch(1)
+        val releaseBuild = CountDownLatch(1)
+        val designTokensPackage = designTokensPackage("workspace/node_modules/@taiga-ui/design-tokens")
+        val cache =
+            DesignTokenIndexCache {
+                buildStarted.countDown()
+                releaseBuild.await(10, TimeUnit.SECONDS)
+                error("concurrent build failed")
+            }
+        val executor = Executors.newFixedThreadPool(2)
+
+        try {
+            val first = executor.submit<DesignTokenIndex> { cache.getOrBuild(designTokensPackage) }
+
+            assertEquals(true, buildStarted.await(10, TimeUnit.SECONDS))
+
+            val second = executor.submit<DesignTokenIndex> { cache.getOrBuild(designTokensPackage) }
+
+            Thread.sleep(100)
+            releaseBuild.countDown()
+
+            val firstFailure = runCatching { first.get(10, TimeUnit.SECONDS) }.exceptionOrNull()
+            val secondFailure = runCatching { second.get(10, TimeUnit.SECONDS) }.exceptionOrNull()
+
+            assertEquals("concurrent build failed", firstFailure?.cause?.message)
+            assertEquals("concurrent build failed", secondFailure?.cause?.message)
+        } finally {
+            releaseBuild.countDown()
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
     fun `builds one index for concurrent requests`() {
         val builds = AtomicInteger()
         val buildStarted = CountDownLatch(1)
@@ -258,6 +292,52 @@ class DesignTokenIndexCacheTest {
             releaseBuild.countDown()
             executor.shutdownNow()
         }
+    }
+
+    @Test
+    fun `clear removes cached entries and allows rebuild`() {
+        val builds = AtomicInteger()
+        val designTokensPackage = designTokensPackage("workspace/node_modules/@taiga-ui/design-tokens")
+        val cache = countingCache(builds)
+
+        val first = cache.getOrBuild(designTokensPackage)
+        cache.clear()
+
+        assertEquals(0, cache.size)
+
+        val second = cache.getOrBuild(designTokensPackage)
+
+        assertNotSame(first, second)
+        assertEquals(2, builds.get())
+    }
+
+    @Test
+    fun `normalizes optional workspace and source package roots`() {
+        val builds = AtomicInteger()
+        val root = path("workspace/node_modules/@taiga-ui/design-tokens")
+        val sourcePackage =
+            org.taigaui.designtokens.packageinfo.DesignTokenSourcePackage(
+                name = "@taiga-ui/design-tokens",
+                root = root.resolve("..").resolve("design-tokens"),
+                realRoot = root,
+                version = "1.0.0",
+                sourceRoots = listOf(root.resolve("styles/..")),
+            )
+        val designTokensPackage =
+            DesignTokensPackage(
+                root = root,
+                realRoot = root,
+                version = "1.0.0",
+                sourcePackages = listOf(sourcePackage),
+                workspaceRoot = root.resolve("../../.."),
+            )
+        val cache = countingCache(builds)
+
+        assertSame(
+            cache.getOrBuild(designTokensPackage),
+            cache.getOrBuild(designTokensPackage.copy()),
+        )
+        assertEquals(1, builds.get())
     }
 
     private fun countingCache(builds: AtomicInteger): DesignTokenIndexCache =

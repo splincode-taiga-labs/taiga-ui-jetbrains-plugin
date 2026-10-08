@@ -153,7 +153,8 @@ internal class LocalIconCatalogScanner {
                 .toMutableList()
         val lastIndex = segments.lastIndex
 
-        segments[lastIndex] = segments[lastIndex].removeSuffix(SVG_EXTENSION)
+        segments[lastIndex] =
+            segments[lastIndex].dropLast(SVG_EXTENSION.length)
 
         return ICON_PREFIX + segments.joinToString(".")
     }

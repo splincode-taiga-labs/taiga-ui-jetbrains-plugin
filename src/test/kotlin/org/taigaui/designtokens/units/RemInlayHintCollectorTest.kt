@@ -42,6 +42,32 @@ class RemInlayHintCollectorTest {
     }
 
     @Test
+    fun `places hint directly after last value when line has no semicolon`() {
+        val text = "width: 1rem"
+        val hint = RemInlayHintCollector.collect(text).single()
+
+        assertEquals(text.length, hint.offset)
+        assertEquals(" 16px", hint.text)
+    }
+
+    @Test
+    fun `uses semicolon after last rem value on same line`() {
+        val text = "padding: 1rem; margin: 2rem;"
+        val hint = RemInlayHintCollector.collect(text).single()
+
+        assertEquals(text.lastIndexOf(';') + 1, hint.offset)
+        assertEquals(" 16px · 32px", hint.text)
+    }
+
+    @Test
+    fun `returns no hints when content has no rem values`() {
+        assertEquals(
+            emptyList<RemInlayHint>(),
+            RemInlayHintCollector.collect("width: 16px;"),
+        )
+    }
+
+    @Test
     fun `ignores rem values inside strings and comments`() {
         val text =
             """

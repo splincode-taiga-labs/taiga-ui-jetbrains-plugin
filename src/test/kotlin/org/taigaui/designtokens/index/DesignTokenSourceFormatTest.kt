@@ -46,6 +46,14 @@ class DesignTokenSourceFormatTest {
     }
 
     @Test
+    fun `returns unknown for filesystem root without file name`() {
+        assertEquals(
+            DesignTokenSourceFormat.UNKNOWN,
+            DesignTokenSourceFormat.from(Path.of("/")),
+        )
+    }
+
+    @Test
     fun `returns unknown for file without extension`() {
         assertEquals(
             DesignTokenSourceFormat.UNKNOWN,

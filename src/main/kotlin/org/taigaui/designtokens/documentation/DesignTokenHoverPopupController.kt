@@ -100,7 +100,7 @@ internal class DesignTokenHoverPopupController(
             if (reference == null) {
                 latestHoverRequest = null
 
-                if (popup?.isVisible == true) {
+                if (popup != null) {
                     scheduleHide()
                 } else {
                     activeHoverKey = null
@@ -306,7 +306,7 @@ internal class DesignTokenHoverPopupController(
     }
 
     private fun scheduleHide() {
-        if (popup?.isVisible != true && activeHoverKey == null) {
+        if (popup == null && activeHoverKey == null) {
             return
         }
 

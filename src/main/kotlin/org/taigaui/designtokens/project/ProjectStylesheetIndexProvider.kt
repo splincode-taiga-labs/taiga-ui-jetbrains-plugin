@@ -66,9 +66,12 @@ internal class ProjectStylesheetIndexProvider(
         importCache.clear()
     }
 
+    fun request(sourceFile: Path): ProjectStylesheetIndexRequest? =
+        request(sourceFile, packageResolver.resolve(sourceFile))
+
     fun request(
         sourceFile: Path,
-        designTokensPackage: DesignTokensPackage? = packageResolver.resolve(sourceFile),
+        designTokensPackage: DesignTokensPackage?,
     ): ProjectStylesheetIndexRequest? {
         val normalizedSourceFile = sourceFile.toAbsolutePath().normalize()
 

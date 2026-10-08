@@ -1,12 +1,26 @@
 package org.taigaui.designtokens.index
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.nio.file.Path
 
 class DesignTokenDeprecationTest {
+    @Test
+    fun `deprecated marker without details keeps nullable message`() {
+        val deprecation =
+            DesignTokenDeprecationParser.parse(
+                "/** @deprecated */",
+                "--tui-old",
+            )
+
+        assertNotNull(deprecation)
+        assertNull(deprecation?.message)
+        assertNull(deprecation?.replacement)
+    }
+
     @Test
     fun `parses explicit replacement from deprecated comment`() {
         val deprecation =

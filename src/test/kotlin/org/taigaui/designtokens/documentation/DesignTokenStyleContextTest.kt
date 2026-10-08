@@ -130,6 +130,34 @@ class DesignTokenStyleContextTest : LightPlatformCodeInsightFixture4TestCase() {
         assertFalse(isDesignTokenStyleContext())
     }
 
+    @Test
+    fun `exposes physical design token source file path`() {
+        myFixture.configureByText(
+            "source.scss",
+            ".demo { color: var(--tui-text-primary); }",
+        )
+
+        val source =
+            ReadAction.compute<java.nio.file.Path?, RuntimeException> {
+                myFixture.editor.designTokenSourceFile()
+            }
+
+        assertNotNull(source)
+        assertTrue(requireNotNull(source).toString().endsWith("source.scss"))
+    }
+
+    @Test
+    fun `design token near scan respects radius and document boundaries`() {
+        val nearStart = "--tui-token" + "x".repeat(200)
+        val nearEnd = "x".repeat(200) + "--tui-token"
+        val far = "--tui-token" + "x".repeat(200)
+
+        assertTrue(nearStart.hasDesignTokenNear(0))
+        assertTrue(nearEnd.hasDesignTokenNear(nearEnd.length))
+        assertFalse(far.hasDesignTokenNear(far.length))
+        assertFalse("plain text".hasDesignTokenNear(5))
+    }
+
     private fun isDesignTokenStyleContext(): Boolean =
         ReadAction.compute<Boolean, RuntimeException> {
             myFixture.editor.isDesignTokenStyleContext(tokenOffset())

@@ -3,16 +3,22 @@ coverage:
         project:
             default:
                 target: auto
+                threshold: 0%
+                base: auto
                 informational: true
         patch:
             default:
                 target: auto
                 informational: true
 
+flags:
+    unit:
+        carryforward: false
+
 comment:
-    layout: 'header, diff, files, footer'
+    layout: 'header, diff, flags, files, footer'
     behavior: default
     require_changes: false
-    require_base: false
+    require_base: true
     require_head: true
     hide_project_coverage: false

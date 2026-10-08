@@ -97,6 +97,135 @@ class DesignTokenValueParserTest {
     }
 
     @Test
+    fun `handles quoted commas comments nested functions and trimmed fallback`() {
+        val parsed =
+            parse(
+                """var(--tui-value,  fn("a,b", (1, 2)) /* , ignored */ var(--tui-next, blue)  )""",
+            )
+        val reference = parsed.parts.single() as DesignTokenValuePart.Reference
+        val fallback = requireNotNull(reference.fallback)
+
+        assertEquals(
+            """fn("a,b", (1, 2)) /* , ignored */ var(--tui-next, blue)""",
+            fallback.rawValue,
+        )
+        assertEquals(
+            "--tui-next",
+            (fallback.parts.last() as DesignTokenValuePart.Reference).name,
+        )
+    }
+
+    @Test
+    fun `rejects unterminated quoted strings and comments`() {
+        listOf(
+            "'unterminated",
+            "\"unterminated",
+            "'escaped\\",
+            "/* unterminated",
+            "var(--tui-value, /* unterminated)",
+        ).forEach { value ->
+            assertTrue(
+                "Expected invalid parse for: $value",
+                DesignTokenValueParser.parse(value) is DesignTokenValueParseResult.Invalid,
+            )
+        }
+    }
+
+    @Test
+    fun `rejects malformed custom property names`() {
+        listOf(
+            "var(-x)",
+            "var(--)",
+            "var(--tui value)",
+            "var(--tui value)",
+            "var(--tui(value))",
+        ).forEach { value ->
+            assertTrue(
+                "Expected invalid parse for: $value",
+                DesignTokenValueParser.parse(value) is DesignTokenValueParseResult.Invalid,
+            )
+        }
+    }
+
+    @Test
+    fun `does not recognize var after identifier characters`() {
+        listOf(
+            "xvar(--tui-color)",
+            "1var(--tui-color)",
+            "_var(--tui-color)",
+            "-var(--tui-color)",
+        ).forEach { value ->
+            assertEquals(
+                listOf(DesignTokenValuePart.Text(value)),
+                parse(value).parts,
+            )
+        }
+    }
+
+    @Test
+    fun `top level comma scanner skips quoted commented and nested commas`() {
+        val cases =
+            listOf(
+                """var(--tui-value, "a,b")""",
+                "var(--tui-value, /* a,b */ blue)",
+                "var(--tui-value, fn(a,b))",
+                "var(--tui-value, (a,b))",
+            )
+
+        cases.forEach { value ->
+            val reference = parse(value).parts.single() as DesignTokenValuePart.Reference
+
+            assertEquals("--tui-value", reference.name)
+            assertTrue(requireNotNull(reference.fallback).rawValue.isNotBlank())
+        }
+    }
+
+    @Test
+    fun `closing parenthesis scanner skips quotes comments and nested functions`() {
+        val parsed =
+            parse(
+                """var(--tui-value, fn(")", /* ) */ nested((x)))) trailing""",
+            )
+        val reference = parsed.parts.first() as DesignTokenValuePart.Reference
+
+        assertEquals("--tui-value", reference.name)
+        assertEquals("""fn(")", /* ) */ nested((x)))""", requireNotNull(reference.fallback).rawValue)
+        assertEquals(" trailing", (parsed.parts.last() as DesignTokenValuePart.Text).value)
+    }
+
+    @Test
+    fun `quoted scanner handles escaped quote before closing quote`() {
+        val parsed = parse("""'a\'b' var(--tui-real)""")
+
+        assertEquals(2, parsed.parts.size)
+        assertEquals("--tui-real", (parsed.parts.last() as DesignTokenValuePart.Reference).name)
+    }
+
+    @Test
+    fun `fallback trimming removes both leading and trailing whitespace`() {
+        val reference =
+            parse("var(--tui-value,   blue   )")
+                .parts
+                .single() as DesignTokenValuePart.Reference
+
+        assertEquals("blue", requireNotNull(reference.fallback).rawValue)
+    }
+
+    @Test
+    fun `rejects custom property names containing comma or parentheses`() {
+        listOf(
+            "var(tui-bad)",
+            "var(--tui bad)",
+            "var(--tui(bad))",
+        ).forEach { value ->
+            assertTrue(
+                "Expected invalid parse for: $value",
+                DesignTokenValueParser.parse(value) is DesignTokenValueParseResult.Invalid,
+            )
+        }
+    }
+
+    @Test
     fun `keeps absent fallback distinct from empty fallback`() {
         val withoutFallback =
             (parse("var(--tui-color)").parts.single() as DesignTokenValuePart.Reference).fallback

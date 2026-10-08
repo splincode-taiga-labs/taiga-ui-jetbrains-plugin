@@ -4,6 +4,7 @@ import com.intellij.codeInsight.lookup.LookupElementPresentation
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import com.intellij.util.ui.UIUtil
 import org.taigaui.designtokens.documentation.DesignTokenHoverPopupModel
 import org.taigaui.designtokens.project.DesignTokenIndexService
 import java.nio.file.Files
@@ -28,6 +29,32 @@ class DeprecatedDesignTokenIntegrationTest : BasePlatformTestCase() {
         } finally {
             super.tearDown()
         }
+    }
+
+    fun testColdInspectionWarmsCatalogAndRestartsInspection() {
+        val workspace = createWorkspace("cold-inspection", deprecated = true)
+        val sourcePath = workspace.resolve("src/component.less")
+        val sourceFile = createFile(sourcePath, ".demo { color: var(--tui-legacy); }")
+
+        myFixture.configureFromExistingVirtualFile(sourceFile)
+        indexService.clear()
+
+        myFixture.doHighlighting()
+
+        repeat(500) {
+            UIUtil.dispatchAllInvocationEvents()
+
+            if (!indexService.isIndexCached(sourcePath)) {
+                Thread.sleep(10)
+            }
+        }
+
+        assertTrue(indexService.isIndexCached(sourcePath))
+        assertTrue(
+            myFixture
+                .doHighlighting()
+                .any { info -> info.description?.startsWith(DEPRECATED_TOKEN_MESSAGE) == true },
+        )
     }
 
     fun testKeepsDeprecatedTokenInCompletionAndMarksIt() {

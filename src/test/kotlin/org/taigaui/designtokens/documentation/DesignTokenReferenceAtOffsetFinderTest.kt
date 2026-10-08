@@ -122,6 +122,77 @@ class DesignTokenReferenceAtOffsetFinderTest {
     }
 
     @Test
+    fun `scanner skips nested parentheses quotes and comments in first var argument`() {
+        val text =
+            """color: var(fn(")", /* ) */ nested((1, 2))) --tui-not-a-reference, $TOKEN);"""
+
+        assertNull(
+            DesignTokenReferenceAtOffsetFinder.find(
+                text,
+                text.indexOf("--tui-not-a-reference") + 4,
+            ),
+        )
+        assertNull(
+            DesignTokenReferenceAtOffsetFinder.find(
+                text,
+                text.lastIndexOf(TOKEN) + 4,
+            ),
+        )
+    }
+
+    @Test
+    fun `scanner handles escaped and unterminated quotes without leaking references`() {
+        val escaped = """content: "escaped \" var($TOKEN)"; color: var(--tui-real);"""
+
+        assertNull(
+            DesignTokenReferenceAtOffsetFinder.find(
+                escaped,
+                escaped.indexOf(TOKEN) + 3,
+            ),
+        )
+        val realReference =
+            DesignTokenReferenceAtOffsetFinder.find(
+                escaped,
+                escaped.indexOf("--tui-real") + 3,
+            )
+
+        assertEquals("--tui-real", realReference?.name)
+
+        val unterminated = """content: "unterminated var($TOKEN)"""
+
+        assertNull(
+            DesignTokenReferenceAtOffsetFinder.find(
+                unterminated,
+                unterminated.indexOf(TOKEN) + 3,
+            ),
+        )
+    }
+
+    @Test
+    fun `scanner handles unterminated block comment safely`() {
+        val text = "color: red; /* var($TOKEN)"
+
+        assertNull(
+            DesignTokenReferenceAtOffsetFinder.find(
+                text,
+                text.indexOf(TOKEN) + 3,
+            ),
+        )
+        assertEquals(emptyList<DesignTokenReferenceAtOffset>(), DesignTokenReferenceAtOffsetFinder.findAll(text))
+    }
+
+    @Test
+    fun `accepts taiga token digits underscores and hyphens`() {
+        val token = "--tui-a_1-b2"
+        val text = "color: var($token);"
+
+        assertEquals(
+            token,
+            DesignTokenReferenceAtOffsetFinder.find(text, text.indexOf(token) + 4)?.name,
+        )
+    }
+
+    @Test
     fun `returns null for offset outside document`() {
         assertNull(DesignTokenReferenceAtOffsetFinder.find("var($TOKEN)", -1))
         assertNull(DesignTokenReferenceAtOffsetFinder.find("var($TOKEN)", 1000))

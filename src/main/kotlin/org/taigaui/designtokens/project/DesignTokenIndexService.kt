@@ -108,7 +108,9 @@ class DesignTokenIndexService(
 
     fun getIndex(sourceFile: Path): DesignTokenIndex? =
         runCatching {
-            getIndexOrThrow(sourceFile)
+            packageResolver
+                .resolve(sourceFile)
+                ?.let(cache::getOrBuild)
         }.onFailure { error ->
             LOG.warn(
                 "Failed to build the installed Taiga UI style index for $sourceFile",
@@ -159,13 +161,20 @@ class DesignTokenIndexService(
     internal fun contextKey(sourceFile: Path): TokenContextKey {
         val normalizedSourceFile = sourceFile.toAbsolutePath().normalize()
 
-        return runCatching {
+        return contextKeyOrFallback(normalizedSourceFile) {
             val designTokensPackage = packageResolver.resolve(normalizedSourceFile)
             val projectRequest =
                 projectStylesheetIndexProvider.request(normalizedSourceFile, designTokensPackage)
 
             tokenContextKey(designTokensPackage, projectRequest)
-        }.getOrElse {
+        }
+    }
+
+    private fun contextKeyOrFallback(
+        normalizedSourceFile: Path,
+        operation: () -> TokenContextKey,
+    ): TokenContextKey =
+        runCatching(operation).getOrElse {
             TokenContextKey(
                 workspaceRoot = normalizedSourceFile.parent,
                 projectRoot = normalizedSourceFile.parent,
@@ -173,7 +182,6 @@ class DesignTokenIndexService(
                 projectEntryFiles = listOf(normalizedSourceFile),
             ).normalized()
         }
-    }
 
     internal fun isIndexCached(sourceFile: Path): Boolean =
         runCatching {
@@ -191,11 +199,6 @@ class DesignTokenIndexService(
 
             packageIndexCached && packageNameCatalogCached && projectIndexCached
         }.getOrDefault(false)
-
-    internal fun getIndexOrThrow(sourceFile: Path): DesignTokenIndex? =
-        packageResolver
-            .resolve(sourceFile)
-            ?.let(cache::getOrBuild)
 
     internal fun invalidate(changedPaths: Collection<Path>): Int {
         val packageInvalidated = cache.invalidate(changedPaths)

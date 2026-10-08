@@ -16,6 +16,7 @@ internal class TaigaDocsCache(
             "taiga-ui-companion",
             "documentation",
         ),
+    private val moveFile: (Path, Path, Boolean) -> Path = ::moveTaigaDocsCacheFile,
 ) {
     fun read(source: TaigaDocsSource): String? {
         val path = cacheFile(source)
@@ -71,14 +72,25 @@ internal class TaigaDocsCache(
         target: Path,
     ) {
         try {
-            Files.move(
-                source,
-                target,
-                StandardCopyOption.ATOMIC_MOVE,
-                StandardCopyOption.REPLACE_EXISTING,
-            )
+            moveFile(source, target, true)
         } catch (_: AtomicMoveNotSupportedException) {
-            Files.move(source, target, StandardCopyOption.REPLACE_EXISTING)
+            moveFile(source, target, false)
         }
     }
 }
+
+internal fun moveTaigaDocsCacheFile(
+    source: Path,
+    target: Path,
+    atomic: Boolean,
+): Path =
+    if (atomic) {
+        Files.move(
+            source,
+            target,
+            StandardCopyOption.ATOMIC_MOVE,
+            StandardCopyOption.REPLACE_EXISTING,
+        )
+    } else {
+        Files.move(source, target, StandardCopyOption.REPLACE_EXISTING)
+    }

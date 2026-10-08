@@ -136,6 +136,76 @@ class IconCatalogCacheTest {
         assertFalse(IconCatalogInvalidation.isAffected(scopeRoot, workspace.resolve("src/app.ts")))
     }
 
+    @Test
+    fun `cache exposes scope roots invalidation result generation and clear`() {
+        val first = scopeRoot("state-first")
+        val second = scopeRoot("state-second")
+        val cache = IconCatalogCache()
+
+        assertNull(cache.lookup(first))
+        assertEquals(emptySet<Path>(), cache.scopeRoots)
+        assertEquals(0L, cache.generation(first))
+        assertFalse(cache.invalidate(first))
+        assertEquals(1L, cache.generation(first))
+
+        assertTrue(
+            cache.publish(
+                first,
+                cache.generation(first),
+                result(IconCatalogCachePolicy.LOCAL, "@tui.first"),
+            ),
+        )
+        assertTrue(
+            cache.publish(
+                second,
+                cache.generation(second),
+                result(IconCatalogCachePolicy.LOCAL, "@tui.second"),
+            ),
+        )
+        assertEquals(setOf(first, second), cache.scopeRoots)
+
+        assertTrue(cache.invalidate(first))
+        assertFalse(cache.invalidate(first))
+        assertEquals(setOf(second), cache.scopeRoots)
+
+        cache.clear()
+
+        assertEquals(emptySet<Path>(), cache.scopeRoots)
+        assertEquals(0L, cache.generation(first))
+        assertEquals(0L, cache.generation(second))
+    }
+
+    @Test
+    fun `context invalidation uses explicit invalidation roots without physical scope`() {
+        val root = scopeRoot("virtual-context")
+        val metadata = root.resolve(".pnp.cjs")
+        val packageArchive = root.resolve("cache/icons.zip")
+        val context =
+            IconCatalogContext(
+                scopeRoot = root,
+                proprietaryPackageRoot = root.resolve("proprietary"),
+                publicIconsRoot = root.resolve("icons/src"),
+                tdsIconsRoot = root.resolve("tds-icons/src"),
+                invalidationRoots = setOf(metadata, packageArchive),
+                physicalScopeRoot = null,
+            )
+
+        assertTrue(IconCatalogInvalidation.isAffected(context, metadata))
+        assertTrue(IconCatalogInvalidation.isAffected(context, metadata.parent))
+        assertTrue(
+            IconCatalogInvalidation.isAffected(
+                context,
+                packageArchive.resolve("nested"),
+            ),
+        )
+        assertFalse(
+            IconCatalogInvalidation.isAffected(
+                context,
+                root.resolve("unrelated/file.ts"),
+            ),
+        )
+    }
+
     private fun result(
         cachePolicy: IconCatalogCachePolicy,
         vararg names: String,

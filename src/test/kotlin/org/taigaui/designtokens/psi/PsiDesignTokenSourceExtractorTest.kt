@@ -289,6 +289,14 @@ class PsiDesignTokenSourceExtractorTest : BasePlatformTestCase() {
         assertEquals(packageRoot.resolve("palette/light.css"), declaration.sourceFile)
     }
 
+    fun testPathExtractionReturnsEmptyForMissingFile() {
+        assertEmpty(
+            extractor.extract(
+                packageRoot.resolve("missing.css"),
+            ),
+        )
+    }
+
     fun testReturnsEmptyListForStylesheetWithoutTokenDeclarations() {
         assertEmpty(
             extract(

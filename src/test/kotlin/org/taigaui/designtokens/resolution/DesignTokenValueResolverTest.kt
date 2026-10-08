@@ -339,6 +339,159 @@ class DesignTokenValueResolverTest {
         assertNull(DesignTokenColorDetector.detect("1rem"))
     }
 
+    @Test
+    fun `resolve by name expands mobile unspecified declaration to ios and android light and dark contexts`() {
+        val index =
+            DesignTokenIndex.build(
+                packageRoot = packageRoot,
+                declarations =
+                    listOf(
+                        DesignTokenDeclaration(
+                            name = ROOT,
+                            value = "1rem",
+                            sourceFile = packageRoot.resolve("mobile/base.css"),
+                            line = 1,
+                        ),
+                    ),
+            )
+
+        val contexts =
+            DesignTokenValueResolver(index)
+                .resolve(ROOT)
+                .map(DesignTokenVariantResolution::requestedContext)
+                .toSet()
+
+        assertEquals(
+            setOf(
+                DesignTokenContext(DesignTokenPlatform.IOS, DesignTokenTheme.LIGHT),
+                DesignTokenContext(DesignTokenPlatform.IOS, DesignTokenTheme.DARK),
+                DesignTokenContext(DesignTokenPlatform.ANDROID, DesignTokenTheme.LIGHT),
+                DesignTokenContext(DesignTokenPlatform.ANDROID, DesignTokenTheme.DARK),
+            ),
+            contexts,
+        )
+    }
+
+    @Test
+    fun `resolve by name expands shared desktop declaration across desktop ios and android`() {
+        val index =
+            DesignTokenIndex.build(
+                packageRoot = packageRoot,
+                declarations =
+                    listOf(
+                        DesignTokenDeclaration(
+                            name = ROOT,
+                            value = "1rem",
+                            sourceFile = packageRoot.resolve("shared/base.css"),
+                            line = 1,
+                            selectorChain = listOf(":root"),
+                            localOverride = true,
+                        ),
+                    ),
+            )
+
+        val contexts =
+            DesignTokenValueResolver(index)
+                .resolve(ROOT)
+                .map(DesignTokenVariantResolution::requestedContext)
+                .map(DesignTokenContext::platform)
+                .toSet()
+
+        assertEquals(
+            setOf(
+                DesignTokenPlatform.DESKTOP,
+                DesignTokenPlatform.IOS,
+                DesignTokenPlatform.ANDROID,
+            ),
+            contexts,
+        )
+    }
+
+    @Test
+    fun `known package layers prefer the highest precedence candidate`() {
+        val declarations =
+            listOf(
+                packageToken("@taiga-ui/design-tokens", "tokens.css", "--tui-target", "tokens"),
+                packageToken("@taiga-ui/styles", "styles.css", "--tui-target", "styles"),
+                packageToken("@taiga-ui/core", "core.css", "--tui-target", "core"),
+                packageToken("@taiga-ui/proprietary", "proprietary.css", "--tui-target", "proprietary"),
+                DesignTokenDeclaration(
+                    name = ROOT,
+                    value = "var(--tui-target)",
+                    sourceFile = packageRoot.resolve("palette/base.css"),
+                    line = 10,
+                ),
+            )
+        val index =
+            DesignTokenIndex.build(
+                packageRoot = packageRoot,
+                declarations = declarations,
+            )
+
+        assertEquals("proprietary", resolved(resolve(index, ROOT, DESKTOP)).value)
+    }
+
+    @Test
+    fun `unknown package layer keeps equal-precedence candidates ambiguous`() {
+        val declarations =
+            listOf(
+                packageToken("@custom/one", "one.css", "--tui-target", "one"),
+                packageToken("@custom/two", "two.css", "--tui-target", "two"),
+                DesignTokenDeclaration(
+                    name = ROOT,
+                    value = "var(--tui-target)",
+                    sourceFile = packageRoot.resolve("palette/base.css"),
+                    line = 10,
+                ),
+            )
+        val index =
+            DesignTokenIndex.build(
+                packageRoot = packageRoot,
+                declarations = declarations,
+            )
+
+        val result = unresolved(resolve(index, ROOT, DESKTOP))
+
+        assertTrue(result.reason is DesignTokenUnresolvedReason.AmbiguousReference)
+    }
+
+    @Test
+    fun `resolver exposes parsed and resolution cache sizes`() {
+        val index =
+            index(
+                token("palette/base.css", ROOT, "var(--tui-leaf)"),
+                token("palette/base.css", "--tui-leaf", "1rem"),
+            )
+        val resolver = DesignTokenValueResolver(index)
+
+        assertEquals(0, resolver.parsedValueCacheSize)
+        assertEquals(0, resolver.resolutionCacheSize)
+
+        resolver.resolve(index.find(ROOT).single())
+
+        assertEquals(2, resolver.parsedValueCacheSize)
+        assertEquals(2, resolver.resolutionCacheSize)
+
+        resolver.resolve(index.find(ROOT).single())
+
+        assertEquals(2, resolver.parsedValueCacheSize)
+        assertEquals(2, resolver.resolutionCacheSize)
+    }
+
+    private fun packageToken(
+        packageName: String,
+        relativePath: String,
+        name: String,
+        value: String,
+    ): DesignTokenDeclaration =
+        DesignTokenDeclaration(
+            name = name,
+            value = value,
+            sourceFile = packageRoot.resolve(relativePath),
+            line = 1,
+            packageName = packageName,
+        )
+
     private fun precedenceIndex(
         mobileDark: String? = null,
         mobileUnspecified: String? = null,
