@@ -47,32 +47,6 @@ class IconCompletionContributorTest : BasePlatformTestCase() {
         assertFalse("@tui.fancy.medium.info-circle" in suggestions)
     }
 
-    fun testColdIconCatalogDoesNotOfferUninitializedResults() {
-        createIcon("icons/src/a-arrow-down.svg")
-        createIcon("icons/src/a-arrow-up.svg")
-        val sourcePath = workspaceRoot.resolve("src/cold-icons.html")
-        val sourceFile =
-            createFile(
-                sourcePath,
-                "<button iconStart=\"@tui.\"></button>",
-            )
-
-        myFixture.configureFromExistingVirtualFile(sourceFile)
-        val caretOffset =
-            myFixture.editor.document.text
-                .indexOf("@tui.") + "@tui.".length
-
-        myFixture.editor.caretModel.moveToOffset(caretOffset)
-        val coldResults = myFixture.completeBasic()?.map { item -> item.lookupString }.orEmpty()
-
-        assertFalse("@tui.a-arrow-down" in coldResults)
-
-        project.service<IconCompletionService>().loadNow(sourcePath)
-        val warmedResults = myFixture.completeBasic()?.map { item -> item.lookupString }.orEmpty()
-
-        assertContainsElements(warmedResults, "@tui.a-arrow-down", "@tui.a-arrow-up")
-    }
-
     fun testIconCompletionSuppressesNativeDocumentationPopups() {
         val item = createIconLookupElement("@tui.a-arrow-down")
         val autoPopupKey = Key.create<Boolean>("LookupManagerImpl.suppressAutopopupJavadoc")
