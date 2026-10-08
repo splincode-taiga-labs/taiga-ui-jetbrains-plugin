@@ -86,7 +86,7 @@ class EventPluginsHoverPopupControllerTest : BasePlatformTestCase() {
         val controller = project.service<EventPluginsHoverPopupController>()
 
         controller.mouseMoved(editorMouseEvent(offset, EditorMouseEventArea.EDITING_AREA))
-        val popup = requireNotNull(waitForPrivateField(controller, "popup"))
+        val popup = requireNotNull(waitForPrivateField(controller, "popup")) as com.intellij.openapi.ui.popup.JBPopup
         val visiblePopup = visiblePopupStub()
         val popupField = controller.javaClass.getDeclaredField("popup").apply { isAccessible = true }
         val reference = requireNotNull(EventPluginBindingAtOffsetFinder.find(editor.document.text, offset))

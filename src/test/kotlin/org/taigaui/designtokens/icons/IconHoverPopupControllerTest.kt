@@ -139,7 +139,7 @@ class IconHoverPopupControllerTest : BasePlatformTestCase() {
         val offset = editor.document.text.indexOf("@tui.search") + 3
 
         controller.mouseMoved(editorMouseEvent(offset))
-        val popup = requireNotNull(waitForPrivateField(controller, "popup"))
+        val popup = requireNotNull(waitForPrivateField(controller, "popup")) as com.intellij.openapi.ui.popup.JBPopup
         val visiblePopup = visiblePopupStub()
         val popupField = controller.javaClass.getDeclaredField("popup").apply { isAccessible = true }
         val reference = requireNotNull(IconReferenceAtOffsetFinder.find(editor.document.text, offset))

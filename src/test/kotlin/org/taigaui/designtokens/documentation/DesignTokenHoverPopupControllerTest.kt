@@ -481,7 +481,7 @@ class DesignTokenHoverPopupControllerTest : BasePlatformTestCase() {
 
         controller.mouseMoved(editorMouseEvent(offset))
         val key = requireNotNull(waitForPrivateField(controller, "popupKey"))
-        val popup = requireNotNull(readPrivateField(controller, "popup"))
+        val popup = requireNotNull(readPrivateField(controller, "popup")) as com.intellij.openapi.ui.popup.JBPopup
         val visiblePopup = visiblePopupStub()
         val popupField = controller.javaClass.getDeclaredField("popup").apply { isAccessible = true }
         val popupKeyField = controller.javaClass.getDeclaredField("popupKey").apply { isAccessible = true }
