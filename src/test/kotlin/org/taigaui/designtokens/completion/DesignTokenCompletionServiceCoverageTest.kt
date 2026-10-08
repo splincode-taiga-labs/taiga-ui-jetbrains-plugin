@@ -108,13 +108,15 @@ class DesignTokenCompletionServiceCoverageTest : BasePlatformTestCase() {
 
     fun testConcurrentCompletionRequestsShareOneWarmup() {
         val sourceFile = createFixture(tempRoot.resolve("coalesced-workspace"))
+        val firstOwner = Any()
+        val secondOwner = Any()
         val firstUpdates = AtomicInteger()
         val secondUpdates = AtomicInteger()
 
         assertNull(
             service.entriesFor(
                 sourceFile,
-                RefreshCallback(Any(), "first-warmup") {
+                RefreshCallback(firstOwner, "first-warmup") {
                     firstUpdates.incrementAndGet()
                 },
             ),
@@ -122,7 +124,7 @@ class DesignTokenCompletionServiceCoverageTest : BasePlatformTestCase() {
         assertNull(
             service.entriesFor(
                 sourceFile,
-                RefreshCallback(Any(), "second-warmup") {
+                RefreshCallback(secondOwner, "second-warmup") {
                     secondUpdates.incrementAndGet()
                 },
             ),
