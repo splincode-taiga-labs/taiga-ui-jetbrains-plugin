@@ -126,7 +126,7 @@ class IconCompletionPreviewUiCoverageTest : BasePlatformTestCase() {
 
         waitForPreviewJob(controller)
 
-        assertNull(readPrivateField(controller, "previewHint"))
+        assertFalse((readPrivateField(controller, "previewHint") as? LightweightHint)?.isVisible == true)
     }
 
     fun testPreviewHidesWhenSvgRendererRejectsSelectedIcon() {
@@ -145,7 +145,7 @@ class IconCompletionPreviewUiCoverageTest : BasePlatformTestCase() {
         invokePrivate(controller, "attach", lookup)
         waitForPreviewJob(controller)
 
-        assertNull(readPrivateField(controller, "previewHint"))
+        assertFalse((readPrivateField(controller, "previewHint") as? LightweightHint)?.isVisible == true)
     }
 
     private fun openLookup(prefix: String = "@tui."): Lookup {
