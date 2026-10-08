@@ -93,6 +93,21 @@ class DesignTokenCompletionContributorTest : BasePlatformTestCase() {
         assertFalse(suggestions.contains("--tui-background-base"))
     }
 
+    fun testManualCompletionRecoversAfterColdCatalogWarmup() {
+        val sourcePath = configureCompletion("--tui-")
+
+        myFixture.completeBasic()
+        waitUntil { indexService.isIndexCached(sourcePath) }
+
+        val suggestions = requireNotNull(myFixture.completeBasic()).map { item -> item.lookupString }
+
+        assertContainsElements(
+            suggestions,
+            "--tui-text-primary",
+            "--tui-background-base",
+        )
+    }
+
     fun testDoesNotCompleteMalformedProjectTokenName() {
         val suggestions = complete("--tui-ra")
 
