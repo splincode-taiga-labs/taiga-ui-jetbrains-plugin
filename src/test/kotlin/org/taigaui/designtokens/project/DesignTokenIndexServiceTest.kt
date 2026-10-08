@@ -12,6 +12,7 @@ import org.taigaui.designtokens.index.DesignTokenIndex
 import org.taigaui.designtokens.index.DesignTokenPlatform
 import org.taigaui.designtokens.index.PROJECT_STYLES_PACKAGE
 import org.taigaui.designtokens.resolution.DesignTokenValueResolution
+import java.lang.reflect.Proxy
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -292,16 +293,20 @@ class DesignTokenIndexServiceTest : BasePlatformTestCase() {
     }
 
     fun testDefensiveIndexBoundaryReturnsNullOnUnexpectedFailure() {
-        val sourcePath = tempRoot.resolve("broken/app.css")
-        val method =
-            service.javaClass.declaredMethods
-                .single { candidate ->
-                    candidate.name == "indexOrNull" &&
-                        candidate.parameterCount == 2
-                }.apply { isAccessible = true }
-        val operation: () -> DesignTokenIndex = { error("broken index") }
+        val brokenPath =
+            Proxy.newProxyInstance(
+                javaClass.classLoader,
+                arrayOf(Path::class.java),
+            ) { proxy, method, arguments ->
+                when (method.name) {
+                    "toString" -> "broken/app.css"
+                    "hashCode" -> System.identityHashCode(proxy)
+                    "equals" -> proxy === arguments?.firstOrNull()
+                    else -> error("broken path")
+                }
+            } as Path
 
-        assertNull(method.invoke(service, sourcePath, operation))
+        assertNull(service.getIndex(brokenPath))
     }
 
     fun testContextKeyBoundaryFallsBackToSourceDirectoryOnUnexpectedFailure() {

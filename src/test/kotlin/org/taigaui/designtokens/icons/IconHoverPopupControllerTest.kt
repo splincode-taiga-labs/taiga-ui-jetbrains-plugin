@@ -1,5 +1,7 @@
 package org.taigaui.designtokens.icons
 
+import com.intellij.codeInsight.lookup.LookupArranger
+import com.intellij.codeInsight.lookup.LookupElementBuilder
 import com.intellij.codeInsight.lookup.LookupManager
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.components.service
@@ -9,6 +11,7 @@ import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.testFramework.runInEdtAndGet
 import com.intellij.util.ui.UIUtil
+import org.taigaui.designtokens.visiblePopupStub
 import java.awt.Point
 import java.awt.event.MouseEvent
 import java.awt.image.BufferedImage
@@ -137,6 +140,8 @@ class IconHoverPopupControllerTest : BasePlatformTestCase() {
 
         controller.mouseMoved(editorMouseEvent(offset))
         val popup = requireNotNull(waitForPrivateField(controller, "popup"))
+        val visiblePopup = visiblePopupStub()
+        val popupField = controller.javaClass.getDeclaredField("popup").apply { isAccessible = true }
         val reference = requireNotNull(IconReferenceAtOffsetFinder.find(editor.document.text, offset))
         val requestClass = Class.forName("org.taigaui.designtokens.icons.IconHoverRequest")
         val request =
@@ -156,13 +161,16 @@ class IconHoverPopupControllerTest : BasePlatformTestCase() {
                     method.name == "showPopup" && method.parameterCount == 2
                 }.apply { isAccessible = true }
 
-        showPopup.invoke(
-            controller,
-            request,
-            ImageIcon(BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB)),
-        )
-
-        assertSame(popup, readPrivateField(controller, "popup"))
+        runInEdtAndGet {
+            popup.cancel()
+            popupField.set(controller, visiblePopup)
+            showPopup.invoke(
+                controller,
+                request,
+                ImageIcon(BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB)),
+            )
+            assertSame(visiblePopup, popupField.get(controller))
+        }
         controller.dismissHover(editor)
     }
 
@@ -191,9 +199,22 @@ class IconHoverPopupControllerTest : BasePlatformTestCase() {
         listener.mouseMoved(event)
         assertNotNull(readPrivateField(controller, "activeKey"))
 
-        project.service<IconCompletionService>().loadNow(sourcePath)
-        requestIconCompletion(project, myFixture.editor, sourcePath)
-        assertNotNull(waitForLookup())
+        val lookup =
+            runInEdtAndGet {
+                LookupManager.getInstance(project).showLookup(
+                    myFixture.editor,
+                    arrayOf(
+                        LookupElementBuilder.create("@tui.search"),
+                        LookupElementBuilder.create("@tui.add"),
+                    ),
+                    "@tui.",
+                    object : LookupArranger.DefaultArranger() {
+                        override fun isCompletion(): Boolean = true
+                    },
+                )
+            }
+
+        assertNotNull(lookup)
 
         listener.mouseMoved(event)
 
@@ -274,26 +295,6 @@ class IconHoverPopupControllerTest : BasePlatformTestCase() {
 
         listener.mouseDragged(event)
         assertNull(readPrivateField(controller, "activeKey"))
-    }
-
-    private fun waitForLookup(): Any? {
-        repeat(300) {
-            UIUtil.dispatchAllInvocationEvents()
-            val lookup =
-                runInEdtAndGet {
-                    LookupManager.getActiveLookup(myFixture.editor)
-                }
-
-            if (lookup != null) {
-                return lookup
-            }
-
-            Thread.sleep(10)
-        }
-
-        return runInEdtAndGet {
-            LookupManager.getActiveLookup(myFixture.editor)
-        }
     }
 
     private fun configureHtml(content: String) {

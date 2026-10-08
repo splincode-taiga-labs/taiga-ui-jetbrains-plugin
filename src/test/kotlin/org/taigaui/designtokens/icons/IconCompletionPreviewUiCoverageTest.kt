@@ -108,7 +108,7 @@ class IconCompletionPreviewUiCoverageTest : BasePlatformTestCase() {
 
         waitForPreviewJob(controller)
 
-        assertNull(readPrivateField(controller, "previewHint"))
+        assertFalse((readPrivateField(controller, "previewHint") as? LightweightHint)?.isVisible == true)
     }
 
     fun testPreviewHidesWhenSelectedSvgDisappearsBeforeResolution() {

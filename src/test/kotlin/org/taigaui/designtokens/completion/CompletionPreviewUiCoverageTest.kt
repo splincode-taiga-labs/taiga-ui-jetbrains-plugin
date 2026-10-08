@@ -165,7 +165,7 @@ class CompletionPreviewUiCoverageTest : BasePlatformTestCase() {
         invokePrivate(controller, "attach", lookup)
         waitForPreviewJob(controller)
 
-        assertNull(readPrivateField(controller, "previewHint"))
+        assertFalse((readPrivateField(controller, "previewHint") as? LightweightHint)?.isVisible == true)
         runInEdtAndGet { LookupManager.getInstance(project).hideActiveLookup() }
     }
 

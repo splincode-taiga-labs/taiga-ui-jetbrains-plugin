@@ -10,6 +10,7 @@ import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.testFramework.runInEdtAndGet
 import com.intellij.ui.components.JBLabel
 import com.intellij.util.ui.UIUtil
+import org.taigaui.designtokens.visiblePopupStub
 import java.awt.Component
 import java.awt.Container
 import java.awt.Point
@@ -86,6 +87,8 @@ class EventPluginsHoverPopupControllerTest : BasePlatformTestCase() {
 
         controller.mouseMoved(editorMouseEvent(offset, EditorMouseEventArea.EDITING_AREA))
         val popup = requireNotNull(waitForPrivateField(controller, "popup"))
+        val visiblePopup = visiblePopupStub()
+        val popupField = controller.javaClass.getDeclaredField("popup").apply { isAccessible = true }
         val reference = requireNotNull(EventPluginBindingAtOffsetFinder.find(editor.document.text, offset))
         val requestClass = Class.forName("org.taigaui.designtokens.events.EventPluginsHoverRequest")
         val request =
@@ -104,9 +107,12 @@ class EventPluginsHoverPopupControllerTest : BasePlatformTestCase() {
                     method.name == "showPopup" && method.parameterCount == 1
                 }.apply { isAccessible = true }
 
-        showPopup.invoke(controller, request)
-
-        assertSame(popup, readPrivateField(controller, "popup"))
+        runInEdtAndGet {
+            popup.cancel()
+            popupField.set(controller, visiblePopup)
+            showPopup.invoke(controller, request)
+            assertSame(visiblePopup, popupField.get(controller))
+        }
         controller.dismissHover(editor)
     }
 

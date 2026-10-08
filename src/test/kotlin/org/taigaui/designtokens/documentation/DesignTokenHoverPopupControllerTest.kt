@@ -12,6 +12,7 @@ import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.testFramework.runInEdtAndGet
 import com.intellij.util.ui.UIUtil
 import org.taigaui.designtokens.project.DesignTokenIndexService
+import org.taigaui.designtokens.visiblePopupStub
 import org.taigaui.designtokens.settings.TaigaDesignTokensSettings
 import java.awt.Container
 import java.awt.GraphicsConfiguration
@@ -481,6 +482,17 @@ class DesignTokenHoverPopupControllerTest : BasePlatformTestCase() {
         controller.mouseMoved(editorMouseEvent(offset))
         val key = requireNotNull(waitForPrivateField(controller, "popupKey"))
         val popup = requireNotNull(readPrivateField(controller, "popup"))
+        val visiblePopup = visiblePopupStub()
+        val popupField = controller.javaClass.getDeclaredField("popup").apply { isAccessible = true }
+        val popupKeyField = controller.javaClass.getDeclaredField("popupKey").apply { isAccessible = true }
+        val activeKeyField = controller.javaClass.getDeclaredField("activeHoverKey").apply { isAccessible = true }
+
+        runInEdtAndGet {
+            popup.cancel()
+            popupField.set(controller, visiblePopup)
+            popupKeyField.set(controller, key)
+            activeKeyField.set(controller, key)
+        }
 
         invokePrivate(
             controller,
@@ -490,9 +502,10 @@ class DesignTokenHoverPopupControllerTest : BasePlatformTestCase() {
             key,
             "--tui-text-primary",
         )
-        assertSame(popup, readPrivateField(controller, "popup"))
+        assertSame(visiblePopup, readPrivateField(controller, "popup"))
 
         editor.selectionModel.setSelection(0, 1)
+        runInEdtAndGet { popupKeyField.set(controller, null) }
         invokePrivate(
             controller,
             "showPopup",
@@ -501,7 +514,7 @@ class DesignTokenHoverPopupControllerTest : BasePlatformTestCase() {
             key,
             { _: DesignTokenHoverPopupPanel -> },
         )
-        assertNotNull(readPrivateField(controller, "popup"))
+        assertSame(visiblePopup, readPrivateField(controller, "popup"))
         editor.selectionModel.removeSelection()
 
         controller.dismissHover(editor)
