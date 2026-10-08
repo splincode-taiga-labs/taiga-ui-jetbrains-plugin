@@ -14,6 +14,20 @@ import java.nio.file.Path
 
 class IconCatalogCoverageTest {
     @Test
+    fun `loader returns a local empty catalog without eligible sources`() {
+        val root = Files.createTempDirectory("icon-catalog-no-sources")
+
+        try {
+            val result = IconCatalogLoader(emptyList()).loadCatalogWithPolicy(root)
+
+            assertTrue(result.catalog.names.isEmpty())
+            assertEquals(IconCatalogCachePolicy.LOCAL, result.cachePolicy)
+        } finally {
+            root.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
     fun `catalog sorts names deduplicates by last entry and resolves source`() {
         val first = IconSvgSource.Remote(URI("https://example.test/first.svg"))
         val replacement = IconSvgSource.Remote(URI("https://example.test/replacement.svg"))

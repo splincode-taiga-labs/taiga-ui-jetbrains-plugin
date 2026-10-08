@@ -2,6 +2,7 @@ package org.taigaui.designtokens.project
 
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import org.taigaui.designtokens.index.DesignTokenSourceExtractor
+import org.taigaui.designtokens.psi.PsiDesignTokenSourceExtractor
 import org.taigaui.designtokens.packageinfo.DesignTokenSourcePackage
 import org.taigaui.designtokens.packageinfo.DesignTokensPackage
 import org.taigaui.designtokens.packageinfo.DesignTokensPackageResolver
@@ -22,6 +23,23 @@ class ProjectStylesheetCoverageTest : BasePlatformTestCase() {
         } finally {
             super.tearDown()
         }
+    }
+
+    fun testProviderCreatesStandaloneRequestWithoutInstalledPackage() {
+        val sourceFile = workspaceRoot.resolve("src/standalone.css")
+
+        Files.createDirectories(sourceFile.parent)
+        Files.writeString(sourceFile, ".demo {}")
+
+        val provider =
+            ProjectStylesheetIndexProvider(
+                project = project,
+                packageResolver = DesignTokensPackageResolver(),
+                sourceExtractor = PsiDesignTokenSourceExtractor(project),
+            )
+        val request = requireNotNull(provider.request(sourceFile))
+
+        assertTrue(sourceFile.toAbsolutePath().normalize() in request.entryFiles)
     }
 
     fun testPathResolverSupportsExternalPackagePartialAndIndexForms() {

@@ -71,6 +71,16 @@ class TaigaDocsCacheCoverageTest {
     }
 
     @Test
+    fun `default move strategy supports a non atomic replacement`() {
+        val root = temporaryFolder.newFolder("default-non-atomic").toPath()
+        val temporary = Files.writeString(root.resolve("pending.tmp"), "payload")
+        val target = root.resolve("cached.txt")
+
+        assertEquals(target, moveTaigaDocsCacheFile(temporary, target, atomic = false))
+        assertEquals("payload", Files.readString(target))
+    }
+
+    @Test
     fun `repository exposes cached fresh refresh and invalidate paths`() {
         val root = temporaryFolder.newFolder("repository-cache").toPath()
         val cache = TaigaDocsCache(root)
