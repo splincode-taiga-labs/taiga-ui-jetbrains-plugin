@@ -566,6 +566,46 @@ class DesignTokenHoverPopupControllerTest : BasePlatformTestCase() {
         assertTrue(width in 1..559)
     }
 
+    fun testMovingToAnotherTokenClosesVisiblePopupWithStaleKey() {
+        configureCss(
+            """
+            :root {
+                --tui-first: #111111;
+                --tui-second: #222222;
+            }
+
+            .demo {
+                color: var(--tui-first);
+                background: var(--tui-second);
+            }
+            """.trimIndent(),
+        )
+        val editor = myFixture.editor
+        val controller = project.service<DesignTokenHoverPopupController>()
+        val firstOffset = editor.document.text.lastIndexOf("--tui-first") + 3
+        val secondOffset = editor.document.text.lastIndexOf("--tui-second") + 3
+
+        controller.mouseMoved(editorMouseEvent(firstOffset))
+        val firstKey = requireNotNull(readPrivateField(controller, "activeHoverKey"))
+        val popupField = controller.javaClass.getDeclaredField("popup").apply { isAccessible = true }
+        val popupKeyField = controller.javaClass.getDeclaredField("popupKey").apply { isAccessible = true }
+
+        runInEdtAndGet {
+            popupField.set(controller, visiblePopupStub())
+            popupKeyField.set(controller, firstKey)
+        }
+
+        try {
+            controller.mouseMoved(editorMouseEvent(secondOffset))
+
+            assertNull(readPrivateField(controller, "popup"))
+            assertNull(readPrivateField(controller, "popupKey"))
+            assertNotNull(readPrivateField(controller, "activeHoverKey"))
+        } finally {
+            controller.dismissHover(editor)
+        }
+    }
+
     private fun Container.containsLabel(text: String): Boolean =
         components.any { component ->
             (component as? JLabel)?.text == text ||
