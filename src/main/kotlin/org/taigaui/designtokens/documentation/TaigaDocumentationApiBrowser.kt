@@ -24,7 +24,9 @@ internal data class TaigaDocumentationApiRow(
     val property: TaigaApiProperty,
     val kind: TaigaApiMemberKind,
     val state: String? = null,
-)
+) {
+    val key: String get() = "$kind:${property.name}"
+}
 
 internal fun TaigaResolvedDocumentation.Entity.apiRows(): List<TaigaDocumentationApiRow> =
     (
@@ -67,6 +69,8 @@ internal class TaigaDocumentationApiBrowser(
     initialQuery: String,
     private val openMember: (TaigaResolvedDocumentation.Member) -> Unit,
     private val queryChanged: (String) -> Unit = {},
+    private val initialSelection: String? = null,
+    private val selectionChanged: (String) -> Unit = {},
 ) : JPanel(BorderLayout(0, JBUI.scale(8))) {
     private val rows = entity.apiRows()
     private val model = DefaultListModel<TaigaDocumentationApiRow>()
@@ -82,6 +86,9 @@ internal class TaigaDocumentationApiBrowser(
         search.getAccessibleContext().accessibleName = "Search Taiga API"
         list.getAccessibleContext().accessibleName = "Taiga inputs and outputs"
         list.selectionMode = ListSelectionModel.SINGLE_SELECTION
+        list.addListSelectionListener { event ->
+            if (!event.valueIsAdjusting) list.selectedValue?.let { selectionChanged(it.key) }
+        }
         list.visibleRowCount = 8
         val renderer = DefaultListCellRenderer()
         list.cellRenderer =
@@ -122,7 +129,7 @@ internal class TaigaDocumentationApiBrowser(
 
     private fun filter() {
         val query = search.text.trim()
-        val selected = list.selectedValue
+        val selected = list.selectedValue?.key ?: initialSelection
         model.removeAllElements()
         rows
             .filter {
@@ -132,7 +139,7 @@ internal class TaigaDocumentationApiBrowser(
             }.forEach(model::addElement)
         if (!model.isEmpty) {
             list.selectedIndex =
-                (0 until model.size).firstOrNull { model.getElementAt(it) == selected } ?: 0
+                (0 until model.size).firstOrNull { model.getElementAt(it).key == selected } ?: 0
         }
         status.text = "${model.size} of ${rows.size} · ↑/↓ navigate · Enter open · Alt+Left back"
         queryChanged(search.text)

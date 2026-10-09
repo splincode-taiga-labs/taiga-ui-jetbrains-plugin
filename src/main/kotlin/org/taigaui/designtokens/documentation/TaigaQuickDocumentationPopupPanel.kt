@@ -1,6 +1,7 @@
 package org.taigaui.designtokens.documentation
 
 import com.intellij.ide.BrowserUtil
+import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
@@ -16,7 +17,9 @@ import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
+import java.awt.Point
 import java.awt.RenderingHints
+import java.awt.datatransfer.StringSelection
 import javax.swing.Box
 import javax.swing.BoxLayout
 import javax.swing.Icon
@@ -25,6 +28,8 @@ import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.JSeparator
 import javax.swing.LayoutFocusTraversalPolicy
+import javax.swing.SwingUtilities
+import javax.swing.Timer
 
 internal data class TaigaDocumentationIconPreview(
     val reference: TaigaDocumentationIcon,
@@ -46,6 +51,8 @@ internal data class TaigaDocumentationPopupActions(
     val navigateDeclaration: ((TaigaDocumentationSource) -> Unit)? = null,
     val refresh: (() -> Unit)? = null,
     val resize: (() -> Unit)? = null,
+    val selectionChanged: ((String) -> Unit)? = null,
+    val showImportFixes: (() -> Unit)? = null,
 )
 
 /** The same compact card structure serves every kind, with kind-specific content. */
@@ -58,6 +65,7 @@ internal class TaigaQuickDocumentationPopupPanel(
     showExample: Boolean = false,
     pinned: Boolean = false,
     private val apiQuery: String? = null,
+    private val selectedMember: String? = null,
 ) : JPanel(BorderLayout(0, JBUI.scale(12))) {
     private val content = verticalPanel()
     private val previewContent = verticalPanel()
@@ -68,6 +76,7 @@ internal class TaigaQuickDocumentationPopupPanel(
     private var bindingPanel: TaigaDocumentationBindingPanel? = null
     private val contextStatus = verticalPanel()
     private var contextMessage: String? = null
+    private var refreshButton: JButton? = null
     private val fullApi: Boolean get() = apiQuery != null
 
     val preferredFocus: JComponent get() = apiBrowser?.preferredFocus ?: backButton ?: firstFocusable(this) ?: this
@@ -89,7 +98,7 @@ internal class TaigaQuickDocumentationPopupPanel(
         content.add(contextStatus)
         resolved.description?.takeIf(String::isNotBlank)?.let { description ->
             content.add(Box.createVerticalStrut(JBUI.scale(12)))
-            content.add(wrappedLabel(description.take(MAX_DESCRIPTION_LENGTH)))
+            content.add(descriptionSection(description))
         }
         content.add(Box.createVerticalStrut(JBUI.scale(14)))
 
@@ -100,7 +109,7 @@ internal class TaigaQuickDocumentationPopupPanel(
         if (showExample) {
             resolved.entity.example?.let { example ->
                 content.add(sectionTitle("Example"))
-                content.add(codeRow(example.code.take(MAX_EXAMPLE_LENGTH)))
+                content.add(codeRow(example.code.take(MAX_EXAMPLE_LENGTH), example.code, "Copy example"))
             }
         }
 
@@ -121,6 +130,25 @@ internal class TaigaQuickDocumentationPopupPanel(
         keyboardButtons(this)
     }
 
+    val scrollPosition: Point get() = Point(scroll.viewport.viewPosition)
+
+    fun restoreScrollPosition(position: Point) {
+        SwingUtilities.invokeLater {
+            val extent = scroll.viewport.extentSize
+            val size = content.size
+            scroll.viewport.viewPosition =
+                Point(
+                    position.x.coerceIn(0, (size.width - extent.width).coerceAtLeast(0)),
+                    position.y.coerceIn(0, (size.height - extent.height).coerceAtLeast(0)),
+                )
+        }
+    }
+
+    fun showRefreshProgress(waitingForIndexing: Boolean) {
+        invalidateContext(if (waitingForIndexing) "Waiting for indexing…" else "Refreshing Taiga UI API…")
+        refreshButton?.isEnabled = false
+    }
+
     fun invalidateContext(message: String = STALE_DOCUMENTATION_MESSAGE) {
         if (contextMessage == message) return
         contextMessage = message
@@ -135,9 +163,16 @@ internal class TaigaQuickDocumentationPopupPanel(
                     addActionListener { refresh() }
                 }
             contextStatus.add(button)
+            refreshButton = button
             keyboardButtons(button)
         }
         contextStatus.isVisible = true
+        updateContentSize()
+    }
+
+    fun showRefreshFailure() = invalidateContext("The source target changed. Reopen its card at the caret.")
+
+    private fun updateContentSize() {
         scroll.preferredSize =
             Dimension(JBUI.scale(CONTENT_WIDTH), content.preferredSize.height.coerceAtMost(JBUI.scale(MAX_BODY_HEIGHT)))
         revalidate()
@@ -145,7 +180,19 @@ internal class TaigaQuickDocumentationPopupPanel(
         actions.resize?.invoke()
     }
 
-    fun showRefreshFailure() = invalidateContext("The source target changed. Reopen its card at the caret.")
+    private fun descriptionSection(description: String): JComponent =
+        verticalPanel().apply {
+            add(wrappedLabel(description.take(MAX_DESCRIPTION_LENGTH)))
+            if (description.length > MAX_DESCRIPTION_LENGTH) {
+                add(
+                    link("Show full description") {
+                        removeAll()
+                        add(wrappedLabel(description))
+                        updateContentSize()
+                    },
+                )
+            }
+        }
 
     private fun sourceButton(
         text: String,
@@ -257,6 +304,8 @@ internal class TaigaQuickDocumentationPopupPanel(
                     apiQuery.orEmpty(),
                     { actions.openMember?.invoke(it) },
                     { actions.queryChanged?.invoke(it) },
+                    selectedMember,
+                    { actions.selectionChanged?.invoke(it) },
                 )
             apiBrowser = browser
             content.add(browser)
@@ -279,10 +328,15 @@ internal class TaigaQuickDocumentationPopupPanel(
             addMemberOwners(this, member)
             member.typeText?.takeIf { member.receivers.isEmpty() }?.let {
                 val label = if (member.kind == TaigaApiMemberKind.OUTPUT) "\$event type" else "Type"
-                add(detail(label, it))
+                add(detail(label, it, copy = true))
             }
             add(
-                TaigaDocumentationBindingPanel(member, actions.applyValue, actions.currentValue).also {
+                TaigaDocumentationBindingPanel(
+                    member,
+                    actions.applyValue,
+                    actions.currentValue,
+                    ::updateContentSize,
+                ).also {
                     bindingPanel =
                         it
                 },
@@ -336,10 +390,10 @@ internal class TaigaQuickDocumentationPopupPanel(
         multiple: Boolean,
     ) {
         val local = receiver.localMember
-        if (multiple) content.add(detail(receiver.ownerName.orEmpty(), receiver.typeText.orEmpty()))
-        local?.expandedType?.let { content.add(detail("Expanded type", it)) }
-        local?.valueType?.let { content.add(detail("Stored value type", it)) }
-        local?.transform?.let { content.add(detail("Input transform", it)) }
+        if (multiple) content.add(detail(receiver.ownerName.orEmpty(), receiver.typeText.orEmpty(), copy = true))
+        local?.expandedType?.let { content.add(detail("Expanded type", it, copy = true)) }
+        local?.valueType?.let { content.add(detail("Stored value type", it, copy = true)) }
+        local?.transform?.let { content.add(detail("Input transform", it, copy = true)) }
         local?.deprecated?.let { content.add(note("Deprecated", it, DEFAULT_COLOR)) }
         if (multiple &&
             local?.required == true
@@ -517,6 +571,20 @@ internal class TaigaQuickDocumentationPopupPanel(
                     }
                 },
             )
+            val statement = resolved.canonicalImport()
+            if (statement != null || actions.showImportFixes != null) {
+                add(Box.createVerticalStrut(JBUI.scale(8)))
+                add(
+                    JPanel().apply {
+                        layout = BoxLayout(this, BoxLayout.X_AXIS)
+                        isOpaque = false
+                        alignmentX = LEFT_ALIGNMENT
+                        statement?.let { add(copyAction("Copy import", it)) }
+                        add(Box.createHorizontalGlue())
+                        actions.showImportFixes?.let { show -> add(link("Angular quick fixes →", show)) }
+                    },
+                )
+            }
         }
 }
 
@@ -610,19 +678,43 @@ private class DocumentationNotePanel(
 private fun detail(
     title: String,
     value: String,
+    copy: Boolean = false,
 ): JComponent =
     verticalPanel().apply {
         add(sectionTitle(title))
         add(wrappedLabel(value).apply { font = codeFont() })
+        if (copy) add(copyAction("Copy ${title.lowercase()}", value))
         add(Box.createVerticalStrut(JBUI.scale(12)))
     }
 
-private fun codeRow(code: String): JComponent =
+private fun codeRow(
+    code: String,
+    completeCode: String = code,
+    copyLabel: String = "Copy code",
+): JComponent =
     RoundedRowPanel().apply {
         layout = BorderLayout()
         border = JBUI.Borders.empty(10, 12)
         alignmentX = JComponent.LEFT_ALIGNMENT
         add(wrappedLabel(code, CONTENT_WIDTH - 36).apply { font = codeFont() }, BorderLayout.CENTER)
+        add(copyAction(copyLabel, completeCode), BorderLayout.SOUTH)
+    }
+
+private fun copyAction(
+    title: String,
+    value: String,
+): JButton =
+    JButton(title).apply {
+        alignmentX = JComponent.LEFT_ALIGNMENT
+        toolTipText = value
+        getAccessibleContext().accessibleName = title
+        val feedback = Timer(2_000) { text = title }.apply { isRepeats = false }
+        addActionListener {
+            CopyPasteManager.getInstance().setContents(StringSelection(value))
+            text = "Copied"
+            feedback.restart()
+        }
+        bind("ENTER", "copy-documentation-text") { doClick() }
     }
 
 private fun sectionTitle(title: String): JComponent =
@@ -690,6 +782,7 @@ private fun wrappedLabel(
         foreground = CARD_FOREGROUND
         alignmentX = JComponent.LEFT_ALIGNMENT
         font = font.deriveFont(Font.PLAIN)
+        toolTipText = text
     }
 
 private fun codeFont(): Font = Font(Font.MONOSPACED, Font.PLAIN, UIUtil.getLabelFont().size)
