@@ -317,6 +317,32 @@ class AngularHostBindingSupportTest : LightPlatformCodeInsightFixture4TestCase()
     }
 
     @Test
+    fun `removes a duplicated closing parenthesis when accepting a host event modifier`() {
+        configureAngularFile(
+            "host-duplicate-parentheses.ts",
+            """
+            import {Component} from '@angular/core';
+
+            @Component({
+                selector: 'button[example]',
+                host: {'(click.ca<caret>))': 'onClick()'},
+            })
+            export class ExampleComponent {}
+            """.trimIndent(),
+        )
+
+        val capture =
+            myFixture.completeBasic().orEmpty()
+                .first { element -> element.lookupString == "capture" }
+
+        myFixture.lookup.currentItem = capture
+        myFixture.finishLookup('\n')
+
+        assertTrue(myFixture.file.text.contains("'(click.capture)': 'onClick()'"))
+        assertFalse(myFixture.file.text.contains("(click.capture))"))
+    }
+
+    @Test
     fun `completes Angular style bindings in host metadata`() {
         configureAngularFile(
             "component.ts",
