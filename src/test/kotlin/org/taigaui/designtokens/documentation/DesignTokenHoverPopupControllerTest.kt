@@ -28,6 +28,7 @@ import java.nio.file.Path
 import javax.swing.JLabel
 import javax.swing.JPanel
 
+@Suppress("LargeClass")
 class DesignTokenHoverPopupControllerTest : BasePlatformTestCase() {
     private lateinit var tempRoot: Path
 
