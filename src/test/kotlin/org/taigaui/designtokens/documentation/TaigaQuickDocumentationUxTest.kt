@@ -90,7 +90,8 @@ class TaigaQuickDocumentationUxTest : TaigaDocumentationPopupTestCase() {
             .doClick()
         assertTrue(quickFixes)
         activate(descendants(panel).filterIsInstance<JButton>().first { it.text == "Copy import" }, "ENTER")
-        assertTrue(CopyPasteManager.getInstance().getContents(DataFlavor.stringFlavor).toString().contains("TuiButton"))
+        val imported = CopyPasteManager.getInstance().getContents(DataFlavor.stringFlavor).toString()
+        assertTrue(imported.contains("TuiButton"))
         panel.showRefreshFailure()
         descendants(panel).filterIsInstance<JButton>().first { it.text == "Refresh" }.doClick()
         assertTrue(refreshed)
@@ -137,7 +138,8 @@ class TaigaQuickDocumentationUxTest : TaigaDocumentationPopupTestCase() {
             owner.focusedMember(owner.entity.inputs.first(), TaigaApiMemberKind.INPUT).copy(
                 property = owner.entity.inputs.first().copy(documentedType = type),
             )
-        val second = first.copy(subject = first.subject.copy(publicSymbol = "TuiOtherReceiver"))
+        val secondSubject = first.subject.copy(publicSymbol = "TuiOtherReceiver")
+        val second = first.copy(subject = secondSubject)
         val shared = first.copy(receivers = listOf(first, second))
         val previousBright = JBColor.isBright()
         try {
