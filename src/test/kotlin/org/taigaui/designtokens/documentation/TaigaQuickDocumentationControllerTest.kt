@@ -55,7 +55,8 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
                     documentationComponents(component.content)
                         .filterIsInstance<TaigaQuickDocumentationPopupPanel>()
                         .forEach {
-                            it.size = it.preferredSize
+                            it.size =
+                                component.size.takeIf { size -> size.width > 0 && size.height > 0 } ?: it.preferredSize
                             layoutDocumentation(it)
                         }
                 }
@@ -102,14 +103,18 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
 
     fun testImmediateTypingDuringAutomaticRefreshKeepsTheNewExpression() {
         open("<button tuiButton>Save</button>", "tuiButton")
+        val before = panel()
         var job: Job? = null
         DumbModeTestUtils.runInDumbModeSynchronously(project) {
             button("Add [size]").doClick()
             job = documentationField(controller, "resolutionJob")
             myFixture.type("flag")
+            PsiDocumentManager.getInstance(project).commitAllDocuments()
             assertSame(myFixture.editor.contentComponent, focus.requests.last())
         }
         await("refresh after immediate typing") { requireNotNull(job).isCompleted }
+        assertNotSame(before, panel())
+        assertTrue(requireNotNull(view().resolved.templateElement).text.contains("[size]=\"flag\""))
         assertEquals("<button tuiButton [size]=\"flag\">Save</button>", myFixture.editor.document.text)
         assertEquals(
             myFixture.editor.document.text
@@ -138,13 +143,15 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
             }
         activate(list, "ENTER")
         assertEquals("newSize", (view().resolved as TaigaResolvedDocumentation.Member).property.name)
-        panel().restoreScrollPosition(Point(0, 40))
-        await("scrolled member") { panel().scrollPosition.y > 0 }
-        val scrollPosition = panel().scrollPosition
-        val size = Dimension(570, 630)
+        val size = Dimension(570, 330)
         val location = Point(180, 120)
         val popup = documentationField<JBPopup>(controller, "popup")
         setField(controller, "popup", documentationPopupWithGeometry(popup, size, location))
+        panel().size = size
+        layoutDocumentation(panel())
+        panel().restoreScrollPosition(Point(0, 40))
+        await("scrolled member") { panel().scrollPosition.y > 0 }
+        val scrollPosition = panel().scrollPosition
         WriteCommandAction.runWriteCommandAction(project) {
             declarations.setText(declarations.text.replace("choice60", "changed60"))
         }
@@ -418,7 +425,9 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
                     requireNotNull(item),
                     myFixture.editor.caretModel.offset,
                 )
-        assertNotNull(target)
+        val subject = TaigaDocumentationResolver.findSubject(myFixture.file, requireNotNull(item))
+        assertNotNull("Native completion subject: $subject", target)
+        assertTrue(subject?.localDocumentation?.angularResolved == true)
         val html = requireNotNull(computeDocumentationBlocking(requireNotNull(target).createPointer())).html
         assertTrue(html.contains("TuiButton"))
         assertTrue(html.contains("@taiga-ui/core"))
