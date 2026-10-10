@@ -64,6 +64,7 @@ jobs:
                   -Djava.net.useSystemProxies=false --continue --stacktrace
 
             - name: Verify token cache and inspection regressions
+              id: token-regressions
               env:
                   JAVA_TOOL_OPTIONS: -Djava.io.tmpdir=${{ runner.temp }}
               run: >-
@@ -75,6 +76,7 @@ jobs:
                   --stacktrace
 
             - name: Verify contextual documentation
+              id: documentation-regressions
               env:
                   JAVA_TOOL_OPTIONS: -Djava.io.tmpdir=${{ runner.temp }}
               run: >-
@@ -86,6 +88,7 @@ jobs:
                   --stacktrace
 
             - name: Check and build plugin
+              id: plugin-build
               env:
                   JAVA_TOOL_OPTIONS: -Djava.io.tmpdir=${{ runner.temp }}
               run: >-
@@ -98,7 +101,11 @@ jobs:
                   --stacktrace
 
             - name: Generate JaCoCo report after failed tests
-              if: failure()
+              if: >-
+                  failure() &&
+                  (steps.token-regressions.outcome == 'failure' ||
+                  steps.documentation-regressions.outcome == 'failure' ||
+                  steps.plugin-build.outcome == 'failure')
               continue-on-error: true
               run: ./gradlew jacocoTestReport -x test -Djava.net.useSystemProxies=false --stacktrace
 

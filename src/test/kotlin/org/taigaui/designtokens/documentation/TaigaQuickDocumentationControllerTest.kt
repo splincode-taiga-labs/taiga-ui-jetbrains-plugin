@@ -81,7 +81,8 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
         open("<button tuiButton>Save</button>", "tuiButton")
         val before = panel()
         button("Add [size]").doClick()
-        val expression = myFixture.editor.document.text.indexOf("\"\"") + 1
+        val text = myFixture.editor.document.text
+        val expression = text.indexOf("\"\"") + 1
         assertTrue(expression > 0)
         assertEquals(expression, myFixture.editor.caretModel.offset)
         assertSame(myFixture.editor.contentComponent, focus.requests.last())
@@ -89,10 +90,8 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
         assertEquals(expression, myFixture.editor.caretModel.offset)
         assertSame(myFixture.editor.contentComponent, focus.requests.last())
         assertTrue("Automatic refresh must focus the editor twice", focus.requests.size >= 2)
-        assertFalse(
-            "Automatic refresh must not request popup focus",
-            (shown.last() as AbstractPopup).shouldRequestFocus(),
-        )
+        val refreshedPopup = shown.last() as AbstractPopup
+        assertFalse("Automatic refresh must not request popup focus", refreshedPopup.shouldRequestFocus())
         assertEquals("<button tuiButton [size]=\"\">Save</button>", myFixture.editor.document.text)
         UndoManager.getInstance(project)
             .undo(TextEditorProvider.getInstance().getTextEditor(myFixture.editor))
@@ -172,7 +171,10 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
                 .text,
         )
         val selected =
-            descendants(panel()).filterIsInstance<JBList<*>>().single().selectedValue as TaigaDocumentationApiRow
+            descendants(panel())
+                .filterIsInstance<JBList<*>>()
+                .single()
+                .selectedValue as TaigaDocumentationApiRow
         assertEquals("INPUT:newSize", selected.key)
         assertTrue(selected.property.documentedType.orEmpty().contains("changed60"))
         activate(panel(), "alt LEFT")
