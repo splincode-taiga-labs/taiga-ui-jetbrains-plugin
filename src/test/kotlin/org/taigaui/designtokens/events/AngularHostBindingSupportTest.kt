@@ -332,7 +332,9 @@ class AngularHostBindingSupportTest : LightPlatformCodeInsightFixture4TestCase()
         )
 
         val capture =
-            myFixture.completeBasic().orEmpty()
+            myFixture
+                .completeBasic()
+                .orEmpty()
                 .first { element -> element.lookupString == "capture" }
 
         myFixture.lookup.currentItem = capture
