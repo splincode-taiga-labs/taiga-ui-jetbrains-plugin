@@ -155,6 +155,16 @@ class IconCatalogLoaderTest {
         )
     }
 
+    @Test
+    fun `returns an empty local catalog when no icon source supports the workspace`() {
+        val result =
+            IconCatalogLoader(sources = emptyList())
+                .loadCatalogWithPolicy(workspace())
+
+        assertEquals(emptyList<String>(), result.catalog.names)
+        assertEquals(IconCatalogCachePolicy.LOCAL, result.cachePolicy)
+    }
+
     private fun load(
         workspace: Path,
         fetcher: IconCatalogFetcher = IconCatalogFetcher { null },

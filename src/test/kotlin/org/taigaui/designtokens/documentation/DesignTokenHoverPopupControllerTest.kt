@@ -28,6 +28,7 @@ import java.nio.file.Path
 import javax.swing.JLabel
 import javax.swing.JPanel
 
+@Suppress("LargeClass")
 class DesignTokenHoverPopupControllerTest : BasePlatformTestCase() {
     private lateinit var tempRoot: Path
 
@@ -564,6 +565,152 @@ class DesignTokenHoverPopupControllerTest : BasePlatformTestCase() {
         val width = method.invoke(null, editor) as Int
 
         assertTrue(width in 1..559)
+    }
+
+    fun testMovingToAnotherTokenClosesVisiblePopupWithStaleKey() {
+        configureCss(
+            """
+            :root {
+                --tui-first: #111111;
+                --tui-second: #222222;
+            }
+
+            .demo {
+                color: var(--tui-first);
+                background: var(--tui-second);
+            }
+            """.trimIndent(),
+        )
+        val editor = myFixture.editor
+        val controller = project.service<DesignTokenHoverPopupController>()
+        val firstOffset = editor.document.text.lastIndexOf("--tui-first") + 3
+        val secondOffset = editor.document.text.lastIndexOf("--tui-second") + 3
+
+        controller.mouseMoved(editorMouseEvent(firstOffset))
+        val firstKey = requireNotNull(readPrivateField(controller, "activeHoverKey"))
+        val popupField = controller.javaClass.getDeclaredField("popup").apply { isAccessible = true }
+        val popupKeyField = controller.javaClass.getDeclaredField("popupKey").apply { isAccessible = true }
+
+        runInEdtAndGet {
+            popupField.set(controller, visiblePopupStub())
+            popupKeyField.set(controller, firstKey)
+        }
+
+        try {
+            controller.mouseMoved(editorMouseEvent(secondOffset))
+
+            assertNull(readPrivateField(controller, "popup"))
+            assertNull(readPrivateField(controller, "popupKey"))
+            assertNotNull(readPrivateField(controller, "activeHoverKey"))
+        } finally {
+            controller.dismissHover(editor)
+        }
+    }
+
+    fun testLatePopupDataIsDiscardedWhenEditorSelectionBlocksHover() {
+        configureCss(".demo { color: var(--tui-text-primary); }")
+        val editor = myFixture.editor
+        val controller = project.service<DesignTokenHoverPopupController>()
+        val offset = editor.document.text.indexOf("--tui-text-primary") + 3
+
+        controller.mouseMoved(editorMouseEvent(offset))
+        assertNotNull(readPrivateField(controller, "activeHoverKey"))
+
+        editor.selectionModel.setSelection(0, 1)
+
+        try {
+            invokeResolvedPopupCallback(controller)
+
+            assertNull(readPrivateField(controller, "activeHoverKey"))
+            assertNull(readPrivateField(controller, "latestHoverRequest"))
+        } finally {
+            editor.selectionModel.removeSelection()
+            controller.dismissHover(editor)
+        }
+    }
+
+    fun testLatePopupDataRefreshesAlreadyVisiblePopupWithMatchingKey() {
+        configureCss(".demo { color: var(--tui-text-primary); }")
+        val editor = myFixture.editor
+        val controller = project.service<DesignTokenHoverPopupController>()
+        val offset = editor.document.text.indexOf("--tui-text-primary") + 3
+        val model = DesignTokenHoverPopupModel.notFound("--tui-text-primary", emptyList())
+
+        controller.mouseMoved(editorMouseEvent(offset))
+        val key = requireNotNull(readPrivateField(controller, "activeHoverKey"))
+        val panel =
+            DesignTokenHoverPopupPanel(
+                popupWidth = 560,
+                onNavigate = {},
+                onReportBug = {},
+                onPreferredSizeChanged = {},
+            )
+        val visiblePopup = visiblePopupStub()
+
+        runInEdtAndGet {
+            writePrivateField(controller, "popup", visiblePopup)
+            writePrivateField(controller, "popupKey", key)
+            writePrivateField(controller, "popupContent", panel)
+        }
+
+        try {
+            invokeResolvedPopupCallback(controller, model)
+
+            assertSame(visiblePopup, readPrivateField(controller, "popup"))
+            assertTrue(panel.componentCount > 0)
+        } finally {
+            controller.dismissHover(editor)
+        }
+    }
+
+    private fun invokeResolvedPopupCallback(
+        controller: DesignTokenHoverPopupController,
+        model: DesignTokenHoverPopupModel =
+            DesignTokenHoverPopupModel.notFound("--tui-text-primary", emptyList()),
+    ) {
+        val request = requireNotNull(readPrivateField(controller, "latestHoverRequest"))
+        val key = requireNotNull(readPrivateField(controller, "activeHoverKey"))
+        val targetType =
+            Class.forName("org.taigaui.designtokens.documentation.PopupTarget")
+        val dataType =
+            Class.forName("org.taigaui.designtokens.documentation.PopupData")
+        val target =
+            targetType.declaredConstructors
+                .single { constructor -> constructor.parameterCount == 4 }
+                .apply { isAccessible = true }
+                .newInstance(key, tempRoot.resolve("component.css"), model.tokenName, emptyList<Any>())
+        val data =
+            dataType.declaredConstructors
+                .single { constructor -> constructor.parameterCount == 2 }
+                .apply { isAccessible = true }
+                .newInstance(key, model)
+        val method =
+            controller.javaClass.declaredMethods
+                .single { candidate -> candidate.name == "showPopupDataIfCurrent" }
+                .apply { isAccessible = true }
+
+        val completion =
+            java.util.concurrent.CompletableFuture.supplyAsync {
+                kotlinx.coroutines.runBlocking {
+                    kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn<Any?> { continuation ->
+                        method.invoke(controller, request, target, data, continuation)
+                    }
+                }
+            }
+
+        waitUntil { completion.isDone }
+        completion.join()
+    }
+
+    private fun writePrivateField(
+        target: Any,
+        fieldName: String,
+        value: Any?,
+    ) {
+        target.javaClass
+            .getDeclaredField(fieldName)
+            .apply { isAccessible = true }
+            .set(target, value)
     }
 
     private fun Container.containsLabel(text: String): Boolean =

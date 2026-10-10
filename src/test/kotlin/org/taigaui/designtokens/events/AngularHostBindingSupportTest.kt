@@ -220,6 +220,26 @@ class AngularHostBindingSupportTest : LightPlatformCodeInsightFixture4TestCase()
     }
 
     @Test
+    fun `completes host events when the closing parenthesis has not been typed`() {
+        configureAngularFile(
+            "host-event-without-closing-delimiter.ts",
+            """
+            import {Component} from '@angular/core';
+
+            @Component({
+                selector: 'button[example]',
+                host: {'(cl<caret>': 'onClick()'},
+            })
+            export class ExampleComponent {}
+            """.trimIndent(),
+        )
+
+        val variants = myFixture.completeBasic().orEmpty().map { element -> element.lookupString }
+
+        assertTrue(variants.any { variant -> variant.equals("click", ignoreCase = true) })
+    }
+
+    @Test
     fun `schedules host completion for typed letters`() {
         configureAngularFile(
             "component.ts",
@@ -274,6 +294,34 @@ class AngularHostBindingSupportTest : LightPlatformCodeInsightFixture4TestCase()
 
         assertTrue(myFixture.file.text.contains("'(submit)': 'onSubmit()'"))
         assertFalse(myFixture.file.text.contains("(submit))"))
+    }
+
+    @Test
+    fun `removes a duplicated closing parenthesis when accepting a host event modifier`() {
+        configureAngularFile(
+            "host-duplicate-parentheses.ts",
+            """
+            import {Component} from '@angular/core';
+
+            @Component({
+                selector: 'button[example]',
+                host: {'(click.ca<caret>))': 'onClick()'},
+            })
+            export class ExampleComponent {}
+            """.trimIndent(),
+        )
+
+        val capture =
+            myFixture
+                .completeBasic()
+                .orEmpty()
+                .first { element -> element.lookupString == "capture" }
+
+        myFixture.lookup.currentItem = capture
+        myFixture.finishLookup('\n')
+
+        assertTrue(myFixture.file.text.contains("'(click.capture)': 'onClick()'"))
+        assertFalse(myFixture.file.text.contains("(click.capture))"))
     }
 
     @Test
