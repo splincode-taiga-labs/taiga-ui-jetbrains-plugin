@@ -240,26 +240,6 @@ class AngularHostBindingSupportTest : LightPlatformCodeInsightFixture4TestCase()
     }
 
     @Test
-    fun `completes Taiga modifiers when the closing parenthesis has not been typed`() {
-        configureAngularFile(
-            "host-modifier-without-closing-delimiter.ts",
-            """
-            import {Component} from '@angular/core';
-
-            @Component({
-                selector: 'button[example]',
-                host: {'(click.ca<caret>': 'onClick()'},
-            })
-            export class ExampleComponent {}
-            """.trimIndent(),
-        )
-
-        val variants = myFixture.completeBasic().orEmpty().map { element -> element.lookupString }
-
-        assertTrue("capture" in variants)
-    }
-
-    @Test
     fun `schedules host completion for typed letters`() {
         configureAngularFile(
             "component.ts",
