@@ -138,6 +138,31 @@ class DesignTokenCompletionServiceCoverageTest : BasePlatformTestCase() {
         )
     }
 
+    fun testEmptyInstalledCatalogDoesNotNotifyCompletionClients() {
+        val workspace = tempRoot.resolve("empty-catalog-workspace")
+        val sourceFile = createFixture(workspace)
+        val palette = workspace.resolve("node_modules/@taiga-ui/design-tokens/palette/light.css")
+
+        write(palette, ":root { color: #fff; }")
+        indexService.clear()
+
+        val updates = AtomicInteger()
+        val callback =
+            RefreshCallback(Any(), "empty-catalog") {
+                updates.incrementAndGet()
+            }
+
+        assertNull(service.entriesFor(sourceFile, callback))
+        waitUntil { indexService.isIndexCached(sourceFile) }
+
+        assertTrue(
+            requireNotNull(
+                service.entriesFor(sourceFile, callback),
+            ).isEmpty(),
+        )
+        assertEquals(0, updates.get())
+    }
+
     private fun createFixture(workspace: Path): Path {
         val sourceFile = workspace.resolve("src/app.ts")
         val packageRoot = workspace.resolve("node_modules/@taiga-ui/design-tokens")

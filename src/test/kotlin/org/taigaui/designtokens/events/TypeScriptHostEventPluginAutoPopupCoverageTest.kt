@@ -123,6 +123,63 @@ class TypeScriptHostEventPluginAutoPopupCoverageTest : LightPlatformCodeInsightF
     }
 
     @Test
+    fun testDelayedHostCompletionStopsWhenCaretMoves() {
+        val file = configureHost("(<caret>)")
+        val handler = TypeScriptHostEventPluginCompletionAutoPopupHandler()
+        val before = myFixture.editor.caretModel.offset
+
+        assertEquals(
+            TypedHandlerDelegate.Result.STOP,
+            handler.checkAutoPopup('r', project, myFixture.editor, file),
+        )
+        WriteCommandAction.runWriteCommandAction(project) {
+            myFixture.editor.document.insertString(before, "r")
+            myFixture.editor.caretModel.moveToOffset(before + 1)
+        }
+        assertEquals(
+            TypedHandlerDelegate.Result.CONTINUE,
+            handler.charTyped('r', project, myFixture.editor, file),
+        )
+
+        myFixture.editor.caretModel.moveToOffset(0)
+        assertNull(waitForLookup())
+    }
+
+    @Test
+    fun testDelayedHostCompletionStopsWhenDecoratorStopsBeingAngular() {
+        val file = configureHost("(<caret>)")
+        val handler = TypeScriptHostEventPluginCompletionAutoPopupHandler()
+        val editor = myFixture.editor
+        val before = editor.caretModel.offset
+
+        assertEquals(
+            TypedHandlerDelegate.Result.STOP,
+            handler.checkAutoPopup('r', project, editor, file),
+        )
+        WriteCommandAction.runWriteCommandAction(project) {
+            editor.document.insertString(before, "r")
+            editor.caretModel.moveToOffset(before + 1)
+        }
+        assertEquals(
+            TypedHandlerDelegate.Result.CONTINUE,
+            handler.charTyped('r', project, editor, file),
+        )
+
+        val decoratorOffset = editor.document.text.indexOf("@Component")
+
+        assertTrue(decoratorOffset >= 0)
+        WriteCommandAction.runWriteCommandAction(project) {
+            editor.document.replaceString(
+                decoratorOffset,
+                decoratorOffset + "@Component".length,
+                "@Decorator",
+            )
+        }
+        assertEquals(before + 1, editor.caretModel.offset)
+        assertNull(waitForLookup())
+    }
+
+    @Test
     fun testNonTriggerDoesNotPrepareCompletion() {
         val file = configureHost("(<caret>)")
         val handler = TypeScriptHostEventPluginCompletionAutoPopupHandler()
