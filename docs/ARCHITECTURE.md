@@ -222,6 +222,8 @@ The documentation UI may consume the existing icon catalog and renderer through 
 
 The icon chooser replaces only an already-present, complete static `@tui.*` literal or an empty string literal, in one undoable write command. It checks the document generation and original literal before writing, including zero-length ranges inside empty quotes. Empty values offer choosing without an invented preview. Dynamic bindings are never evaluated or overwritten by the chooser.
 
+The explicit loading/unavailable status popup captures a disposable host-document range marker for its initial caret target. Angular quick fixes uses that tracked position even if the caret moves or preceding text changes. Closing/replacing the status popup or releasing the editor disposes the marker; a deleted target cannot dispatch native intentions at a neighboring element.
+
 ## CSS unit helpers
 
 CSS unit helpers are intentionally stateless editor features. They do not participate in token discovery, project graphs, caches, or package resolution.

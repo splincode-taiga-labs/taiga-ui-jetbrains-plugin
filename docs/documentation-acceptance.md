@@ -6,6 +6,8 @@ Implementation is tracked in [PR #116](https://github.com/splincode-taiga-labs/t
 
 The controller suite uses the IntelliJ Platform editor, Angular PSI, installed declaration fixtures, real documents, Undo/Redo, range markers, popup factories and the production resolution coroutine. Platform UI interception prevents desktop windows from appearing. A recording focus service verifies requested focus; a popup proxy supplies external window geometry. These checks do not prove operating-system focus transfer or screen positioning.
 
+`testUnavailableImportHelpInvokesNativeActionAtTheTrackedSourceTarget` additionally records native action dispatch after the caret moves and text is inserted before the original target. Import candidate selection and the resulting Angular component edit still require the real-IDE smoke check below.
+
 | Scenario                                                                                           | Regression evidence                                                                                            |
 | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | Add input retains editor focus and caret through automatic Refresh; one Undo removes the insertion | `TaigaQuickDocumentationControllerTest.testRequiredInputReturnsFocusAndCaretAfterAutomaticRefreshAndOneUndo`   |
