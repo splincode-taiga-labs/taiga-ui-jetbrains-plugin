@@ -16,8 +16,8 @@ import com.intellij.openapi.fileEditor.impl.text.TextEditorProvider
 import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.wm.IdeFocusManager
+import com.intellij.platform.backend.documentation.DocumentationTarget
 import com.intellij.platform.backend.documentation.impl.computeDocumentationBlocking
-import com.intellij.polySymbols.completion.PolySymbolCodeCompletionItem
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.testFramework.DumbModeTestUtils
 import com.intellij.testFramework.replaceService
@@ -427,7 +427,7 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
         val lookup = requireNotNull(item)
         val promise =
             ReadAction
-                .nonBlocking {
+                .nonBlocking<Pair<DocumentationTarget?, TaigaDocumentationSubject?>> {
                     val target = TaigaQuickDocumentationTargetProvider().documentationTarget(file, lookup, offset)
                     target to TaigaDocumentationResolver.findSubject(file, lookup)
                 }.withDocumentsCommitted(project)
@@ -444,8 +444,7 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
         val (target, subject) = result
         assertNotNull(
             "Native completion subject: $subject; lookup: ${lookup.javaClass.name}; " +
-                "object: ${lookup.`object`.javaClass.name}; PSI: ${lookup.psiElement}; " +
-                "symbol: ${PolySymbolCodeCompletionItem.getPolySymbol(lookup)}",
+                "object: ${lookup.`object`.javaClass.name}; PSI: ${lookup.psiElement}",
             target,
         )
         assertTrue(subject?.localDocumentation?.angularResolved == true)
