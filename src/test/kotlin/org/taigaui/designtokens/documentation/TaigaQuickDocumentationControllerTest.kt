@@ -146,6 +146,7 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
             }
         activate(list, "ENTER")
         assertEquals("newSize", (view().resolved as TaigaResolvedDocumentation.Member).property.name)
+        assertTrue(view().resolved.typeText.orEmpty().contains("choice1"))
         val size = Dimension(570, 330)
         val location = Point(180, 120)
         val popup = documentationField<JBPopup>(controller, "popup")
@@ -156,7 +157,7 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
         await("scrolled member") { panel().scrollPosition.y > 0 }
         val scrollPosition = panel().scrollPosition
         WriteCommandAction.runWriteCommandAction(project) {
-            declarations.setText(declarations.text.replace("choice60", "changed60"))
+            declarations.setText(declarations.text.replace("'choice1'", "'changed1'"))
         }
         PsiDocumentManager.getInstance(project).commitAllDocuments()
         val before = panel()
@@ -164,7 +165,7 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
         await("refreshed browsed member") { panelOrNull()?.let { it !== before } == true }
         val refreshed = view().resolved as TaigaResolvedDocumentation.Member
         assertEquals("newSize", refreshed.property.name)
-        assertTrue(refreshed.typeText.orEmpty().contains("changed60"))
+        assertTrue("Refreshed type: ${refreshed.typeText}", refreshed.typeText.orEmpty().contains("changed1"))
         assertEquals(scrollPosition, panel().scrollPosition)
         assertEquals(size, documentationField<Dimension>(controller, "pinnedSize"))
         assertEquals(location, documentationField<Point>(controller, "pinnedLocation"))
@@ -191,7 +192,7 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
         assertTrue(
             selected.property.documentedType
                 .orEmpty()
-                .contains("changed60"),
+                .contains("changed1"),
         )
         activate(panel(), "alt LEFT")
         assertFalse(view().fullApi)

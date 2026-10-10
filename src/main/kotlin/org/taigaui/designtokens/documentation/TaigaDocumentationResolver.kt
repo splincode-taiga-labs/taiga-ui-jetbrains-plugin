@@ -2,6 +2,7 @@ package org.taigaui.designtokens.documentation
 
 import com.intellij.codeInsight.lookup.LookupElement
 import com.intellij.lang.injection.InjectedLanguageManager
+import com.intellij.model.Pointer
 import com.intellij.polySymbols.PolySymbol
 import com.intellij.polySymbols.completion.PolySymbolCodeCompletionItem
 import com.intellij.polySymbols.html.attributes.HtmlAttributeSymbolDescriptor
@@ -63,10 +64,13 @@ internal object TaigaDocumentationResolver {
             return null
         }
 
-        val context = PolySymbolCodeCompletionItem.getPsiElement(element) ?: return null
-        val angular = context.angularDocumentationSubject()?.takeIf { it.packageName != null }
-        return angular?.copy(selector = selector ?: angular.selector)
-            ?: context.toLocalSubject(selector, requestedSymbol)
+        val symbol = (element.`object` as? Pointer<*>)?.dereference() as? PolySymbol
+        val contexts = listOfNotNull(PolySymbolCodeCompletionItem.getPsiElement(element)) + symbol?.localContexts().orEmpty()
+        return contexts.distinct().firstNotNullOfOrNull { context ->
+            val angular = context.angularDocumentationSubject()?.takeIf { it.packageName != null }
+            angular?.copy(selector = selector ?: angular.selector)
+                ?: context.toLocalSubject(selector, requestedSymbol)
+        }
     }
 
     @Suppress("ReturnCount")
