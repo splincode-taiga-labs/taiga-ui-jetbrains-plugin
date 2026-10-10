@@ -5,6 +5,8 @@ import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBTextField
 import com.intellij.ui.components.labels.LinkLabel
+import com.intellij.ui.scale.JBUIScale
+import com.intellij.util.ui.JBUI
 import java.awt.datatransfer.DataFlavor
 import javax.swing.JButton
 
@@ -131,7 +133,7 @@ class TaigaQuickDocumentationUxTest : TaigaDocumentationPopupTestCase() {
         renderAndSave(panel, "expanded-description")
     }
 
-    fun testLongSharedBindingCardsFitLightAndDarkThemes() {
+    fun testLongSharedBindingCardsFitBothThemesAtEverySupportedScale() {
         val owner = directive()
         val type = "VeryLongInstalledInputType | ".repeat(30) + "string"
         val property =
@@ -146,25 +148,32 @@ class TaigaQuickDocumentationUxTest : TaigaDocumentationPopupTestCase() {
         val second = first.copy(subject = secondSubject)
         val shared = first.copy(receivers = listOf(first, second))
         val previousBright = JBColor.isBright()
+        val previousScale = JBUIScale.scale(1f)
         try {
-            listOf(false, true).forEach { dark ->
-                JBColor.setDark(dark)
-                val panel =
-                    TaigaQuickDocumentationPopupPanel(
-                        shared,
-                        actions = TaigaDocumentationPopupActions(showImportFixes = {}),
-                    )
-                assertTrue("Long types must fit the card", panel.preferredSize.width <= 580)
-                val copies =
-                    descendants(panel).filterIsInstance<JButton>().filter { it.text.startsWith("Copy ") }.toList()
-                assertEquals(2, copies.size)
-                copies.forEach {
-                    assertEquals("Copy type", it.text)
-                    assertEquals(type, it.toolTipText)
+            listOf(1f, 1.25f, 2f).forEach { scale ->
+                JBUIScale.setUserScaleFactorForTest(scale)
+                assertEquals(scale, JBUIScale.scale(1f))
+                listOf(false, true).forEach { dark ->
+                    JBColor.setDark(dark)
+                    val panel =
+                        TaigaQuickDocumentationPopupPanel(
+                            shared,
+                            actions = TaigaDocumentationPopupActions(showImportFixes = {}),
+                        )
+                    assertTrue("Long types must fit the card", panel.preferredSize.width <= JBUI.scale(580))
+                    val copies =
+                        descendants(panel).filterIsInstance<JButton>().filter { it.text.startsWith("Copy ") }.toList()
+                    assertEquals(2, copies.size)
+                    copies.forEach {
+                        assertEquals("Copy type", it.text)
+                        assertEquals(type, it.toolTipText)
+                    }
+                    val theme = if (dark) "dark" else "light"
+                    renderAndSave(panel, "long-receivers-$theme-${(scale * 100).toInt()}")
                 }
-                renderAndSave(panel, if (dark) "long-receivers-dark" else "long-receivers-light")
             }
         } finally {
+            JBUIScale.setUserScaleFactorForTest(previousScale)
             JBColor.setDark(!previousBright)
         }
     }

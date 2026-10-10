@@ -19,7 +19,10 @@ import javax.swing.JComponent
 internal class TaigaDocumentationRecordingFocusManager : IdeFocusManager() {
     val requests = mutableListOf<Component>()
 
-    override fun requestFocus(component: Component, forced: Boolean): ActionCallback {
+    override fun requestFocus(
+        component: Component,
+        forced: Boolean,
+    ): ActionCallback {
         requests += component
         return ActionCallback.DONE
     }
@@ -28,7 +31,10 @@ internal class TaigaDocumentationRecordingFocusManager : IdeFocusManager() {
 
     override fun doWhenFocusSettlesDown(runnable: Runnable) = runnable.run()
 
-    override fun doWhenFocusSettlesDown(runnable: Runnable, modality: ModalityState) = runnable.run()
+    override fun doWhenFocusSettlesDown(
+        runnable: Runnable,
+        modality: ModalityState,
+    ) = runnable.run()
 
     override fun doWhenFocusSettlesDown(runnable: ExpirableRunnable) {
         if (!runnable.isExpired) runnable.run()
@@ -40,7 +46,10 @@ internal class TaigaDocumentationRecordingFocusManager : IdeFocusManager() {
 
     override fun getFocusOwner(): Component? = requests.lastOrNull()
 
-    override fun runOnOwnContext(context: DataContext, runnable: Runnable) = runnable.run()
+    override fun runOnOwnContext(
+        context: DataContext,
+        runnable: Runnable,
+    ) = runnable.run()
 
     override fun getLastFocusedFor(frame: Window?): Component? = null
 

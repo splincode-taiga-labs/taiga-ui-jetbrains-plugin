@@ -482,12 +482,4 @@ class TaigaQuickDocumentationDxTest : BasePlatformTestCase() {
         assertNotNull("Missing installed request for $name", request)
         return requireNotNull(resolveDocumentation(requireNotNull(request)) as? TaigaResolvedDocumentation.Member)
     }
-
-    private fun create(
-        path: String,
-        text: String,
-    ) {
-        myFixture.tempDirFixture.createFile(path, text.trimIndent())
-    }
-
 }
