@@ -4,6 +4,7 @@ import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.command.undo.UndoManager
 import com.intellij.openapi.components.service
@@ -25,6 +26,7 @@ import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBTextField
 import com.intellij.ui.components.labels.LinkLabel
 import com.intellij.ui.popup.AbstractPopup
+import com.intellij.util.concurrency.AppExecutorUtil
 import com.intellij.util.ui.UIUtil
 import kotlinx.coroutines.Job
 import java.awt.Dimension
@@ -418,14 +420,27 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
         val items = myFixture.completeBasic().orEmpty()
         val item = items.firstOrNull { it.lookupString == "tuiButton" }
         assertNotNull("Expected native Angular completion: ${items.map { it.lookupString }}", item)
-        val target =
-            TaigaQuickDocumentationTargetProvider()
-                .documentationTarget(
-                    myFixture.file,
-                    requireNotNull(item),
-                    myFixture.editor.caretModel.offset,
-                )
-        val subject = TaigaDocumentationResolver.findSubject(myFixture.file, requireNotNull(item))
+        PsiDocumentManager.getInstance(project).commitAllDocuments()
+        val file = myFixture.file
+        val offset = myFixture.editor.caretModel.offset
+        val lookup = requireNotNull(item)
+        val promise =
+            ReadAction
+                .nonBlocking {
+                    val target = TaigaQuickDocumentationTargetProvider().documentationTarget(file, lookup, offset)
+                    target to TaigaDocumentationResolver.findSubject(file, lookup)
+                }.withDocumentsCommitted(project)
+                .inSmartMode(project)
+                .expireWith(testRootDisposable)
+                .submit(AppExecutorUtil.getAppExecutorService())
+        val result =
+            try {
+                await("native completion documentation") { promise.isDone }
+                promise.get()
+            } finally {
+                promise.cancel()
+            }
+        val (target, subject) = result
         assertNotNull("Native completion subject: $subject", target)
         assertTrue(subject?.localDocumentation?.angularResolved == true)
         val html = requireNotNull(computeDocumentationBlocking(requireNotNull(target).createPointer())).html
