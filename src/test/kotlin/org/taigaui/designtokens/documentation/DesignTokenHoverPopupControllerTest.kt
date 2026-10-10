@@ -689,11 +689,17 @@ class DesignTokenHoverPopupControllerTest : BasePlatformTestCase() {
                 .single { candidate -> candidate.name == "showPopupDataIfCurrent" }
                 .apply { isAccessible = true }
 
-        kotlinx.coroutines.runBlocking {
-            kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn<Any?> { continuation ->
-                method.invoke(controller, request, target, data, continuation)
+        val completion =
+            java.util.concurrent.CompletableFuture.supplyAsync {
+                kotlinx.coroutines.runBlocking {
+                    kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn<Any?> { continuation ->
+                        method.invoke(controller, request, target, data, continuation)
+                    }
+                }
             }
-        }
+
+        waitUntil { completion.isDone }
+        completion.join()
     }
 
     private fun writePrivateField(
