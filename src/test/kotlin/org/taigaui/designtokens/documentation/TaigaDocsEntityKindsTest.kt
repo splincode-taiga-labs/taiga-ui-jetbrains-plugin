@@ -21,6 +21,14 @@ class TaigaDocsEntityKindsTest {
             TaigaDocKind.TOKEN,
             requireNotNull(index.findBySectionId("utils/tokens")).kind,
         )
+        assertEquals(
+            "TuiAmountPipe",
+            index
+                .findBySelector("tuiAmount")
+                .single()
+                .publicSymbols
+                .single(),
+        )
     }
 
     private fun docs(): String =
@@ -57,6 +65,11 @@ class TaigaDocsEntityKindsTest {
             "- **Version**: 5.0.0",
             "",
             "Amount pipe.",
+            "",
+            "### Example",
+            FENCE + "html",
+            "{{ value | tuiAmount }}",
+            FENCE,
             "",
             "# utils/Tokens",
             "- **Package**: " + tick("CORE"),

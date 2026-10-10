@@ -1,0 +1,12 @@
+{
+    "$schema": "https://json.schemastore.org/angular-cli",
+    "version": 1,
+    "projects": {
+        "documentation-qa": {
+            "projectType": "application",
+            "root": "",
+            "sourceRoot": "src",
+            "architect": {}
+        }
+    }
+}

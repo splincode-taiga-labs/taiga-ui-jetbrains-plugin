@@ -135,7 +135,7 @@ internal class DesignTokenHoverPopupController(
     }
 
     private suspend fun handleRequest(initialRequest: HoverRequest) {
-        delay(HOVER_SHOW_DELAY)
+        delay(TAIGA_HOVER_SHOW_DELAY)
 
         val request =
             withContext(Dispatchers.EDT) {
@@ -520,7 +520,7 @@ private data class PopupData(
     val model: DesignTokenHoverPopupModel,
 )
 
-private val HOVER_SHOW_DELAY = 500.milliseconds
+internal val TAIGA_HOVER_SHOW_DELAY = 500.milliseconds
 private val HIDE_GRACE_PERIOD = 250.milliseconds
 private const val PREFERRED_POPUP_WIDTH = 560
 private const val MIN_POPUP_WIDTH = 460

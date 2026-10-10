@@ -72,6 +72,18 @@
     <depends>AngularJS</depends>
     <depends>com.intellij.css</depends>
 
+    <actions>
+        <action
+            id="TaigaUI.ShowDocumentationCard"
+            class="org.taigaui.designtokens.documentation.TaigaShowDocumentationCardAction"
+            text="Show Taiga UI Card"
+            description="Open the interactive Taiga UI API card at the caret"
+        >
+            <keyboard-shortcut keymap="$default" first-keystroke="alt shift Q" />
+            <add-to-group group-id="EditorPopupMenu" anchor="last" />
+        </action>
+    </actions>
+
     <extensions defaultExtensionNs="com.intellij">
         <applicationConfigurable
             id="org.taigaui.designtokens.settings"
@@ -82,6 +94,12 @@
         <polySymbols.webTypes
             source="web-types/event-plugins@3.1.0.web-types.json"
             enableByDefault="false"
+        />
+        <platform.backend.documentation.targetProvider
+            implementation="org.taigaui.designtokens.documentation.TaigaQuickDocumentationTargetProvider"
+        />
+        <platform.backend.documentation.lookupElementTargetProvider
+            implementation="org.taigaui.designtokens.documentation.TaigaQuickDocumentationTargetProvider"
         />
         <psi.referenceContributor
             language="CSS"
@@ -216,6 +234,12 @@
         />
         <editorFactoryMouseMotionListener
             implementation="org.taigaui.designtokens.events.EventPluginsHoverPopupListener"
+        />
+        <editorFactoryMouseListener
+            implementation="org.taigaui.designtokens.documentation.TaigaQuickDocumentationHoverPopupListener"
+        />
+        <editorFactoryMouseMotionListener
+            implementation="org.taigaui.designtokens.documentation.TaigaQuickDocumentationHoverPopupListener"
         />
         <editorFactoryMouseListener
             implementation="org.taigaui.designtokens.documentation.DesignTokenHoverPopupListener"

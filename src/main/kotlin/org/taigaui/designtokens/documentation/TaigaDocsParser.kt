@@ -252,6 +252,9 @@ internal class TaigaDocsParser {
 
                         add("tui$name")
                         add("tui-" + name.camelToKebab())
+                        if (name.endsWith("Pipe")) {
+                            add("tui" + name.removeSuffix("Pipe"))
+                        }
                     }
             }
 
