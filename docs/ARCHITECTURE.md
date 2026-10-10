@@ -226,6 +226,8 @@ The explicit loading/unavailable status popup captures a disposable host-documen
 
 Refresh captures its original target marker before launching resolution, then reads the marker position and document generation inside the committed smart-mode background read action. Typing while indexing/loading therefore produces a fresh snapshot of that target. Publishing still rechecks the captured document/API context and request identity. Native completion uses Angular's installed directive metadata from the completion PSI context, including offline API; ordinary types and pipes retain the existing PSI fallback.
 
+The bounded action-context stamp check acquires a read lock for its PSI/document state access. This also applies to callbacks queued with Swing `invokeLater`, which do not inherit an IntelliJ read/write-intent lock. The check performs no discovery, parsing or filesystem scanning.
+
 ## CSS unit helpers
 
 CSS unit helpers are intentionally stateless editor features. They do not participate in token discovery, project graphs, caches, or package resolution.
