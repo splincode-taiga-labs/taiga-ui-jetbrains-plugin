@@ -1,12 +1,12 @@
 <idea-plugin>
     <id>org.taigaui.designtokens</id>
-    <name>Taiga UI Companion</name>
+    <name>Splincode Companion</name>
     <vendor url="https://github.com/splincode">splincode</vendor>
 
     <description><![CDATA[
         <p>
-            <strong>Taiga UI Companion</strong> is a community-maintained WebStorm plugin for developers working with Taiga UI.
-            It brings project-aware design tokens, icons, CSS units, and event-plugin tooling directly into the editor.
+            <strong>Splincode Companion</strong> is an independent, community-maintained plugin for working with design systems in WebStorm.
+            <strong>Taiga UI integration:</strong> Independent community tooling for projects using Taiga UI. It brings project-aware design tokens, icons, CSS units, and event-plugin tooling directly into the editor.
         </p>
 
         <p>
@@ -60,7 +60,7 @@
             focused on improving the developer experience around Taiga UI in JetBrains IDEs.
         </p>
         <p>
-            This project is not an official Taiga UI or T-Bank product.
+            This project is not affiliated with, endorsed by, or an official product of Taiga UI or Pineopticone.
             Source code, issue tracking, and contributions are available on
             <a href="https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin">GitHub</a>.
         </p>
