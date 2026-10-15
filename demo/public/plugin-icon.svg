@@ -1,25 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40" fill="none" role="img" aria-label="Splincode Companion">
   <defs>
-    <linearGradient id="bg" x1="4" y1="4" x2="36" y2="36" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#FF8A00"/>
-      <stop offset="0.34" stop-color="#FF2D8D"/>
-      <stop offset="0.68" stop-color="#7B4DFF"/>
-      <stop offset="1" stop-color="#10D1FF"/>
+    <linearGradient id="companion-bg" x1="4" y1="3" x2="36" y2="38" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#293276"/>
+      <stop offset="1" stop-color="#087D9B"/>
     </linearGradient>
-    <linearGradient id="glow" x1="10" y1="8" x2="30" y2="32" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.55"/>
-      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
-    </linearGradient>
-    <filter id="shadow" x="0" y="0" width="40" height="40" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-      <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="#000000" flood-opacity="0.18"/>
-    </filter>
   </defs>
-
-  <rect x="2.5" y="2.5" width="35" height="35" rx="10" fill="url(#bg)"/>
-  <rect x="2.5" y="2.5" width="35" height="35" rx="10" stroke="#111827" stroke-opacity="0.1"/>
-  <path d="M7.5 31.5C10 25.5 15.1 21.2 20.7 16.8C25.8 12.8 29.2 8.8 31 6.2V29C31 31.2 29.2 33 27 33H10.3C8.6 33 7.7 32.1 7.5 31.5Z" fill="url(#glow)" opacity="0.9"/>
-
-  <g filter="url(#shadow)">
-    <path fill-rule="evenodd" clip-rule="evenodd" d="M32 29.8L20 9L8 29.8H15.28L18.316 25.108H16.103L20.0001 18.946L23.8972 25.108H21.684L24.72 29.8H32Z" fill="#FFFFFF"/>
-  </g>
+  <rect x="2" y="2" width="36" height="36" rx="10" fill="url(#companion-bg)"/>
+  <path d="M29 12C24 7 15 7 11 13C7.5 18.5 13 21.5 20 23.5C28 26 27 31 21 33C16 34 11 32 8 28" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="31" cy="30" r="2" fill="#B8F1FA"/>
 </svg>
