@@ -1,6 +1,6 @@
-# Taiga UI Companion roadmap
+# Splincode Companion roadmap
 
-Taiga UI Companion is developed in small, reviewable increments. Completed stages are kept here as historical milestones; active implementation details and acceptance criteria live in GitHub issues and epics.
+Splincode Companion is developed in small, reviewable increments. Completed stages are kept here as historical milestones; active implementation details and acceptance criteria live in GitHub issues and epics.
 
 Each production change should leave the project in a buildable state and pass the relevant tests, ktlint, detekt, plugin structure checks, and CI.
 
