@@ -455,8 +455,8 @@ internal class TaigaQuickDocumentationHoverController(
 
         if (canShow) {
             if (pinned) nativeHoverSuppression.restore() else nativeHoverSuppression.suppress(request.editor)
-            val compactHover = !request.explicit && !view.expanded && !view.fullApi && !view.showExample
-            prepareCardEditors(request, resolved, compactHover)
+            val compactHover = request.isCompactHover(view)
+            cardEditors.prepareForView(request, resolved, compactHover)
             currentView = view
 
             val panel =
@@ -530,18 +530,6 @@ internal class TaigaQuickDocumentationHoverController(
                 panel.invalidateContext()
             }
             loadIconPreviews(request, resolved, panel)
-        }
-    }
-
-    private fun prepareCardEditors(
-        request: TaigaQuickDocumentationHoverRequest,
-        resolved: TaigaResolvedDocumentation,
-        compactHover: Boolean,
-    ) {
-        if (compactHover) {
-            cardEditors.dispose()
-        } else {
-            cardEditors.prepare(request.editor, resolved, request.actionContext, request.isStillCurrent(project))
         }
     }
 
@@ -778,6 +766,21 @@ internal class TaigaQuickDocumentationHoverController(
         if (restoreNativeHover) {
             nativeHoverSuppression.restore()
         }
+    }
+}
+
+private fun TaigaQuickDocumentationHoverRequest.isCompactHover(view: TaigaDocumentationView): Boolean =
+    !explicit && !view.expanded && !view.fullApi && !view.showExample
+
+private fun TaigaDocumentationCardEditors.prepareForView(
+    request: TaigaQuickDocumentationHoverRequest,
+    resolved: TaigaResolvedDocumentation,
+    compactHover: Boolean,
+) {
+    if (compactHover) {
+        dispose()
+    } else {
+        prepare(request.editor, resolved, request.actionContext, request.isStillCurrent(request.editor.project ?: return))
     }
 }
 
