@@ -90,7 +90,7 @@ class TaigaQuickDocumentationUxTest : TaigaDocumentationPopupTestCase() {
             .doClick()
         assertTrue(quickFixes)
         activate(descendants(panel).filterIsInstance<JButton>().first { it.text == "Copy import" }, "ENTER")
-        val imported = CopyPasteManager.getInstance().getContents(DataFlavor.stringFlavor).toString()
+        val imported = CopyPasteManager.getInstance().getContents<String>(DataFlavor.stringFlavor).orEmpty()
         assertTrue(imported.contains("TuiButton"))
         panel.showRefreshFailure()
         descendants(panel).filterIsInstance<JButton>().first { it.text == "Refresh" }.doClick()
