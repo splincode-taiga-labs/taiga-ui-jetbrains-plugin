@@ -539,7 +539,9 @@ internal class TaigaQuickDocumentationPopupPanel(
                         BorderLayout.WEST,
                     )
                     add(
-                        wrappedLabel(preview.reference.name, CONTENT_WIDTH - 112).apply { font = taigaDocumentationCodeFont() },
+                        wrappedLabel(preview.reference.name, CONTENT_WIDTH - 112).apply {
+                            font = taigaDocumentationCodeFont()
+                        },
                         BorderLayout.CENTER,
                     )
                 },
@@ -865,7 +867,6 @@ internal fun wrappedLabel(
         font = font.deriveFont(Font.PLAIN)
         toolTipText = text
     }
-
 
 private val COMPONENT_COLOR = JBColor(Color(123, 62, 174), Color(190, 139, 245))
 private val DIRECTIVE_COLOR = JBColor(Color(0, 115, 120), Color(97, 215, 208))

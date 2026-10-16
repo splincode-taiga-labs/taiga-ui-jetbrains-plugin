@@ -42,7 +42,6 @@ import kotlinx.coroutines.withContext
 import java.awt.Dimension
 import java.awt.Point
 import java.nio.file.Path
-import javax.swing.JComponent
 import javax.swing.SwingUtilities
 import kotlin.time.Duration.Companion.milliseconds
 
