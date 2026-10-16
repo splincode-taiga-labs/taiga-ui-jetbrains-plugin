@@ -55,7 +55,7 @@ internal class TaigaQuickDocumentationTargetProvider :
 
         val entity = snapshot.find(subject) ?: return null
 
-        return TaigaQuickDocumentationTarget(entity, subject)
+        return TaigaQuickDocumentationTarget(entity, subject.completedFrom(entity))
     }
 }
 
