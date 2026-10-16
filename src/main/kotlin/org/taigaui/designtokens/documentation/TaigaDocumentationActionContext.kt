@@ -2,11 +2,12 @@ package org.taigaui.designtokens.documentation
 
 import com.intellij.lang.ecmascript6.psi.ES6FromClause
 import com.intellij.openapi.Disposable
-import com.intellij.openapi.application.ReadAction
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectRootManager
+import com.intellij.openapi.util.Computable
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.newvfs.events.VFileEvent
 import com.intellij.psi.PsiDocumentManager
@@ -33,22 +34,24 @@ internal class TaigaDocumentationActionContext(
     }
 
     fun isCurrent(): Boolean =
-        ReadAction.compute<Boolean, RuntimeException> {
-            !project.isDisposed &&
-                document.modificationStamp == documentStamp &&
-                ProjectRootManager.getInstance(project).modificationCount == rootsStamp &&
-                !changedOnDisk &&
-                files.all(DocumentationFileStamp::isCurrent) &&
-                relevantUnsavedDocuments().all { unsaved[it] == it.modificationStamp } &&
-                PsiDocumentManager.getInstance(project).uncommittedDocuments.none { pending ->
-                    pending === document ||
-                        FileDocumentManager
-                            .getInstance()
-                            .getFile(pending)
-                            ?.path
-                            ?.let(dependencies::contains) == true
-                }
-        }
+        ApplicationManager.getApplication().runReadAction(
+            Computable {
+                !project.isDisposed &&
+                    document.modificationStamp == documentStamp &&
+                    ProjectRootManager.getInstance(project).modificationCount == rootsStamp &&
+                    !changedOnDisk &&
+                    files.all(DocumentationFileStamp::isCurrent) &&
+                    relevantUnsavedDocuments().all { unsaved[it] == it.modificationStamp } &&
+                    PsiDocumentManager.getInstance(project).uncommittedDocuments.none { pending ->
+                        pending === document ||
+                            FileDocumentManager
+                                .getInstance()
+                                .getFile(pending)
+                                ?.path
+                                ?.let(dependencies::contains) == true
+                    }
+            },
+        )
 
     private fun relevantUnsavedDocuments(): List<Document> =
         FileDocumentManager.getInstance().unsavedDocuments.filter { pending ->
