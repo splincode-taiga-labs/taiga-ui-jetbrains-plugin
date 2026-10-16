@@ -70,7 +70,7 @@ internal object TaigaDocumentationResolver {
             val member = rawName.toMemberBinding()
 
             if (member != null) {
-                val tag = attribute.parent as? XmlTag ?: return null
+                val tag = attribute.parent
                 val owners = tag.taigaSubjects()
 
                 if (owners.isEmpty()) {
