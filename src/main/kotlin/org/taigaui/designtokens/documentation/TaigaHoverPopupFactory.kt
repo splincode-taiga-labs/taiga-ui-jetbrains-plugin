@@ -4,8 +4,8 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.util.ui.JBUI
-import javax.swing.JComponent
 import java.awt.Rectangle
+import javax.swing.JComponent
 
 /** Use the standard JetBrains popup lifecycle, with a side anchor only for passive hover. */
 @Suppress("LongParameterList")
