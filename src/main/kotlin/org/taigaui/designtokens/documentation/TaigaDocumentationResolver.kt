@@ -63,9 +63,10 @@ internal object TaigaDocumentationResolver {
             return null
         }
 
-        return PolySymbolCodeCompletionItem
-            .getPsiElement(element)
-            ?.toLocalSubject(selector, requestedSymbol)
+        val context = PolySymbolCodeCompletionItem.getPsiElement(element) ?: return null
+        val angular = context.angularDocumentationSubject()?.takeIf { it.packageName != null }
+        return angular?.copy(selector = selector ?: angular.selector)
+            ?: context.toLocalSubject(selector, requestedSymbol)
     }
 
     @Suppress("ReturnCount")

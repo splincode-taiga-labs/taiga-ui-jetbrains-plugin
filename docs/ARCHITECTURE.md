@@ -224,6 +224,8 @@ The icon chooser replaces only an already-present, complete static `@tui.*` lite
 
 The explicit loading/unavailable status popup captures a disposable host-document range marker for its initial caret target. Angular quick fixes uses that tracked position even if the caret moves or preceding text changes. Closing/replacing the status popup or releasing the editor disposes the marker; a deleted target cannot dispatch native intentions at a neighboring element.
 
+Refresh captures its original target marker before launching resolution, then reads the marker position and document generation inside the committed smart-mode background read action. Typing while indexing/loading therefore produces a fresh snapshot of that target. Publishing still rechecks the captured document/API context and request identity. Native completion uses Angular's installed directive metadata from the completion PSI context, including offline API; ordinary types and pipes retain the existing PSI fallback.
+
 ## CSS unit helpers
 
 CSS unit helpers are intentionally stateless editor features. They do not participate in token discovery, project graphs, caches, or package resolution.

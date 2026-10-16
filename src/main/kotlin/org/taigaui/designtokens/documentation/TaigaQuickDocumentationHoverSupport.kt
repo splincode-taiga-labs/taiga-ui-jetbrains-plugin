@@ -242,12 +242,14 @@ internal class TaigaQuickDocumentationHoverController(
         candidate: TaigaDocumentationHoverCandidate,
         refreshing: Boolean = false,
         focusEditor: Boolean = false,
+        target: TaigaDocumentationRefreshTarget? = refreshTarget.takeIf { refreshing },
     ): Job =
         coroutineScope.launch(Dispatchers.Default + CoroutineName("Taiga UI documentation PSI resolution")) {
             val request =
                 ReadAction
                     .nonBlocking<TaigaQuickDocumentationHoverRequest?> {
-                        if (project.isDisposed || !candidate.file.isValid) null else candidate.resolveRequest()
+                        val committed = if (refreshing) target?.let(candidate::withCommittedTarget) else candidate
+                        if (project.isDisposed || !candidate.file.isValid) null else committed?.resolveRequest()
                     }.withDocumentsCommitted(project)
                     .inSmartMode(project)
                     .expireWith(project)
@@ -827,6 +829,17 @@ private data class TaigaDocumentationHoverCandidate(
     val key: TaigaQuickDocumentationHoverKey,
     val explicit: Boolean = false,
 )
+
+/** Resolve the tracked refresh target against the committed document after indexing/typing settles. */
+private fun TaigaDocumentationHoverCandidate.withCommittedTarget(
+    target: TaigaDocumentationRefreshTarget,
+): TaigaDocumentationHoverCandidate? =
+    target.offset()?.let { position ->
+        copy(
+            offset = position,
+            key = key.copy(modificationStamp = editor.document.modificationStamp),
+        )
+    }
 
 private fun EditorMouseEvent.canStartTaigaDocumentationHover(project: Project): Boolean {
     val projectState =
