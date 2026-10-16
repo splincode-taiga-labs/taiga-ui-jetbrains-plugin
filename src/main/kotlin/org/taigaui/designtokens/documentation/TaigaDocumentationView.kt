@@ -10,6 +10,7 @@ internal data class TaigaDocumentationView(
     val query: String = "",
     val scrollPosition: Point = Point(),
     val selectedMember: String? = null,
+    val expanded: Boolean = false,
 ) {
     @Suppress("ReturnCount")
     fun refreshed(
