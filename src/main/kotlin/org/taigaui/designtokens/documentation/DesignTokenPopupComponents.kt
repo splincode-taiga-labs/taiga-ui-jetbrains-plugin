@@ -130,8 +130,8 @@ internal class TokenBadge : JComponent() {
         graphics2D.fillRoundRect(0, 0, width, height, arc.toInt(), arc.toInt())
         graphics2D.color = Color.WHITE
 
-        val logoWidth = width * TOKEN_LOGO_WIDTH_RATIO
-        val logoHeight = logoWidth * TOKEN_LOGO_VIEWBOX_HEIGHT / TOKEN_LOGO_VIEWBOX_WIDTH
+        val logoWidth = width * PINE_MARK_WIDTH_RATIO
+        val logoHeight = logoWidth * PINE_MARK_VIEWBOX_HEIGHT / PINE_MARK_VIEWBOX_WIDTH
         val transform =
             AffineTransform().apply {
                 translate(
@@ -139,12 +139,12 @@ internal class TokenBadge : JComponent() {
                     (height - logoHeight) / 2.0,
                 )
                 scale(
-                    logoWidth / TOKEN_LOGO_VIEWBOX_WIDTH,
-                    logoHeight / TOKEN_LOGO_VIEWBOX_HEIGHT,
+                    logoWidth / PINE_MARK_VIEWBOX_WIDTH,
+                    logoHeight / PINE_MARK_VIEWBOX_HEIGHT,
                 )
             }
 
-        graphics2D.fill(transform.createTransformedShape(TAIGA_LOGO_PATH))
+        graphics2D.fill(transform.createTransformedShape(PINE_MARK_PATH))
         graphics2D.dispose()
     }
 }
@@ -281,18 +281,30 @@ private fun formatAlpha(alpha: Int): String =
         "%.2f".format(alpha.toDouble() / OPAQUE_ALPHA).trimEnd('0').trimEnd('.')
     }
 
-private val TAIGA_LOGO_PATH =
-    Path2D.Double(Path2D.WIND_EVEN_ODD).apply {
-        moveTo(34.0, 29.4667)
-        lineTo(17.0, 0.0)
-        lineTo(0.0, 29.4667)
-        lineTo(10.3208, 29.4667)
-        lineTo(14.6218, 22.8197)
-        lineTo(11.4867, 22.8197)
-        lineTo(17.0002, 14.09)
-        lineTo(22.5137, 22.8197)
-        lineTo(19.3785, 22.8197)
-        lineTo(23.6795, 29.4667)
+private val PINE_MARK_PATH =
+    Path2D.Double().apply {
+        moveTo(15.5, 23.0)
+        lineTo(18.5, 23.0)
+        lineTo(18.5, 30.0)
+        lineTo(15.5, 30.0)
+        closePath()
+
+        moveTo(17.0, 1.0)
+        lineTo(7.6, 11.2)
+        lineTo(17.0, 8.5)
+        lineTo(26.4, 11.2)
+        closePath()
+
+        moveTo(17.0, 8.7)
+        lineTo(4.5, 20.9)
+        lineTo(17.0, 17.5)
+        lineTo(29.5, 20.9)
+        closePath()
+
+        moveTo(17.0, 16.4)
+        lineTo(1.0, 26.9)
+        lineTo(17.0, 23.2)
+        lineTo(33.0, 26.9)
         closePath()
     }
 
@@ -304,16 +316,16 @@ internal const val DESIGN_TOKEN_POPUP_SMALL_SWATCH_SIZE = 20
 
 private val ROW_BACKGROUND = JBColor(Color(255, 255, 255), Color(43, 46, 52))
 private val ROW_BORDER = JBColor(Color(220, 223, 229), Color(65, 69, 77))
-private val TOKEN_BADGE_BACKGROUND = Color(255, 112, 67)
+private val TOKEN_BADGE_BACKGROUND = Color(27, 20, 66)
 private val CHECKER_LIGHT = Color(235, 235, 235)
 private val CHECKER_DARK = Color(185, 185, 185)
 private val SWATCH_BORDER = JBColor(Color(110, 110, 110), Color(170, 170, 170))
 
 private const val TOKEN_BADGE_SIZE = 16
 private const val TOKEN_BADGE_CORNER_RATIO = 0.25
-private const val TOKEN_LOGO_WIDTH_RATIO = 0.72
-private const val TOKEN_LOGO_VIEWBOX_WIDTH = 34.0
-private const val TOKEN_LOGO_VIEWBOX_HEIGHT = 30.0
+private const val PINE_MARK_WIDTH_RATIO = 0.72
+private const val PINE_MARK_VIEWBOX_WIDTH = 34.0
+private const val PINE_MARK_VIEWBOX_HEIGHT = 30.0
 private const val POPUP_ICON_BUTTON_SIZE = 20
 private const val COPY_FEEDBACK_DURATION_MS = 2_000
 private const val TEXT_WIDTH_PADDING = 2
