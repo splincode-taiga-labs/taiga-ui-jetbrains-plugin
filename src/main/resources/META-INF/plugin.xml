@@ -83,11 +83,10 @@
             source="web-types/event-plugins@3.1.0.web-types.json"
             enableByDefault="false"
         />
-        <platform.backend.documentation.targetProvider
-            implementation="org.taigaui.designtokens.documentation.TaigaQuickDocumentationTargetProvider"
-        />
-        <platform.backend.documentation.lookupElementTargetProvider
-            implementation="org.taigaui.designtokens.documentation.TaigaQuickDocumentationTargetProvider"
+        <polySymbols.documentationCustomizer
+            id="taiga-ui-quick-documentation"
+            order="last"
+            implementation="org.taigaui.designtokens.documentation.TaigaQuickDocumentationCustomizer"
         />
         <psi.referenceContributor
             language="CSS"
@@ -222,6 +221,12 @@
         />
         <editorFactoryMouseMotionListener
             implementation="org.taigaui.designtokens.events.EventPluginsHoverPopupListener"
+        />
+        <editorFactoryMouseListener
+            implementation="org.taigaui.designtokens.documentation.TaigaQuickDocumentationHoverPopupListener"
+        />
+        <editorFactoryMouseMotionListener
+            implementation="org.taigaui.designtokens.documentation.TaigaQuickDocumentationHoverPopupListener"
         />
         <editorFactoryMouseListener
             implementation="org.taigaui.designtokens.documentation.DesignTokenHoverPopupListener"
