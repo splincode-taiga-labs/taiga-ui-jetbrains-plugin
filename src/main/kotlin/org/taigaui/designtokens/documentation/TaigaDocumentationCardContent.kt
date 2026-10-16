@@ -64,7 +64,12 @@ private fun documentationApiEntry(
             )
         if (facts.isNotEmpty()) {
             add(Box.createVerticalStrut(JBUI.scale(5)))
-            add(JBLabel(facts.joinToString(" · ")).apply { foreground = CARD_MUTED_FOREGROUND })
+            add(
+                JBLabel(facts.joinToString(" · ")).apply {
+                    foreground = CARD_MUTED_FOREGROUND
+                    alignmentX = JComponent.LEFT_ALIGNMENT
+                },
+            )
         }
     }
 
@@ -142,6 +147,7 @@ private fun cardContentLink(
         foreground = DESIGN_TOKEN_POPUP_LINK_COLOR
         font = font.deriveFont(Font.PLAIN)
         isFocusable = true
+        alignmentX = JComponent.LEFT_ALIGNMENT
         bind("ENTER", "activate-taiga-link", action)
     }
 

@@ -1,10 +1,12 @@
 package org.taigaui.designtokens.documentation
 
+import com.intellij.openapi.editor.Editor
 import com.intellij.util.ui.JBUI
 import java.awt.Component
 import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.Insets
+import java.awt.Point
 import java.awt.Polygon
 import java.awt.RenderingHints
 import javax.swing.border.AbstractBorder
@@ -58,4 +60,14 @@ internal class TaigaDocumentationPointerBorder : AbstractBorder() {
         copy.drawLine(x + center, y + 1, x + center + half, y + top)
         copy.dispose()
     }
+}
+
+internal fun Editor.documentationAnchor(
+    startOffset: Int,
+    endOffset: Int,
+): Point {
+    val start = offsetToXY(startOffset)
+    val end = offsetToXY(endOffset)
+    if (start.y == end.y) start.x = (start.x + end.x) / 2
+    return start
 }

@@ -37,6 +37,38 @@ class TaigaQuickDocumentationPresentationRegressionTest : TaigaDocumentationPopu
         assertFalse(descendants(panel).any { it is CopyValueButton })
     }
 
+    fun testApiNameTypeAndDefaultShareTheSameLeftEdge() {
+        val panel = TaigaQuickDocumentationPopupPanel(directive())
+        renderAndSave(panel, "vertical-default-alignment")
+        val name = descendants(panel).filterIsInstance<LinkLabel<*>>().first { it.text == "size" }
+        val type =
+            descendants(panel).filterIsInstance<JBLabel>().first {
+                it.accessibleContext.accessibleName ==
+                    "TuiSize"
+            }
+        val default =
+            descendants(panel).filterIsInstance<JBLabel>().first {
+                it.text ==
+                    "Default from TUI_BUTTON_OPTIONS"
+            }
+        val nameX =
+            javax.swing.SwingUtilities
+                .convertPoint(name.parent, name.location, panel)
+                .x
+        assertEquals(
+            nameX,
+            javax.swing.SwingUtilities
+                .convertPoint(type.parent, type.location, panel)
+                .x,
+        )
+        assertEquals(
+            nameX,
+            javax.swing.SwingUtilities
+                .convertPoint(default.parent, default.location, panel)
+                .x,
+        )
+    }
+
     fun testHoverHighlightIsScopedAndRemovedWithoutChangingSource() {
         myFixture.configureByText("component.html", "<button tuiButton [iconEnd]=\"icon\">Save</button>")
         val editor = myFixture.editor

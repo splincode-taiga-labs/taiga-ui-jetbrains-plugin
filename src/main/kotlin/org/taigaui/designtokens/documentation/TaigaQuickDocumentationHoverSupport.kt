@@ -522,9 +522,8 @@ internal class TaigaQuickDocumentationHoverController(
             )
             if (pinned) pinnedLocation?.let(createdPopup::setLocation)
             createdPopup.moveToFitScreen()
-            if (!request.explicit && !pinned) request.alignPointer(panel, createdPopup)
             panel.restoreScrollPosition(view.scrollPosition)
-            request.updatePanelStatus(panel, refreshInProgress)
+            request.completePresentation(panel, createdPopup, pinned, refreshInProgress)
             loadIconPreviews(request, resolved, panel)
         }
     }
@@ -885,7 +884,7 @@ private fun TaigaQuickDocumentationHoverRequest.isStillCurrent(project: Project)
 }
 
 private fun TaigaQuickDocumentationHoverRequest.popupLocation(): Point {
-    val point = targetAnchor()
+    val point = editor.documentationAnchor(documentationRequest.startOffset, documentationRequest.endOffset)
 
     point.x -=
         com.intellij.util.ui.JBUI
@@ -896,30 +895,20 @@ private fun TaigaQuickDocumentationHoverRequest.popupLocation(): Point {
     return point
 }
 
-private fun TaigaQuickDocumentationHoverRequest.targetAnchor(): Point {
-    val start = editor.offsetToXY(documentationRequest.startOffset)
-    val end = editor.offsetToXY(documentationRequest.endOffset)
-    if (start.y == end.y) start.x = (start.x + end.x) / 2
-    return start
-}
-
-private fun TaigaQuickDocumentationHoverRequest.alignPointer(
+private fun TaigaQuickDocumentationHoverRequest.completePresentation(
     panel: TaigaQuickDocumentationPopupPanel,
     popup: JBPopup,
-) {
-    if (!popup.isVisible) return
-    val target = targetAnchor()
-    SwingUtilities.convertPointToScreen(target, editor.contentComponent)
-    panel.alignHoverPointer(
-        target.x - popup.locationOnScreen.x,
-        popup.locationOnScreen.y >= target.y + editor.lineHeight,
-    )
-}
-
-private fun TaigaQuickDocumentationHoverRequest.updatePanelStatus(
-    panel: TaigaQuickDocumentationPopupPanel,
+    pinned: Boolean,
     refreshing: Boolean,
 ) {
+    if (!explicit && !pinned && popup.isVisible) {
+        val target = editor.documentationAnchor(documentationRequest.startOffset, documentationRequest.endOffset)
+        SwingUtilities.convertPointToScreen(target, editor.contentComponent)
+        panel.alignHoverPointer(
+            target.x - popup.locationOnScreen.x,
+            popup.locationOnScreen.y >= target.y + editor.lineHeight,
+        )
+    }
     if (refreshing) {
         panel.showRefreshProgress(editor.project?.let(DumbService::isDumb) == true)
     } else if (!actionContext.isCurrent()) {
