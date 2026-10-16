@@ -21,10 +21,8 @@ import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.popup.JBPopup
-import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.ui.popup.JBPopupListener
 import com.intellij.openapi.ui.popup.LightweightWindowEvent
-import com.intellij.ui.ScreenUtil
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.openapi.vfs.newvfs.BulkFileListener
@@ -32,6 +30,7 @@ import com.intellij.openapi.vfs.newvfs.events.VFileEvent
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiFile
 import com.intellij.psi.util.PsiModificationTracker
+import com.intellij.ui.ScreenUtil
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -42,7 +41,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.awt.Dimension
 import java.awt.Point
-import java.awt.Rectangle
 import java.nio.file.Path
 import javax.swing.SwingUtilities
 import kotlin.time.Duration.Companion.milliseconds
@@ -469,27 +467,18 @@ internal class TaigaQuickDocumentationHoverController(
                     hoverPointer = !request.explicit && !pinned,
                 )
             val createdPopup =
-                JBPopupFactory
-                    .getInstance()
-                    .createComponentPopupBuilder(panel, panel.preferredFocus)
-                    .setProject(project)
-                    .setRequestFocus(requestFocus)
-                    .setFocusable(true)
-                    .setShowBorder(request.explicit || pinned)
-                    .setShowShadow(request.explicit || pinned)
-                    .setCancelOnMouseOutCallback { event ->
-                        !pinned && !request.explicit && !request.editor.documentationTargetScreenBounds(
-                            request.documentationRequest.startOffset,
-                            request.documentationRequest.endOffset,
-                        ).apply { grow(com.intellij.util.ui.JBUI.scale(20), com.intellij.util.ui.JBUI.scale(12)) }
-                            .contains(event.locationOnScreen)
-                    }
-                    .setCancelOnClickOutside(!pinned)
-                    .setCancelOnOtherWindowOpen(!pinned)
-                    .setCancelOnWindowDeactivation(!pinned)
-                    .setMovable(pinned)
-                    .setResizable(pinned)
-                    .createPopup()
+                createTaigaDocumentationPopup(
+                    project,
+                    panel,
+                    requestFocus,
+                    request.explicit,
+                    pinned,
+                ) {
+                    request.editor.documentationTargetScreenBounds(
+                        request.documentationRequest.startOffset,
+                        request.documentationRequest.endOffset,
+                    )
+                }
 
             createdPopup.addListener(
                 object : JBPopupListener {
@@ -532,7 +521,14 @@ internal class TaigaQuickDocumentationHoverController(
             } else if (request.explicit) {
                 createdPopup.moveToFitScreen()
             } else {
-                positionHoverCard(request, createdPopup, panel)
+                positionTaigaHoverCard(
+                    createdPopup,
+                    panel,
+                    request.editor.documentationTargetScreenBounds(
+                        request.documentationRequest.startOffset,
+                        request.documentationRequest.endOffset,
+                    ),
+                )
             }
             panel.restoreScrollPosition(view.scrollPosition)
             request.completePresentation(panel, refreshInProgress)
@@ -613,15 +609,25 @@ internal class TaigaQuickDocumentationHoverController(
         }
 
     private fun resizePopup() {
-        popupContent?.let { panel ->
-            if (!pinned) popup?.setSize(panel.preferredSize)
-            val request = currentRequest
-            val popup = popup
-            if (!pinned && request != null && !request.explicit && popup?.isVisible == true) {
-                positionHoverCard(request, popup, panel)
-            } else {
-                popup?.moveToFitScreen()
-            }
+        val panel = popupContent ?: return
+        val popup = popup ?: return
+        if (pinned) {
+            popup.moveToFitScreen()
+            return
+        }
+        popup.setSize(panel.preferredSize)
+        val request = currentRequest
+        if (request != null && !request.explicit && popup.isVisible) {
+            positionTaigaHoverCard(
+                popup,
+                panel,
+                request.editor.documentationTargetScreenBounds(
+                    request.documentationRequest.startOffset,
+                    request.documentationRequest.endOffset,
+                ),
+            )
+        } else {
+            popup.moveToFitScreen()
         }
     }
 
@@ -901,43 +907,16 @@ private fun TaigaQuickDocumentationHoverRequest.isStillCurrent(project: Project)
     return projectState && documentState && uiState && actionContext.isCurrent()
 }
 
-private fun Editor.documentationTargetScreenBounds(
-    startOffset: Int,
-    endOffset: Int,
-): Rectangle {
-    val start = offsetToXY(startOffset)
-    val end = offsetToXY(endOffset)
-    val width = if (start.y == end.y) (end.x - start.x).coerceAtLeast(1) else lineHeight
-    SwingUtilities.convertPointToScreen(start, contentComponent)
-    return Rectangle(start.x, start.y, width, lineHeight)
-}
-
 private fun TaigaQuickDocumentationHoverRequest.popupPlacement(size: Dimension): TaigaHoverPopupPlacement {
-    val target = editor.documentationTargetScreenBounds(documentationRequest.startOffset, documentationRequest.endOffset)
+    val target =
+        editor.documentationTargetScreenBounds(
+            documentationRequest.startOffset,
+            documentationRequest.endOffset,
+        )
     if (explicit) {
         return TaigaHoverPopupPlacement(Point(target.x, target.y + target.height), TaigaHoverPointerSide.NONE)
     }
-    val bounds = ScreenUtil.getScreenRectangle(Point(target.x + target.width / 2, target.y + target.height / 2))
-    return calculateTaigaHoverPopupPlacement(target, size, bounds, com.intellij.util.ui.JBUI.scale(12))
-}
-
-private fun positionHoverCard(
-    request: TaigaQuickDocumentationHoverRequest,
-    popup: JBPopup,
-    panel: TaigaQuickDocumentationPopupPanel,
-) {
-    if (!popup.isVisible) return
-    val placement = request.popupPlacement(popup.size)
-    popup.setLocation(placement.location)
-    popup.moveToFitScreen()
-    val target = request.editor.documentationTargetScreenBounds(
-        request.documentationRequest.startOffset,
-        request.documentationRequest.endOffset,
-    )
-    panel.alignHoverPointer(
-        target.y + target.height / 2 - popup.locationOnScreen.y,
-        placement.pointerSide,
-    )
+    return taigaHoverPopupPlacementForScreen(target, size)
 }
 
 private fun TaigaQuickDocumentationHoverRequest.completePresentation(
