@@ -20,6 +20,15 @@ import javax.swing.KeyStroke
 import javax.swing.SwingUtilities
 
 class TaigaQuickDocumentationPopupPanelTest : TaigaDocumentationPopupTestCase() {
+    fun testSizeHintDescriptionsDoNotGuessUnknownValues() {
+        assertEquals("extra small", taigaSizeDescription("xs"))
+        assertEquals("small", taigaSizeDescription("s"))
+        assertEquals("medium", taigaSizeDescription("m"))
+        assertEquals("large", taigaSizeDescription("l"))
+        assertEquals("extra large", taigaSizeDescription("xl"))
+        assertNull(taigaSizeDescription("unknown"))
+    }
+
     fun testPassiveHoverShowsSummaryInsteadOfFullApi() {
         var detailsOpened = false
         val panel =

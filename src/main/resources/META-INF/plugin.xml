@@ -202,6 +202,26 @@
         <codeInsight.declarativeInlayProvider
             group="VALUES_GROUP"
             bundle="messages.TaigaDesignTokensBundle"
+            implementationClass="org.taigaui.designtokens.documentation.TaigaTemplateInlayHintsProvider"
+            isEnabledByDefault="true"
+            language="HTML"
+            nameKey="inlay.taiga.template.name"
+            descriptionKey="inlay.taiga.template.description"
+            providerId="taiga.template.html"
+        />
+        <codeInsight.declarativeInlayProvider
+            group="VALUES_GROUP"
+            bundle="messages.TaigaDesignTokensBundle"
+            implementationClass="org.taigaui.designtokens.documentation.TaigaTemplateInlayHintsProvider"
+            isEnabledByDefault="true"
+            language="JavaScript"
+            nameKey="inlay.taiga.template.name"
+            descriptionKey="inlay.taiga.template.description"
+            providerId="taiga.template.embedded"
+        />
+        <codeInsight.declarativeInlayProvider
+            group="VALUES_GROUP"
+            bundle="messages.TaigaDesignTokensBundle"
             implementationClass="org.taigaui.designtokens.units.RemInlayHintsProvider"
             isEnabledByDefault="true"
             language="CSS"
