@@ -2,7 +2,7 @@
     "name": "taiga-ui-jetbrains-plugin",
     "version": "0.1.0",
     "private": true,
-    "description": "NPM fixtures used by integration tests for the Taiga UI Companion plugin.",
+    "description": "NPM fixtures used by integration tests for the Taiga xUI Community Plugin.",
     "scripts": {
         "format": "prettier . --write --ignore-unknown",
         "format:check": "prettier . --check --ignore-unknown"

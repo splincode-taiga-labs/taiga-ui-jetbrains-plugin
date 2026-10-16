@@ -1,16 +1,16 @@
-# Taiga UI Companion
+# Taiga xUI Community Plugin
 
 [![codecov](https://codecov.io/gh/splincode-taiga-labs/taiga-ui-jetbrains-plugin/branch/main/graph/badge.svg)](https://codecov.io/gh/splincode-taiga-labs/taiga-ui-jetbrains-plugin)
 
-Community WebStorm plugin that brings project-aware Taiga UI tooling directly into the editor.
+Independent community plugin for Taiga UI projects. Bring project-aware design tokens, icons, CSS hints, and completions into your editor.
 
 ## About the project
 
-Taiga UI Companion is developed in the open by **splincode-taiga-labs**, an independent community initiative focused on improving the developer experience around Taiga UI in JetBrains IDEs.
+**Taiga xUI Community** is developed in the open by **splincode-taiga-labs**. It helps developers work with Taiga UI projects in JetBrains IDEs while remaining independently maintained.
 
 The project aims to make the information that already exists in a Taiga UI codebase — design tokens, icons, event-plugin modifiers, local overrides, and CSS units — discoverable directly in the editor, without maintaining a separate hard-coded catalog.
 
-This project is **not an official Taiga UI or T-Bank product**. Contributions, bug reports, and ideas are welcome through GitHub issues and pull requests.
+This is an **independent community project**, not affiliated with or endorsed by Taiga UI, Pineopticone, or T-Bank. The name Taiga UI is used only to describe compatibility. Contributions, bug reports, and ideas are welcome through GitHub issues and pull requests.
 
 **[Live Angular demo](https://splincode-taiga-labs.github.io/taiga-ui-jetbrains-plugin/)**
 
