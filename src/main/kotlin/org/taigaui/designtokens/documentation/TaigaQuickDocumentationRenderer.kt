@@ -11,7 +11,7 @@ internal object TaigaQuickDocumentationRenderer {
             append(entity.displaySymbol().html())
             append("</b>")
 
-            entity.packageNames.sorted().takeIf(List<String>::isNotEmpty)?.let { packages ->
+            entity.packageNames.sorted().takeIf { packages -> packages.isNotEmpty() }?.let { packages ->
                 append("<br><code>")
                 append(packages.joinToString(", ").html())
                 append("</code>")
