@@ -131,14 +131,11 @@ internal object TaigaDocumentationResolver {
     ): TaigaDocumentationRequest? {
         val element = file.elementAt(offset) ?: return null
         val publicSymbol = element.text.takeIf(::isTaigaPublicSymbol) ?: return null
-        val declaration =
-            element
-                .candidateReferences(file, offset)
-                .asSequence()
-                .mapNotNull { reference -> reference.resolve() }
-                .firstOrNull { resolved -> resolved.taigaPackageName() != null }
+        val declaration = element.resolveTaigaDeclaration(file, offset)
+        val packageName =
+            declaration?.taigaPackageName()
+                ?: file.taigaImportPackage(publicSymbol)
                 ?: return null
-        val packageName = declaration.taigaPackageName() ?: return null
 
         return TaigaDocumentationRequest.Entity(
             subjects =
@@ -151,7 +148,7 @@ internal object TaigaDocumentationResolver {
                 ),
             startOffset = element.textRange.startOffset,
             endOffset = element.textRange.endOffset,
-            typeDefinition = declaration.typeDefinition(publicSymbol),
+            typeDefinition = declaration?.typeDefinition(publicSymbol),
         )
     }
 }
@@ -200,10 +197,15 @@ private fun XmlTag.memberUsage(
 private fun PolySymbol.toLocalSubject(
     selector: String?,
     requestedSymbol: String? = null,
-): TaigaDocumentationSubject? =
+): TaigaDocumentationSubject =
     localContexts()
         .mapNotNull { context -> context.toLocalSubject(selector, requestedSymbol) }
         .firstOrNull()
+        ?: TaigaDocumentationSubject(
+            selector = selector,
+            publicSymbol = requestedSymbol,
+            packageName = null,
+        )
 
 private fun PolySymbol.localContexts(): List<PsiElement> =
     unwrapMatchedSymbols()
