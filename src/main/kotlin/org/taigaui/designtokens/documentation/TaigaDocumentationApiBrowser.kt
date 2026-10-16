@@ -23,7 +23,43 @@ import javax.swing.event.DocumentListener
 internal data class TaigaDocumentationApiRow(
     val property: TaigaApiProperty,
     val kind: TaigaApiMemberKind,
+    val state: String? = null,
 )
+
+internal fun TaigaResolvedDocumentation.Entity.apiRows(): List<TaigaDocumentationApiRow> =
+    (
+        entity.inputs.map { TaigaDocumentationApiRow(it, TaigaApiMemberKind.INPUT) } +
+            entity.outputs.map { TaigaDocumentationApiRow(it, TaigaApiMemberKind.OUTPUT) }
+    ).map { row ->
+        val used =
+            element?.attributes?.any { attribute ->
+                attribute.bindingName == row.property.name &&
+                    (row.kind == TaigaApiMemberKind.OUTPUT) ==
+                    (attribute.rawName.startsWith('(') || attribute.rawName.startsWith("on-"))
+            } == true
+        val local = localDocumentation.members.firstOrNull { it.name == row.property.name && it.kind == row.kind }
+        row.copy(state = apiRowState(used, local))
+    }.sortedBy { row ->
+        when (row.state) {
+            "Deprecated binding" -> 0
+            "Required missing" -> 1
+            "Used" -> 2
+            "Deprecated" -> 3
+            else -> 4
+        }
+    }
+
+private fun apiRowState(
+    used: Boolean,
+    local: TaigaLocalApiMember?,
+): String? =
+    when {
+        used && local?.deprecated != null -> "Deprecated binding"
+        !used && local?.required == true -> "Required missing"
+        used -> "Used"
+        local?.deprecated != null -> "Deprecated"
+        else -> null
+    }
 
 /** Searches an immutable installed API snapshot; typing never resolves PSI or performs IO. */
 internal class TaigaDocumentationApiBrowser(
@@ -32,9 +68,7 @@ internal class TaigaDocumentationApiBrowser(
     private val openMember: (TaigaResolvedDocumentation.Member) -> Unit,
     private val queryChanged: (String) -> Unit = {},
 ) : JPanel(BorderLayout(0, JBUI.scale(8))) {
-    private val rows =
-        entity.entity.inputs.map { TaigaDocumentationApiRow(it, TaigaApiMemberKind.INPUT) } +
-            entity.entity.outputs.map { TaigaDocumentationApiRow(it, TaigaApiMemberKind.OUTPUT) }
+    private val rows = entity.apiRows()
     private val model = DefaultListModel<TaigaDocumentationApiRow>()
     private val list = JBList(model)
     private val search = JBTextField(initialQuery)
@@ -53,7 +87,8 @@ internal class TaigaDocumentationApiBrowser(
         list.cellRenderer =
             ListCellRenderer { component, row, index, selected, focused ->
                 val prefix = if (row.kind == TaigaApiMemberKind.INPUT) "Input" else "Output"
-                val text = "$prefix  ${row.property.name}: ${row.property.documentedType.orEmpty()}"
+                val state = row.state?.let { "  ·  $it" }.orEmpty()
+                val text = "$prefix  ${row.property.name}: ${row.property.documentedType.orEmpty()}$state"
                 renderer.getListCellRendererComponent(component, text, index, selected, focused)
             }
         list.addMouseListener(
