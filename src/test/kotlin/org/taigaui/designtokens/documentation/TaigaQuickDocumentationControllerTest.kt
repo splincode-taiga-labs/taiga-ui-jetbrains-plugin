@@ -17,6 +17,7 @@ import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.wm.IdeFocusManager
 import com.intellij.platform.backend.documentation.impl.computeDocumentationBlocking
+import com.intellij.polySymbols.completion.PolySymbolCodeCompletionItem
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.testFramework.DumbModeTestUtils
 import com.intellij.testFramework.replaceService
@@ -58,7 +59,7 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
                         .filterIsInstance<TaigaQuickDocumentationPopupPanel>()
                         .forEach {
                             it.size =
-                                component.size.takeIf { size -> size.width > 0 && size.height > 0 } ?: it.preferredSize
+                                component.size?.takeIf { size -> size.width > 0 && size.height > 0 } ?: it.preferredSize
                             layoutDocumentation(it)
                         }
                 }
@@ -441,7 +442,12 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
                 promise.cancel()
             }
         val (target, subject) = result
-        assertNotNull("Native completion subject: $subject", target)
+        assertNotNull(
+            "Native completion subject: $subject; lookup: ${lookup.javaClass.name}; " +
+                "object: ${lookup.`object`.javaClass.name}; PSI: ${lookup.psiElement}; " +
+                "symbol: ${PolySymbolCodeCompletionItem.getPolySymbol(lookup)}",
+            target,
+        )
         assertTrue(subject?.localDocumentation?.angularResolved == true)
         val html = requireNotNull(computeDocumentationBlocking(requireNotNull(target).createPointer())).html
         assertTrue(html.contains("TuiButton"))
