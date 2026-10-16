@@ -105,6 +105,26 @@ class TaigaQuickDocumentationPresentationRegressionTest : TaigaDocumentationPopu
         renderAndSave(panel, "input-hover-pointer")
     }
 
+    fun testHoverPointerDoesNotPaintAnEditorBackgroundStripeAcrossTheCard() {
+        val owner = directive()
+        val member = owner.focusedMember(owner.entity.inputs.first(), TaigaApiMemberKind.INPUT)
+        val panel = TaigaQuickDocumentationPopupPanel(member, hoverPointer = true)
+        panel.alignHoverPointer(140)
+        panel.size = panel.preferredSize
+        panel.doLayout()
+
+        val image = java.awt.image.BufferedImage(panel.width, panel.height, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+        val graphics = image.createGraphics()
+        try {
+            panel.paint(graphics)
+        } finally {
+            graphics.dispose()
+        }
+
+        // The top inset is part of the card, not a full-width stripe painted in the editor color.
+        assertEquals(panel.background.rgb, image.getRGB(panel.width - 16, 3))
+    }
+
     fun testHostDirectiveDescriptionsEnrichOnlyInstalledMembersAndKeepLocalTypes() {
         val original = directive()
         val appearanceOwner = TaigaDocumentationSubject(null, "TuiAppearance", "@taiga-ui/core")

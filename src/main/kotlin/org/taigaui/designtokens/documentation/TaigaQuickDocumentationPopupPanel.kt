@@ -165,17 +165,6 @@ internal class TaigaQuickDocumentationPopupPanel(
         }
     }
 
-    override fun paintComponent(graphics: Graphics) {
-        super.paintComponent(graphics)
-        if (pointerBorder != null) {
-            graphics.color =
-                com.intellij.openapi.editor.colors.EditorColorsManager
-                    .getInstance()
-                    .globalScheme.defaultBackground
-            graphics.fillRect(0, 0, width, JBUI.scale(10))
-        }
-    }
-
     fun restoreScrollPosition(position: Point) {
         SwingUtilities.invokeLater {
             val extent = scroll.viewport.extentSize
