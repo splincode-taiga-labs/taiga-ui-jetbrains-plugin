@@ -2,6 +2,7 @@ package org.taigaui.designtokens.documentation
 
 import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.ui.components.JBLabel
+import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.JBUI
 import java.awt.Dimension
 import java.awt.GridLayout
@@ -9,18 +10,23 @@ import java.awt.datatransfer.StringSelection
 import javax.swing.BoxLayout
 import javax.swing.JButton
 import javax.swing.JPanel
+import javax.swing.event.DocumentEvent
+import javax.swing.event.DocumentListener
 
 internal class TaigaDocumentationBindingPanel(
     member: TaigaResolvedDocumentation.Member,
     applyValue: ((String) -> String)?,
     currentValue: String? = null,
+    private val resize: () -> Unit = {},
 ) : JPanel() {
     private val canApply =
         applyValue != null && member.kind == TaigaApiMemberKind.INPUT && member.binding?.literal != null
     private val prompt = JBLabel()
     private val applyButtons = mutableListOf<JButton>()
+    private var contextCurrent = true
 
     fun invalidateContext() {
+        contextCurrent = false
         prompt.text = "Refresh to apply. Copy remains available."
         applyButtons.forEach {
             it.isEnabled = false
@@ -65,53 +71,93 @@ internal class TaigaDocumentationBindingPanel(
                     alignmentX = LEFT_ALIGNMENT
                 },
             )
-            add(
+            val choices =
                 JPanel(GridLayout(0, VALUE_COLUMNS, JBUI.scale(6), JBUI.scale(4))).apply {
                     isOpaque = false
                     alignmentX = LEFT_ALIGNMENT
-                    values.take(MAX_VISIBLE_VALUES).forEach { value ->
-                        add(
-                            JPanel().apply {
-                                isOpaque = false
-                                layout = BoxLayout(this, BoxLayout.Y_AXIS)
-                                add(JBLabel("'$value'"))
-                                add(
-                                    JButton("Apply '$value'").apply {
-                                        applyButtons += this
-                                        isEnabled = canApply
-                                        toolTipText =
-                                            if (canApply) {
-                                                "Apply '$value' to this binding"
-                                            } else {
-                                                member
-                                                    .valueActionUnavailableReason()
-                                            }
-                                        addActionListener {
-                                            status.text = applyValue?.invoke(value)
-                                            status.toolTipText = status.text
-                                            if (status.text?.startsWith("Applied") == true) {
-                                                current.text = "Current value: $value"
-                                                current.toolTipText = current.text
-                                            }
+                }
+            fun showValues(visible: List<String>) {
+                applyButtons.clear()
+                choices.removeAll()
+                visible.forEach { value ->
+                    choices.add(
+                        JPanel().apply {
+                            isOpaque = false
+                            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+                            add(JBLabel("'$value'"))
+                            add(
+                                JButton("Apply '$value'").apply {
+                                    applyButtons += this
+                                    isEnabled = canApply && contextCurrent
+                                    toolTipText =
+                                        if (!contextCurrent) {
+                                            STALE_DOCUMENTATION_MESSAGE
+                                        } else if (canApply) {
+                                            "Apply '$value' to this binding"
+                                        } else {
+                                            member
+                                                .valueActionUnavailableReason()
                                         }
-                                    },
-                                )
-                                add(
-                                    JButton("Copy '$value'").apply {
-                                        toolTipText = "Copy '$value'"
-                                        addActionListener { copyLiteral(value, status) }
-                                    },
-                                )
-                            },
-                        )
-                    }
-                },
-            )
+                                    addActionListener {
+                                        status.text = applyValue?.invoke(value)
+                                        status.toolTipText = status.text
+                                        if (status.text?.startsWith("Applied") == true) {
+                                            current.text = "Current value: $value"
+                                            current.toolTipText = current.text
+                                        }
+                                    }
+                                    bind("ENTER", "apply-input-value") { if (isEnabled) doClick() }
+                                },
+                            )
+                            add(
+                                JButton("Copy '$value'").apply {
+                                    toolTipText = "Copy '$value'"
+                                    addActionListener { copyLiteral(value, status) }
+                                    bind("ENTER", "copy-input-value") { doClick() }
+                                },
+                            )
+                        },
+                    )
+                }
+                choices.revalidate()
+                choices.repaint()
+                if (choices.parent != null) resize()
+            }
+            showValues(values.take(MAX_VISIBLE_VALUES))
+            add(choices)
             if (values.size > MAX_VISIBLE_VALUES) {
-                val more = if (member.source != null) "More values in source" else "More values in full documentation"
+                val search = JBTextField().apply {
+                    emptyText.text = "Search all ${values.size} values"
+                    getAccessibleContext().accessibleName = "Search allowed input values"
+                    isVisible = false
+                    alignmentX = LEFT_ALIGNMENT
+                    maximumSize = Dimension(Int.MAX_VALUE, preferredSize.height)
+                }
+                search.document.addDocumentListener(
+                    object : DocumentListener {
+                        private fun filter() {
+                            val filtered = values.filter { it.contains(search.text.trim(), ignoreCase = true) }
+                            showValues(filtered)
+                            status.text = "${filtered.size} of ${values.size} values"
+                        }
+
+                        override fun insertUpdate(event: DocumentEvent) = filter()
+
+                        override fun removeUpdate(event: DocumentEvent) = filter()
+
+                        override fun changedUpdate(event: DocumentEvent) = filter()
+                    },
+                )
+                add(search)
                 add(
-                    JBLabel(more).apply {
+                    JButton("Show all (${values.size})").apply {
                         alignmentX = LEFT_ALIGNMENT
+                        addActionListener {
+                            isVisible = false
+                            search.isVisible = true
+                            showValues(values)
+                            search.requestFocusInWindow()
+                        }
                     },
                 )
             }
