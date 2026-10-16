@@ -206,7 +206,10 @@ class TaigaQuickDocumentationPresentationRegressionTest : TaigaDocumentationPopu
         scroll.doLayout()
         assertEquals(
             JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
-            taigaHoverScrollbarPolicy(scroll.viewport.extentSize.height + JBUI.scale(80), scroll.viewport.extentSize.height),
+            taigaHoverScrollbarPolicy(
+                scroll.viewport.extentSize.height + JBUI.scale(80),
+                scroll.viewport.extentSize.height,
+            ),
         )
         assertEquals(before, host.preferredSize)
         host.stopTransition()
