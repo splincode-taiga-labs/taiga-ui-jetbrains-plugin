@@ -29,7 +29,7 @@ internal object TaigaTemplateSelectorAtOffset {
         return parseCandidates(body)
             .firstOrNull { candidate -> localOffset in candidate.start..candidate.endExclusive }
             ?.value
-            ?.takeIf(String::isTaigaSelector)
+            ?.takeIf { selector -> selector.isTaigaSelector() }
     }
 
     private fun parseCandidates(body: CharSequence): List<Candidate> {
