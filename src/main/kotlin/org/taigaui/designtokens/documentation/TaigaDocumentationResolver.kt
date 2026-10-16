@@ -70,33 +70,9 @@ internal object TaigaDocumentationResolver {
         if (attribute != null && attribute.nameElement?.textRange?.containsOffset(offset) == true) {
             val nameElement = attribute.nameElement ?: return null
             val rawName = attribute.bindingName()
-            val member =
-                rawName.toMemberBinding()
-                    ?: rawName.takeIf { !isTaigaSelector(it) && Regex("[A-Za-z_$][\\w$]*").matches(it) }
-                        ?.let { MemberBinding(it, TaigaApiMemberKind.INPUT) }
+            val member = rawName.toMemberBinding()
 
-            if (member != null) {
-                val tag = attribute.parent
-                val owners = tag.taigaSubjects()
-
-                if (owners.isEmpty()) {
-                    return null
-                }
-
-                return TaigaDocumentationRequest.Member(
-                    owners = owners,
-                    name = member.name,
-                    kind = member.kind,
-                    startOffset = nameElement.textRange.startOffset,
-                    endOffset = nameElement.textRange.endOffset,
-                    usage = tag.memberUsage(member, owners.firstOrNull()?.selector),
-                    binding = attribute.documentationBinding(),
-                    declaration =
-                        (attribute.descriptor as? HtmlAttributeSymbolDescriptor)
-                            ?.symbol
-                            ?.toLocalSubject(selector = null),
-                )
-            }
+            if (member != null) return attribute.findMemberRequest(member)
 
             val selector = rawName.takeIf(::isTaigaSelector) ?: return null
             val subject =
@@ -135,6 +111,27 @@ internal object TaigaDocumentationResolver {
             usage = tag.compactUsage(),
             icons = tag.documentationIcons(),
             bindings = tag.attributes.mapNotNull { it.documentationBinding() },
+        )
+    }
+
+    @Suppress("ReturnCount")
+    private fun XmlAttribute.findMemberRequest(member: MemberBinding): TaigaDocumentationRequest.Member? {
+        val nameElement = nameElement ?: return null
+        val tag = parent
+        val owners = tag.taigaSubjects()
+        if (owners.isEmpty()) return null
+        return TaigaDocumentationRequest.Member(
+            owners = owners,
+            name = member.name,
+            kind = member.kind,
+            startOffset = nameElement.textRange.startOffset,
+            endOffset = nameElement.textRange.endOffset,
+            usage = tag.memberUsage(member, owners.firstOrNull()?.selector),
+            binding = documentationBinding(),
+            declaration =
+                (descriptor as? HtmlAttributeSymbolDescriptor)
+                    ?.symbol
+                    ?.toLocalSubject(selector = null),
         )
     }
 
@@ -298,6 +295,8 @@ private fun PsiFile.elementAt(offset: Int): PsiElement? =
 
 private fun String.toMemberBinding(): MemberBinding? =
     MEMBER_BINDING_PATTERNS.firstNotNullOfOrNull { pattern -> pattern.parse(this) }
+        ?: takeIf { !isTaigaSelector(it) && PLAIN_INPUT_NAME.matches(it) }
+            ?.let { MemberBinding(it, TaigaApiMemberKind.INPUT) }
 
 private fun isTaigaPublicSymbol(value: String): Boolean =
     value.startsWith("Tui") &&
@@ -337,3 +336,5 @@ private val MEMBER_BINDING_PATTERNS =
         MemberBindingPattern("bind-", "", TaigaApiMemberKind.INPUT),
         MemberBindingPattern("on-", "", TaigaApiMemberKind.OUTPUT),
     )
+
+private val PLAIN_INPUT_NAME = Regex("[A-Za-z_$][\\w$]*")
