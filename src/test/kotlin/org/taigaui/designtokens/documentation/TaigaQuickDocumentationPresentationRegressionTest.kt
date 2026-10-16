@@ -1,5 +1,6 @@
 package org.taigaui.designtokens.documentation
 
+import com.intellij.util.ui.JBUI
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.labels.LinkLabel
 import javax.swing.JTabbedPane
@@ -149,6 +150,35 @@ class TaigaQuickDocumentationPresentationRegressionTest : TaigaDocumentationPopu
         host.showCard(next)
         assertEquals(1, host.componentCount)
         host.stopTransition()
+    }
+
+    fun testPassiveHoverPreservesWidthAndHeightAcrossDifferentDocumentationCards() {
+        val small = TaigaQuickDocumentationPopupPanel(pipe(), compactHover = true, hoverPointer = true)
+        val large = TaigaQuickDocumentationPopupPanel(directive(), hoverPointer = true)
+        val host = TaigaDocumentationPopupHost(small, stabilizesHoverSize = true)
+        val initialSize = java.awt.Dimension(host.preferredSize)
+
+        assertTrue(initialSize.width >= JBUI.scale(380))
+        assertTrue(initialSize.height in JBUI.scale(220)..JBUI.scale(300))
+        host.showCard(large)
+        assertEquals(initialSize, host.preferredSize)
+
+        host.size = initialSize
+        host.doLayout()
+        assertEquals(initialSize, large.size)
+        assertEquals(1, host.componentCount)
+
+        host.showCard(small)
+        assertEquals(initialSize, host.preferredSize)
+        host.stopTransition()
+    }
+
+    fun testFullDocumentationHostStillUsesNaturalContentSize() {
+        val initial = TaigaQuickDocumentationPopupPanel(pipe(), compactHover = true)
+        val expanded = TaigaQuickDocumentationPopupPanel(directive())
+        val host = TaigaDocumentationPopupHost(initial)
+        host.showCard(expanded)
+        assertEquals(expanded.preferredSize, host.preferredSize)
     }
 
     fun testHoverPlacementPrefersRightWithoutCoveringTheAttribute() {

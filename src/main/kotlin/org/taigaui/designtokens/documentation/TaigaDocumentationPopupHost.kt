@@ -3,6 +3,7 @@ package org.taigaui.designtokens.documentation
 import java.awt.AlphaComposite
 import java.awt.BorderLayout
 import java.awt.Graphics
+import java.awt.Dimension
 import java.awt.Graphics2D
 import java.awt.image.BufferedImage
 import javax.swing.JPanel
@@ -11,9 +12,23 @@ import javax.swing.Timer
 /** Stable Swing container: switching hover targets must not recreate the containing JBPopup. */
 internal class TaigaDocumentationPopupHost(
     initial: TaigaQuickDocumentationPopupPanel,
+    val stabilizesHoverSize: Boolean = false,
 ) : JPanel(BorderLayout()) {
     var card: TaigaQuickDocumentationPopupPanel = initial
         private set
+
+    // A passive hover session owns one viewport. New targets change its contents, not its geometry.
+    private val lockedSize =
+        if (stabilizesHoverSize) {
+            Dimension(
+                initial.preferredSize.width.coerceAtLeast(JBUI.scale(380)),
+                initial.preferredSize.height.coerceIn(JBUI.scale(220), JBUI.scale(300)),
+            )
+        } else {
+            null
+        }
+
+    override fun getPreferredSize(): Dimension = lockedSize?.let(::Dimension) ?: super.getPreferredSize()
 
     private var previousFrame: BufferedImage? = null
     private var transitionStart: Long = 0
