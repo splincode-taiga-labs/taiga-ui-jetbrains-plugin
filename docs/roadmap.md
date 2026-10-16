@@ -27,7 +27,7 @@ The main direction is to grow from design-token tooling into a broader project-a
 
 #### Phase 1 — Documentation foundation
 
-- [ ] [#99 — Version-aware Taiga UI documentation index](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/issues/99)
+- [x] [#99 — Version-aware Taiga UI documentation index](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/issues/99)
 
 Build a structured, cached, version-aware documentation index using official Taiga UI documentation as enrichment while keeping installed packages authoritative for actual API availability.
 
@@ -36,6 +36,8 @@ Build a structured, cached, version-aware documentation index using official Tai
 - [ ] [#100 — Taiga UI component docs in Quick Documentation](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/issues/100)
 - [ ] [#101 — Documentation for Taiga UI inputs and outputs](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/issues/101)
 - [ ] [#102 — Taiga UI Search Everywhere contributor](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/issues/102)
+
+#100 and #101 are implemented in [PR #116](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/pull/116). Their [acceptance matrix](documentation-acceptance.md) records automated coverage separately from the pending real-project WebStorm/macOS smoke checks. Keep these stages open until acceptance and merge.
 
 Prefer native IntelliJ/WebStorm surfaces such as Quick Documentation and Search Everywhere instead of introducing parallel custom UI.
 

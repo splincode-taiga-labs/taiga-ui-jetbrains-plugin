@@ -2,6 +2,7 @@ package org.taigaui.designtokens.documentation
 
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.ui.components.JBLabel
+import com.intellij.util.ui.JBUI
 import com.intellij.ui.components.labels.LinkLabel
 import org.taigaui.designtokens.icons.IconSvgPreviewRenderer
 import org.taigaui.designtokens.icons.IconSvgSource
@@ -42,7 +43,7 @@ abstract class TaigaDocumentationPopupTestCase : BasePlatformTestCase() {
         name: String,
     ) {
         val size = panel.preferredSize
-        assertTrue("Card must stay compact", size.height <= 700)
+        assertTrue("Card must stay compact", size.height <= JBUI.scale(700))
         panel.size = Dimension(size)
         layoutRecursively(panel)
         val image = BufferedImage(size.width, size.height, BufferedImage.TYPE_INT_ARGB)
