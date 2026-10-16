@@ -1,6 +1,6 @@
 # Architecture
 
-This document is the architectural contract for the Taiga UI Companion plugin.
+This document is the architectural contract for the Taiga xUI Community Plugin.
 
 Keep `README.md` focused on product capabilities. Changes that introduce a new subsystem, data source, cache boundary, or dependency between architectural layers should update this document in the same pull request.
 
