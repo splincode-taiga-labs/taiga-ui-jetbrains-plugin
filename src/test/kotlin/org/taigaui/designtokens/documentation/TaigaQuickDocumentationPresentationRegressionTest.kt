@@ -125,6 +125,52 @@ class TaigaQuickDocumentationPresentationRegressionTest : TaigaDocumentationPopu
         assertEquals(panel.background.rgb, image.getRGB(panel.width - 16, 3))
     }
 
+    fun testHoverPlacementPrefersRightWithoutCoveringTheAttribute() {
+        val target = java.awt.Rectangle(220, 160, 75, 20)
+        val size = java.awt.Dimension(360, 240)
+        val placement =
+            calculateTaigaHoverPopupPlacement(target, size, java.awt.Rectangle(0, 0, 1200, 800), 12)
+        assertEquals(TaigaHoverPointerSide.LEFT, placement.pointerSide)
+        assertEquals(target.x + target.width + 12, placement.location.x)
+        assertTrue(placement.location.y <= target.y + target.height)
+    }
+
+    fun testHoverPlacementFlipsLeftNearTheRightScreenEdge() {
+        val target = java.awt.Rectangle(900, 380, 80, 22)
+        val size = java.awt.Dimension(360, 240)
+        val placement =
+            calculateTaigaHoverPopupPlacement(target, size, java.awt.Rectangle(0, 0, 1200, 800), 12)
+        assertEquals(TaigaHoverPointerSide.RIGHT, placement.pointerSide)
+        assertTrue(placement.location.x + size.width < target.x)
+    }
+
+    fun testHoverPlacementFallsBelowOnNarrowScreens() {
+        val target = java.awt.Rectangle(230, 40, 70, 20)
+        val size = java.awt.Dimension(370, 220)
+        val placement =
+            calculateTaigaHoverPopupPlacement(target, size, java.awt.Rectangle(0, 0, 450, 700), 12)
+        assertEquals(TaigaHoverPointerSide.NONE, placement.pointerSide)
+        assertTrue(placement.location.y >= target.y + target.height)
+    }
+
+    fun testHoverPointerUsesTransparentGutterOutsideTheCard() {
+        val owner = directive()
+        val member = owner.focusedMember(owner.entity.inputs.first(), TaigaApiMemberKind.INPUT)
+        val panel = TaigaQuickDocumentationPopupPanel(member, hoverPointer = true)
+        panel.alignHoverPointer(140)
+        panel.size = panel.preferredSize
+        panel.doLayout()
+        val image = java.awt.image.BufferedImage(panel.width, panel.height, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+        val graphics = image.createGraphics()
+        try {
+            panel.paint(graphics)
+        } finally {
+            graphics.dispose()
+        }
+        assertEquals(0, image.getRGB(3, 3) ushr 24)
+        assertEquals(panel.background.rgb, image.getRGB(16, 30))
+    }
+
     fun testHostDirectiveDescriptionsEnrichOnlyInstalledMembersAndKeepLocalTypes() {
         val original = directive()
         val appearanceOwner = TaigaDocumentationSubject(null, "TuiAppearance", "@taiga-ui/core")
