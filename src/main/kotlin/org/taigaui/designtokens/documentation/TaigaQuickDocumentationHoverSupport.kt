@@ -234,22 +234,43 @@ internal class TaigaQuickDocumentationHoverController(
             val resolved = request?.let { resolveDocumentation(it.documentationRequest, snapshot) }
             if (request != null && snapshot == null) project.service<TaigaDocsService>().warmUp(request.sourceFile)
             withContext(Dispatchers.EDT) {
-                if ((!pinned || candidate.explicit) && pendingKey == candidate.key) {
-                    if (candidate.explicit && request != null && resolved != null && request.isStillCurrent(project)) {
-                        showExplicit(request, resolved, refreshing)
-                    } else if (refreshing) {
-                        popupContent?.showRefreshFailure()
-                    } else if (request == null) {
-                        underline.clear()
-                        if (popup?.isVisible == true) scheduleHide() else clearHover()
-                    } else if (!request.isStillCurrent(project) || (snapshot != null && resolved == null)) {
-                        clearHover()
-                    } else {
-                        handleRequest(request, resolved)
-                    }
-                }
+                publishResolution(candidate, request, resolved, snapshot != null, refreshing)
             }
         }
+
+    private fun publishResolution(
+        candidate: TaigaDocumentationHoverCandidate,
+        request: TaigaQuickDocumentationHoverRequest?,
+        resolved: TaigaResolvedDocumentation?,
+        hasSnapshot: Boolean,
+        refreshing: Boolean,
+    ) {
+        if (pendingKey != candidate.key || (pinned && !candidate.explicit)) return
+        if (candidate.explicit) {
+            publishExplicitResolution(request, resolved, refreshing)
+            return
+        }
+        when {
+            request == null -> {
+                underline.clear()
+                if (popup?.isVisible == true) scheduleHide() else clearHover()
+            }
+            !request.isStillCurrent(project) || (hasSnapshot && resolved == null) -> clearHover()
+            else -> handleRequest(request, resolved)
+        }
+    }
+
+    private fun publishExplicitResolution(
+        request: TaigaQuickDocumentationHoverRequest?,
+        resolved: TaigaResolvedDocumentation?,
+        refreshing: Boolean,
+    ) {
+        if (request != null && resolved != null && request.isStillCurrent(project)) {
+            showExplicit(request, resolved, refreshing)
+        } else if (refreshing) {
+            popupContent?.showRefreshFailure()
+        }
+    }
 
     private fun showExplicit(
         request: TaigaQuickDocumentationHoverRequest,
