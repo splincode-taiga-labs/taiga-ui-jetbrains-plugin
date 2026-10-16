@@ -12,6 +12,7 @@ internal data class TaigaPipeParameter(
     val type: String?,
     val optional: Boolean,
     val description: String? = null,
+    val variadic: Boolean = false,
 )
 
 internal data class TaigaPipeDocumentation(
@@ -112,6 +113,7 @@ internal object TaigaLocalDocumentationParser {
             name = match.groupValues[1],
             type = match.groupValues[3].trim().takeIf(String::isNotBlank),
             optional = match.groupValues[2] == "?" || DEFAULT_ASSIGNMENT.containsMatchIn(match.groupValues[3]),
+            variadic = text.trim().startsWith("..."),
         )
     }
 
@@ -127,6 +129,9 @@ internal object TaigaLocalDocumentationParser {
         }
     }
 }
+
+internal val TaigaPipeParameter.presentationName: String
+    get() = (if (variadic) "..." else "") + name + if (optional) "?" else ""
 
 internal fun splitTypeScriptParameters(text: String): List<String> {
     val result = mutableListOf<String>()

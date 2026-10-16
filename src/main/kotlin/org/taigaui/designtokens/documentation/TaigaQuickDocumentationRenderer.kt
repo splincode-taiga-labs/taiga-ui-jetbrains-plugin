@@ -85,7 +85,7 @@ internal object TaigaQuickDocumentationRenderer {
                 "Parameters:",
                 parameters.joinToString("<br>") { parameter ->
                     listOf(
-                        "<code>${parameter.name.html()}</code>",
+                        "<code>${parameter.presentationName.html()}</code>",
                         parameter.type.orEmpty().html(),
                         parameter.description.orEmpty().html(),
                     ).joinToString("&nbsp;&nbsp;")

@@ -1,6 +1,8 @@
 package org.taigaui.designtokens.documentation
 
+import com.intellij.lang.injection.InjectedLanguageManager
 import com.intellij.openapi.components.service
+import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.platform.backend.documentation.impl.computeDocumentationBlocking
 import com.intellij.psi.PsiDocumentManager
@@ -52,7 +54,10 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
         assertTrue(requireNotNull(html).contains("TuiButton"))
         assertTrue(requireNotNull(html).contains("Directive"))
         assertTrue(requireNotNull(html).contains("@taiga-ui/core"))
-        assertTrue(requireNotNull(html).contains("&lt;button tuiButton&gt;Save&lt;/button&gt;"))
+        assertTrue(
+            "Expected the canonical documentation example: $html",
+            requireNotNull(html).contains(StringUtil.escapeXmlEntities("<button tuiButton>Save</button>")),
+        )
         assertTrue(!requireNotNull(html).contains("Current"))
     }
 
@@ -201,13 +206,15 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
 
         val html = renderDocumentation(file, "tuiMapper")
 
-        assertNotNull(html)
+        assertNotNull(if (html == null) pipeDiagnostics(file) else "", html)
         assertTrue(requireNotNull(html).contains("TuiMapperPipe"))
         assertTrue(requireNotNull(html).contains("Pipe"))
         assertTrue(requireNotNull(html).contains("@taiga-ui/cdk"))
         assertTrue(requireNotNull(html).contains("Parameters"))
-        assertTrue(requireNotNull(html).contains("mapper(value, ...args)"))
-        assertTrue(requireNotNull(html).contains("Pure pipe"))
+        assertTrue(requireNotNull(html).contains("Result"))
+        assertTrue(requireNotNull(html).contains("...args"))
+        assertFalse(requireNotNull(html).contains("Pure pipe"))
+        assertPipeRange(file)
     }
 
     @Test
@@ -231,9 +238,38 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
 
         val html = renderDocumentation(file, "tuiMapper")
 
-        assertNotNull(html)
+        assertNotNull(if (html == null) pipeDiagnostics(file) else "", html)
         assertTrue(requireNotNull(html).contains("TuiMapperPipe"))
         assertTrue(requireNotNull(html).contains("Parameters"))
+        assertPipeRange(file)
+    }
+
+    private fun assertPipeRange(file: PsiFile) {
+        runInEdtAndWait {
+            val start = file.text.indexOf("tuiMapper")
+            val request = TaigaDocumentationResolver.findRequest(file, start + 3)
+
+            assertNotNull(request)
+            assertEquals(start, requireNotNull(request).startOffset)
+            assertEquals(start + "tuiMapper".length, request.endOffset)
+        }
+    }
+
+    private fun pipeDiagnostics(file: PsiFile): String {
+        val offset = file.text.indexOf("tuiMapper") + 3
+        val element = requireNotNull(file.findElementAt(offset))
+        val candidate =
+            InjectedLanguageManager
+                .getInstance(project)
+                .findInjectedElementAt(file, offset) ?: element
+        val candidateFile = candidate.containingFile
+        val candidateOffset = if (candidateFile == file) offset else candidate.textOffset
+        val declaration = candidate.resolveTaigaDeclaration(candidateFile, candidateOffset)
+
+        return "Host=${element.javaClass.name}, candidate=${candidate.javaClass.name}, " +
+            "references=${candidate.candidateReferences(candidateFile, candidateOffset)}, " +
+            "declaration=${declaration?.javaClass?.name}: ${declaration?.text?.take(1_500)}, " +
+            "local=${declaration?.localDocumentation(null)}"
     }
 
     @Test
@@ -296,6 +332,7 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
     }
 
     private fun warmDocumentation(file: PsiFile) {
+        project.service<TaigaDocsService>().invalidate(docsSource.majorVersion)
         assertTrue("Test documentation cache must be writable", docsCache.write(docsSource, docsFixture()))
         val path = Path.of(requireNotNull(file.virtualFile).path)
 
@@ -327,6 +364,7 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
               "private": true,
               "dependencies": {
                 "@angular/core": "17.3.0",
+                "@taiga-ui/cdk": "5.18.0",
                 "@taiga-ui/core": "5.18.0"
               }
             }
@@ -360,6 +398,7 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
                 standalone?: boolean;
             }
             export declare function Pipe(metadata: PipeMetadata): ClassDecorator;
+            export interface ɵɵPipeDeclaration<T, Name extends string, Standalone extends boolean> {}
             """.trimIndent(),
         )
         createFile(
@@ -382,17 +421,15 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
     private fun configureTaigaPackage() {
         createFile(
             workspaceRoot.resolve("node_modules/@taiga-ui/cdk/package.json"),
-            """{"name":"@taiga-ui/cdk","version":"5.18.0","types":"index.ts"}""",
+            """{"name":"@taiga-ui/cdk","version":"5.18.0","types":"index.d.ts"}""",
         )
         createFile(
-            workspaceRoot.resolve("node_modules/@taiga-ui/cdk/index.ts"),
+            workspaceRoot.resolve("node_modules/@taiga-ui/cdk/index.d.ts"),
             """
-            import {Pipe} from '@angular/core';
-            @Pipe({name: 'tuiMapper', standalone: true})
-            export class TuiMapperPipe {
-                transform<T extends unknown[], U, G>(value: U, mapper: (value: U, ...args: T) => G, ...args: T): G {
-                    return mapper(value, ...args);
-                }
+            import * as i0 from '@angular/core';
+            export declare class TuiMapperPipe {
+                transform<T extends unknown[], U, G>(value: U, mapper: (value: U, ...args: T) => G, ...args: T): G;
+                static ɵpipe: i0.ɵɵPipeDeclaration<TuiMapperPipe, "tuiMapper", true>;
             }
             """.trimIndent(),
         )
