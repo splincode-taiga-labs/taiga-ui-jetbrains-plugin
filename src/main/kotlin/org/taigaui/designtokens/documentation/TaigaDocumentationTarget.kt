@@ -141,6 +141,8 @@ internal val TaigaResolvedDocumentation.badge: String
                     entity.kind == TaigaDocKind.TYPE -> "Type"
                     subject.selector?.startsWith("tui-") == true -> "Component"
                     subject.selector != null -> "Directive"
+                    entity.selectors.any { selector -> selector.startsWith("tui-") } -> "Component"
+                    entity.selectors.isNotEmpty() -> "Directive"
                     else -> entity.kind.displayName()
                 }
         }
