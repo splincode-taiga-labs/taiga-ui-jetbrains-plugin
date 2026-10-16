@@ -2,9 +2,9 @@ package org.taigaui.designtokens.documentation
 
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
+import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiPolyVariantReference
 import com.intellij.psi.PsiReference
-import com.intellij.psi.PsiManager
 
 internal fun PsiElement.candidateReferences(
     file: PsiFile,
