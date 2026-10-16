@@ -134,9 +134,13 @@ class TaigaQuickDocumentationUxTest : TaigaDocumentationPopupTestCase() {
     fun testLongSharedBindingCardsFitLightAndDarkThemes() {
         val owner = directive()
         val type = "VeryLongInstalledInputType | ".repeat(30) + "string"
+        val property =
+            owner.entity.inputs
+                .first()
+                .copy(documentedType = type)
         val first =
             owner.focusedMember(owner.entity.inputs.first(), TaigaApiMemberKind.INPUT).copy(
-                property = owner.entity.inputs.first().copy(documentedType = type),
+                property = property,
             )
         val secondSubject = first.subject.copy(publicSymbol = "TuiOtherReceiver")
         val second = first.copy(subject = secondSubject)
