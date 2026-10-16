@@ -97,28 +97,16 @@ internal class TaigaQuickDocumentationPopupPanel(
         contextStatus.isVisible = false
         content.add(contextStatus)
         if (compactHover) {
-            resolved.description?.takeIf(String::isNotBlank)?.let { description ->
-                content.add(Box.createVerticalStrut(JBUI.scale(8)))
-                content.add(wrappedLabel(description.take(MAX_HOVER_DESCRIPTION_LENGTH), COMPACT_CONTENT_WIDTH - 24))
-            }
-            if (resolved is TaigaResolvedDocumentation.Member) {
-                resolved.typeText?.takeIf(String::isNotBlank)?.let { type ->
-                    content.add(Box.createVerticalStrut(JBUI.scale(8)))
-                    content.add(wrappedLabel(type.take(MAX_HOVER_TYPE_LENGTH), COMPACT_CONTENT_WIDTH - 24))
-                }
-            }
-            content.add(Box.createVerticalStrut(JBUI.scale(10)))
-            content.add(meta())
-            if (resolved.documentationIcons.isNotEmpty()) content.add(previewContent)
+            content.addCompactHoverContent(resolved, meta(), previewContent)
         } else {
             content.add(meta())
             resolved.description
                 ?.takeIf(String::isNotBlank)
                 ?.takeUnless { it == resolved.typeText }
                 ?.let { description ->
-                content.add(Box.createVerticalStrut(JBUI.scale(12)))
-                content.add(descriptionSection(description))
-            }
+                    content.add(Box.createVerticalStrut(JBUI.scale(12)))
+                    content.add(descriptionSection(description))
+                }
             content.add(Box.createVerticalStrut(JBUI.scale(14)))
             when (val documentation = resolved) {
                 is TaigaResolvedDocumentation.Entity -> content.add(entityContent(documentation))
@@ -148,7 +136,7 @@ internal class TaigaQuickDocumentationPopupPanel(
                     )
             }
         add(scroll, BorderLayout.CENTER)
-        add(if (compactHover) compactFooter() else footer(), BorderLayout.SOUTH)
+        add(if (compactHover) compactDocumentationFooter(actions) else footer(), BorderLayout.SOUTH)
         keyboardButtons(this)
     }
 
@@ -595,27 +583,6 @@ internal class TaigaQuickDocumentationPopupPanel(
         content.add(Box.createVerticalStrut(JBUI.scale(12)))
     }
 
-    private fun compactFooter(): JComponent =
-        verticalPanel().apply {
-            add(Box.createVerticalStrut(JBUI.scale(10)))
-            add(JSeparator())
-            add(Box.createVerticalStrut(JBUI.scale(8)))
-            val links =
-                JPanel().apply {
-                    layout = BoxLayout(this, BoxLayout.X_AXIS)
-                    isOpaque = false
-                    alignmentX = LEFT_ALIGNMENT
-                }
-            actions.openFullCard?.let { open ->
-                links.add(link("Quick Documentation →", open))
-            }
-            actions.navigateToSource?.let { navigate ->
-                if (links.componentCount > 0) links.add(Box.createHorizontalStrut(JBUI.scale(14)))
-                links.add(link("Go to source ↗", navigate))
-            }
-            add(links)
-        }
-
     private fun footer(): JComponent =
         verticalPanel().apply {
             add(JSeparator())
@@ -690,6 +657,48 @@ internal class TaigaQuickDocumentationPopupPanel(
             add(secondaryContent)
         }
 }
+
+private fun JPanel.addCompactHoverContent(
+    resolved: TaigaResolvedDocumentation,
+    metadata: JComponent,
+    previews: JPanel,
+) {
+    resolved.description?.takeIf(String::isNotBlank)?.let { description ->
+        add(Box.createVerticalStrut(JBUI.scale(8)))
+        add(wrappedLabel(description.take(MAX_HOVER_DESCRIPTION_LENGTH), COMPACT_CONTENT_WIDTH - 24))
+    }
+    if (resolved is TaigaResolvedDocumentation.Member) {
+        resolved.typeText?.takeIf(String::isNotBlank)?.let { type ->
+            add(Box.createVerticalStrut(JBUI.scale(8)))
+            add(wrappedLabel(type.take(MAX_HOVER_TYPE_LENGTH), COMPACT_CONTENT_WIDTH - 24))
+        }
+    }
+    add(Box.createVerticalStrut(JBUI.scale(10)))
+    add(metadata)
+    if (resolved.documentationIcons.isNotEmpty()) add(previews)
+}
+
+private fun compactDocumentationFooter(actions: TaigaDocumentationPopupActions): JComponent =
+    verticalPanel().apply {
+        add(Box.createVerticalStrut(JBUI.scale(10)))
+        add(JSeparator())
+        add(Box.createVerticalStrut(JBUI.scale(8)))
+        val links =
+            JPanel().apply {
+                layout = BoxLayout(this, BoxLayout.X_AXIS)
+                isOpaque = false
+                alignmentX = LEFT_ALIGNMENT
+            }
+        actions.openFullCard?.let { open ->
+            links.add(link("Quick Documentation →", open))
+        }
+        actions.navigateToSource?.let { navigate ->
+            if (links.componentCount > 0) links.add(Box.createHorizontalStrut(JBUI.scale(14)))
+            links.add(link("Go to source ↗", navigate))
+        }
+        add(links)
+    }
+
 
 private fun table(
     rows: List<Pair<String, String>>,
