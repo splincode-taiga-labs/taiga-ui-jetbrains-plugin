@@ -87,6 +87,7 @@ internal class TaigaDocumentationBindingEditor(
     private val document: Document,
     private val binding: TaigaDocumentationBinding,
     private val values: List<String>,
+    private val isContextCurrent: () -> Boolean = { true },
 ) : Disposable {
     private var marker = document.createRangeMarker(binding.startOffset, binding.endOffset)
     private val context = binding.context.map { it to document.createRangeMarker(it.startOffset, it.endOffset) }
@@ -103,6 +104,10 @@ internal class TaigaDocumentationBindingEditor(
             .writeCommandAction(project)
             .withName("Change Taiga UI ${binding.name}")
             .run<RuntimeException> {
+                if (!isContextCurrent()) {
+                    result = STALE_DOCUMENTATION_MESSAGE
+                    return@run
+                }
                 val unchangedContext =
                     context.all { (original, range) -> matchesRange(range, original.text) }
                 if (unchangedContext && matchesRange(marker, expected)) {

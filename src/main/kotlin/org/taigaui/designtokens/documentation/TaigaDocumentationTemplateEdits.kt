@@ -160,6 +160,7 @@ internal class TaigaDocumentationTemplateEditor(
     private val project: Project,
     private val document: Document,
     element: TaigaDocumentationElement,
+    private val isContextCurrent: () -> Boolean = { true },
     private val moveCaret: (Int) -> Unit = {},
 ) : Disposable {
     private var marker = document.createRangeMarker(element.startOffset, element.endOffset)
@@ -178,6 +179,10 @@ internal class TaigaDocumentationTemplateEditor(
         if (!PUBLIC_BINDING_NAME.matches(edit.name)) return "Unsupported binding name"
         var result = "Element changed; reopen its card before applying"
         WriteCommandAction.writeCommandAction(project).withName(edit.label).run<RuntimeException> {
+            if (!isContextCurrent()) {
+                result = STALE_DOCUMENTATION_MESSAGE
+                return@run
+            }
             if (matches(marker, expected)) {
                 result =
                     when (edit.kind) {

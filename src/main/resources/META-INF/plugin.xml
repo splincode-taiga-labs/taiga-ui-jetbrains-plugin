@@ -72,6 +72,18 @@
     <depends>AngularJS</depends>
     <depends>com.intellij.css</depends>
 
+    <actions>
+        <action
+            id="TaigaUI.ShowDocumentationCard"
+            class="org.taigaui.designtokens.documentation.TaigaShowDocumentationCardAction"
+            text="Show Taiga UI Card"
+            description="Open the interactive Taiga UI API card at the caret"
+        >
+            <keyboard-shortcut keymap="$default" first-keystroke="alt shift Q" />
+            <add-to-group group-id="EditorPopupMenu" anchor="last" />
+        </action>
+    </actions>
+
     <extensions defaultExtensionNs="com.intellij">
         <applicationConfigurable
             id="org.taigaui.designtokens.settings"

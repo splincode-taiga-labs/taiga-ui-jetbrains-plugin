@@ -1,13 +1,16 @@
 package org.taigaui.designtokens.documentation
 
+import com.intellij.openapi.actionSystem.ActionPlaces
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.CommonDataKeys
+import com.intellij.openapi.actionSystem.DataContext
+import com.intellij.openapi.editor.ex.EditorSettingsExternalizable
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBTextField
 import com.intellij.ui.components.labels.LinkLabel
-import org.taigaui.designtokens.icons.IconSvgPreviewRenderer
-import org.taigaui.designtokens.icons.IconSvgSource
 import java.awt.Component
 import java.awt.Container
 import java.awt.Dimension
@@ -21,6 +24,8 @@ import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JTabbedPane
 import javax.swing.KeyStroke
+import org.taigaui.designtokens.icons.IconSvgPreviewRenderer
+import org.taigaui.designtokens.icons.IconSvgSource
 
 class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
     fun testDirectiveCardShowsParametersImmediatelyWithoutDuplicateMarkup() {
@@ -276,6 +281,101 @@ class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
         descendants(panel).filterIsInstance<JButton>().first { it.text == "m" }.doClick()
         assertTrue(labelText(panel).contains("Copied 'm'"))
         assertTrue(member.localValues().isEmpty())
+    }
+
+    fun testKeyboardReachesPinSourceApiAndCloseActions() {
+        var pinned = false
+        var source = false
+        var api = false
+        var closed = false
+        val panel = TaigaQuickDocumentationPopupPanel(
+            directive(),
+            onClose = { closed = true },
+            actions = TaigaDocumentationPopupActions(
+                togglePin = { pinned = true },
+                navigateToSource = { source = true },
+                openOwner = { api = true },
+            ),
+        )
+        assertTrue(panel.isFocusCycleRoot)
+        assertEquals("Pin", (panel.preferredFocus as? JButton)?.text)
+        activate(panel.preferredFocus, "ENTER")
+        assertTrue(pinned)
+        val links = descendants(panel).filterIsInstance<LinkLabel<*>>()
+        val sourceLink = links.first { it.text == "Source ↗" }
+        assertTrue(sourceLink.isFocusable)
+        activate(sourceLink, "ENTER")
+        activate(links.first { it.text == "Browse API →" }, "SPACE")
+        assertTrue(source)
+        assertTrue(api)
+        activate(panel, "ESCAPE")
+        assertTrue(closed)
+    }
+
+    fun testStaleCardBlocksIconWritesAndKeepsCopyAndKeyboardRefresh() {
+        val entity = directive()
+        val member = TaigaResolvedDocumentation.Member(
+            entity.entity,
+            entity.subject.copy(localDocumentation = TaigaLocalDocumentation(inputTypes = mapOf("size" to "'s' | 'm'"))),
+            0,
+            4,
+            null,
+            entity.entity.inputs.first(),
+            TaigaApiMemberKind.INPUT,
+            binding = TaigaDocumentationBinding("size", 0, 8, "size=\"s\"", 6, 7, "s", false),
+            icons = listOf(TaigaDocumentationIcon("size", "@tui.eye", 0, 8)),
+        )
+        var writes = 0
+        var refreshed = false
+        val panel = TaigaQuickDocumentationPopupPanel(
+            member,
+            actions = TaigaDocumentationPopupActions(
+                chooseIcon = { writes++ },
+                applyValue = { writes++; "Applied $it" },
+                refresh = { refreshed = true },
+            ),
+        )
+        panel.invalidateContext()
+        val buttons = descendants(panel).filterIsInstance<JButton>()
+        val chooser = buttons.first { it.text == "Choose icon" }
+        assertFalse(chooser.isEnabled)
+        activate(chooser, "ENTER")
+        activate(buttons.first { it.text == "m" }, "ENTER")
+        assertEquals(0, writes)
+        assertTrue(labelText(panel).contains("Copied 'm'"))
+        assertTrue(labelText(panel).contains("Code changed"))
+        activate(panel, "F5")
+        assertTrue(refreshed)
+        renderAndSave(panel, "stale-binding")
+    }
+
+    fun testCardKeyboardActionDoesNotRequireMouseHoverSetting() {
+        myFixture.configureByText("component.html", "<button tuiButton>Save</button>")
+        val action = TaigaShowDocumentationCardAction()
+        val context = DataContext { id ->
+            when (id) {
+                CommonDataKeys.PROJECT.name -> project
+                CommonDataKeys.EDITOR.name -> myFixture.editor
+                CommonDataKeys.PSI_FILE.name -> myFixture.file
+                else -> null
+            }
+        }
+        val event = AnActionEvent.createFromAnAction(action, null, ActionPlaces.UNKNOWN, context)
+        val settings = EditorSettingsExternalizable.getInstance()
+        val previous = settings.isShowQuickDocOnMouseOverElement
+        try {
+            settings.isShowQuickDocOnMouseOverElement = false
+            action.update(event)
+            assertTrue(event.presentation.isEnabled)
+        } finally {
+            settings.isShowQuickDocOnMouseOverElement = previous
+        }
+    }
+
+    private fun activate(component: JComponent, key: String) {
+        val name = component.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).get(KeyStroke.getKeyStroke(key))
+        assertNotNull("Missing keyboard action: $key", name)
+        component.actionMap.get(name).actionPerformed(ActionEvent(component, ActionEvent.ACTION_PERFORMED, name.toString()))
     }
 
     fun testRenderNativeCardsForVisualReview() {
