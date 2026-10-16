@@ -18,6 +18,7 @@ internal enum class TaigaDocsLoadOrigin {
 internal data class TaigaDocsLoadResult(
     val index: TaigaDocsIndex,
     val origin: TaigaDocsLoadOrigin,
+    val refreshRecommended: Boolean = false,
 )
 
 internal class TaigaDocsRepository(
@@ -37,6 +38,7 @@ internal class TaigaDocsRepository(
                 TaigaDocsLoadResult(
                     index = index,
                     origin = TaigaDocsLoadOrigin.DISK_CACHE,
+                    refreshRecommended = !cache.isFresh(source, CACHE_FRESHNESS),
                 )
             }
 
@@ -58,6 +60,8 @@ internal class TaigaDocsRepository(
 
     fun invalidate(source: TaigaDocsSource): Boolean = cache.invalidate(source)
 }
+
+private val CACHE_FRESHNESS: Duration = Duration.ofHours(6)
 
 private class HttpTaigaDocsFetcher : TaigaDocsFetcher {
     private val client =
