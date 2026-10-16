@@ -670,7 +670,6 @@ private fun link(
         font = font.deriveFont(Font.PLAIN)
         isFocusable = true
         bind("ENTER", "activate-taiga-link", action)
-        bind("SPACE", "activate-taiga-link-space", action)
     }
 
 private fun wrappedLabel(

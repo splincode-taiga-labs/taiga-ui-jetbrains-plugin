@@ -17,6 +17,7 @@ import java.awt.Component
 import java.awt.Container
 import java.awt.Dimension
 import java.awt.event.ActionEvent
+import java.awt.event.KeyEvent
 import java.awt.image.BufferedImage
 import java.nio.file.Files
 import java.nio.file.Path
@@ -286,7 +287,7 @@ class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
     fun testKeyboardReachesPinSourceApiAndCloseActions() {
         var pinned = false
         var source = false
-        var api = false
+        var api = 0
         var closed = false
         val panel =
             TaigaQuickDocumentationPopupPanel(
@@ -296,7 +297,7 @@ class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
                     TaigaDocumentationPopupActions(
                         togglePin = { pinned = true },
                         navigateToSource = { source = true },
-                        openOwner = { api = true },
+                        openOwner = { api++ },
                     ),
             )
         assertTrue(panel.isFocusCycleRoot)
@@ -309,7 +310,7 @@ class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
         activate(sourceLink, "ENTER")
         activate(links.first { it.text == "Browse API →" }, "SPACE")
         assertTrue(source)
-        assertTrue(api)
+        assertEquals("Space must open the API exactly once", 1, api)
         activate(panel, "ESCAPE")
         assertTrue(closed)
     }
@@ -423,6 +424,12 @@ class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
         key: String,
     ) {
         val name = component.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).get(KeyStroke.getKeyStroke(key))
+        if (component is LinkLabel<*> && key == "SPACE") {
+            name?.let { component.actionMap.get(it).actionPerformed(ActionEvent(component, 0, it.toString())) }
+            val event = KeyEvent(component, KeyEvent.KEY_RELEASED, 0, 0, KeyEvent.VK_SPACE, ' ')
+            component.keyListeners.forEach { it.keyReleased(event) }
+            return
+        }
         assertNotNull("Missing keyboard action: $key", name)
         component.actionMap
             .get(
