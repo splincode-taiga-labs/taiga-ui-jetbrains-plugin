@@ -1,6 +1,7 @@
 package org.taigaui.designtokens.documentation
 
 /** Reflows flattened single-element examples for display; the original snapshot stays intact. */
+@Suppress("ReturnCount")
 internal fun formattedDocumentationExample(code: String): String {
     if (code.contains('\n') || code.length < 80) return code
     val element = SINGLE_ELEMENT.matchEntire(code.trim()) ?: return code

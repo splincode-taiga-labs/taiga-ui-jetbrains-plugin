@@ -522,20 +522,9 @@ internal class TaigaQuickDocumentationHoverController(
             )
             if (pinned) pinnedLocation?.let(createdPopup::setLocation)
             createdPopup.moveToFitScreen()
-            if (!request.explicit && !pinned && createdPopup.isVisible) {
-                val target = request.targetAnchor()
-                SwingUtilities.convertPointToScreen(target, request.editor.contentComponent)
-                panel.alignHoverPointer(
-                    target.x - createdPopup.locationOnScreen.x,
-                    createdPopup.locationOnScreen.y >= target.y + request.editor.lineHeight,
-                )
-            }
+            if (!request.explicit && !pinned) request.alignPointer(panel, createdPopup)
             panel.restoreScrollPosition(view.scrollPosition)
-            if (refreshInProgress) {
-                panel.showRefreshProgress(DumbService.isDumb(project))
-            } else if (!request.actionContext.isCurrent()) {
-                panel.invalidateContext()
-            }
+            request.updatePanelStatus(panel, refreshInProgress)
             loadIconPreviews(request, resolved, panel)
         }
     }
@@ -912,6 +901,30 @@ private fun TaigaQuickDocumentationHoverRequest.targetAnchor(): Point {
     val end = editor.offsetToXY(documentationRequest.endOffset)
     if (start.y == end.y) start.x = (start.x + end.x) / 2
     return start
+}
+
+private fun TaigaQuickDocumentationHoverRequest.alignPointer(
+    panel: TaigaQuickDocumentationPopupPanel,
+    popup: JBPopup,
+) {
+    if (!popup.isVisible) return
+    val target = targetAnchor()
+    SwingUtilities.convertPointToScreen(target, editor.contentComponent)
+    panel.alignHoverPointer(
+        target.x - popup.locationOnScreen.x,
+        popup.locationOnScreen.y >= target.y + editor.lineHeight,
+    )
+}
+
+private fun TaigaQuickDocumentationHoverRequest.updatePanelStatus(
+    panel: TaigaQuickDocumentationPopupPanel,
+    refreshing: Boolean,
+) {
+    if (refreshing) {
+        panel.showRefreshProgress(editor.project?.let(DumbService::isDumb) == true)
+    } else if (!actionContext.isCurrent()) {
+        panel.invalidateContext()
+    }
 }
 
 private val TaigaQuickDocumentationHoverRequest.key: TaigaQuickDocumentationHoverKey

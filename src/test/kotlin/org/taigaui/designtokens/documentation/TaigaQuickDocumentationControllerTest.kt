@@ -25,7 +25,6 @@ import com.intellij.ui.UiInterceptors
 import com.intellij.ui.awt.RelativePoint
 import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBTextField
-import com.intellij.ui.components.labels.LinkLabel
 import com.intellij.ui.popup.AbstractPopup
 import com.intellij.util.concurrency.AppExecutorUtil
 import com.intellij.util.ui.UIUtil
@@ -528,9 +527,6 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
     private fun statusPanel(): TaigaDocumentationStatusPanel = documentationField(status(), "panel")
 
     private fun button(text: String): JButton = button(panel(), text)
-
-    private fun link(text: String): LinkLabel<*> =
-        descendants(panel()).filterIsInstance<LinkLabel<*>>().first { it.text == text }
 
     private fun document(path: String) =
         requireNotNull(FileDocumentManager.getInstance().getDocument(myFixture.findFileInTempDir(path)))
