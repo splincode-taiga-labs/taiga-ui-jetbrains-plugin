@@ -371,7 +371,7 @@ internal class TaigaQuickDocumentationHoverController(
         }
     }
 
-    private fun hasInteractiveCard(): Boolean = resolutionStatus.isVisible || popupContent?.hasKeyboardFocus() == true
+    private fun hasInteractiveCard(): Boolean = resolutionStatus.isVisible || popupContent?.hasTaigaHoverKeyboardFocus() == true
 
     private fun handleRequest(
         request: TaigaQuickDocumentationHoverRequest,
@@ -711,7 +711,7 @@ internal class TaigaQuickDocumentationHoverController(
                     delay(HOVER_HIDE_GRACE_PERIOD)
                     hideJob = null
 
-                    if (popupContent?.containsPointer() != true && popupContent?.hasKeyboardFocus() != true) {
+                    if (popupContent?.containsTaigaHoverPointer() != true && popupContent?.hasTaigaHoverKeyboardFocus() != true) {
                         clearHover()
                     }
                 }
