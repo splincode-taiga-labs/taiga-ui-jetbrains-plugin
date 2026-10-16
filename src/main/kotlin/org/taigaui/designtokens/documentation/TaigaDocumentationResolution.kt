@@ -102,7 +102,7 @@ private fun TaigaEntityDoc.installedProperties(
 ): List<TaigaApiProperty> {
     val documented = if (kind == TaigaApiMemberKind.INPUT) inputs else outputs
     return local.members.filter { it.kind == kind }.map { member ->
-        val owner = snapshot?.find(member.declaration)
+        val owner = member.declaration.takeIf { it.packageName != null }?.let { snapshot?.find(it) }
         val ownerProperties = if (kind == TaigaApiMemberKind.INPUT) owner?.inputs else owner?.outputs
         val old =
             documented

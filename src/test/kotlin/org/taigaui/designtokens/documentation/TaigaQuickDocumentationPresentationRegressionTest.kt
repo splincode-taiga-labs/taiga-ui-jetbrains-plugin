@@ -16,6 +16,14 @@ class TaigaQuickDocumentationPresentationRegressionTest : TaigaDocumentationPopu
         assertEquals(formatted, formattedDocumentationExample(formatted))
         val nested = """<button tuiButton [size]="size"><span>Save</span></button>"""
         assertEquals(nested, formattedDocumentationExample(nested))
+        val owner = directive()
+        val panel =
+            TaigaQuickDocumentationPopupPanel(
+                owner.copy(entity = owner.entity.copy(example = TaigaExample("html", code))),
+            )
+        val tabs = descendants(panel).filterIsInstance<JTabbedPane>().single()
+        tabs.selectedIndex = tabs.indexOfTab("Examples")
+        renderAndSave(panel, "formatted-button-example")
     }
 
     fun testAllInputsUseVerticalRowsAndEmptyOutputTabIsHidden() {

@@ -94,7 +94,10 @@ class TaigaQuickDocumentationUxTest : TaigaDocumentationPopupTestCase() {
                 member,
                 actions = TaigaDocumentationPopupActions(showImportFixes = {}),
             )
-        val text = labelText(panel)
+        val text =
+            visibleDescendants(panel).filterIsInstance<JBLabel>().joinToString {
+                it.accessibleContext.accessibleName ?: it.text
+            }
         assertTrue(text.contains("Required input"))
         assertTrue(text.contains("Deprecated"))
         assertTrue(text.contains("Stored value type"))
