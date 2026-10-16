@@ -387,7 +387,16 @@ internal class TaigaQuickDocumentationPopupPanel(
         multiple: Boolean,
     ) {
         val local = receiver.localMember
-        if (multiple) content.add(detail(receiver.ownerName.orEmpty(), receiver.typeText.orEmpty(), copy = true))
+        if (multiple) {
+            content.add(
+                detail(
+                    receiver.ownerName.orEmpty(),
+                    receiver.typeText.orEmpty(),
+                    copy = true,
+                    copyLabel = "Copy type",
+                ),
+            )
+        }
         local?.expandedType?.let { content.add(detail("Expanded type", it, copy = true)) }
         local?.valueType?.let { content.add(detail("Stored value type", it, copy = true)) }
         local?.transform?.let { content.add(detail("Input transform", it, copy = true)) }
@@ -677,11 +686,12 @@ private fun detail(
     title: String,
     value: String,
     copy: Boolean = false,
+    copyLabel: String = "Copy ${title.lowercase()}",
 ): JComponent =
     verticalPanel().apply {
         add(sectionTitle(title))
         add(wrappedLabel(value).apply { font = codeFont() })
-        if (copy) add(copyAction("Copy ${title.lowercase()}", value))
+        if (copy) add(copyAction(copyLabel, value))
         add(Box.createVerticalStrut(JBUI.scale(12)))
     }
 
