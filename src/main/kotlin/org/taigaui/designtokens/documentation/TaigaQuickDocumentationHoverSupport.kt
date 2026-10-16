@@ -1,7 +1,6 @@
 package org.taigaui.designtokens.documentation
 
 import com.intellij.codeInsight.lookup.LookupManager
-import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.components.Service
@@ -24,12 +23,7 @@ import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.ui.popup.JBPopupListener
 import com.intellij.openapi.ui.popup.LightweightWindowEvent
-import com.intellij.openapi.util.text.StringUtil
 import com.intellij.psi.PsiDocumentManager
-import com.intellij.ui.components.JBLabel
-import com.intellij.ui.components.labels.LinkLabel
-import com.intellij.util.ui.JBUI
-import com.intellij.util.ui.UIUtil
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -37,14 +31,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.awt.BorderLayout
 import java.awt.Font
-import java.awt.MouseInfo
 import java.awt.Point
 import java.nio.file.Path
-import javax.swing.Box
-import javax.swing.BoxLayout
-import javax.swing.JPanel
 import javax.swing.SwingUtilities
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -108,8 +97,25 @@ internal class TaigaQuickDocumentationHoverController(
             return
         }
 
+        val service = project.service<TaigaDocsService>()
+        val cachedSnapshot = service.cachedSnapshotFor(request.sourceFile)
+        val cachedResolved = cachedSnapshot?.resolve(request.documentationRequest)
+
+        if (cachedSnapshot != null && cachedResolved == null) {
+            clearHover()
+            return
+        }
+
         cancelScheduledHide()
-        showHoverUnderline(request)
+
+        if (
+            cachedResolved != null ||
+            request.documentationRequest is TaigaDocumentationRequest.Entity
+        ) {
+            showHoverUnderline(request)
+        } else {
+            clearHoverUnderline()
+        }
 
         if (request.key == activeKey) {
             suppressNativeHover(request.editor)
@@ -120,7 +126,7 @@ internal class TaigaQuickDocumentationHoverController(
         hidePopup(restoreNativeHover = false)
         activeKey = request.key
         suppressNativeHover(request.editor)
-        hoverJob = scheduleHover(request)
+        hoverJob = scheduleHover(request, cachedResolved)
     }
 
     fun dismissHover(editor: Editor? = null) {
@@ -144,21 +150,23 @@ internal class TaigaQuickDocumentationHoverController(
         }
     }
 
-    private fun scheduleHover(request: TaigaQuickDocumentationHoverRequest): Job =
+    private fun scheduleHover(
+        request: TaigaQuickDocumentationHoverRequest,
+        cachedResolved: TaigaResolvedDocumentation?,
+    ): Job =
         coroutineScope.launch(Dispatchers.Default + CoroutineName("Taiga UI quick documentation hover")) {
             delay(TAIGA_HOVER_SHOW_DELAY)
 
-            val service = project.service<TaigaDocsService>()
-            val snapshot =
-                service.cachedSnapshotFor(request.sourceFile)
-                    ?: service.snapshotFor(request.sourceFile)
-            val entity = snapshot?.find(request.subject)
-            val subject = entity?.let { resolved -> request.subject.completedFrom(resolved) }
+            val resolved =
+                cachedResolved
+                    ?: project
+                        .service<TaigaDocsService>()
+                        .snapshotFor(request.sourceFile)
+                        ?.resolve(request.documentationRequest)
 
             withContext(Dispatchers.EDT) {
                 if (
-                    entity == null ||
-                    subject == null ||
+                    resolved == null ||
                     activeKey != request.key ||
                     !request.isStillCurrent(project)
                 ) {
@@ -167,14 +175,14 @@ internal class TaigaQuickDocumentationHoverController(
                 }
 
                 hoverJob = null
-                showPopup(request, entity, subject)
+                showHoverUnderline(request)
+                showPopup(request, resolved)
             }
         }
 
     private fun showPopup(
         request: TaigaQuickDocumentationHoverRequest,
-        entity: TaigaEntityDoc,
-        subject: TaigaDocumentationSubject,
+        resolved: TaigaResolvedDocumentation,
     ) {
         if (activeKey != request.key || project.isDisposed || request.editor.isDisposed) {
             return
@@ -184,12 +192,8 @@ internal class TaigaQuickDocumentationHoverController(
 
         val panel =
             TaigaQuickDocumentationPopupPanel(
-                entity = entity,
-                subject = subject,
-                onOpenDocumentation = {
-                    BrowserUtil.browse(entity.documentationUri.toString())
-                    dismissHover(request.editor)
-                },
+                resolved = resolved,
+                onClose = { dismissHover(request.editor) },
             )
         val createdPopup =
             JBPopupFactory
@@ -214,6 +218,7 @@ internal class TaigaQuickDocumentationHoverController(
                         activeKey = null
                         hoverJob = null
                         cancelScheduledHide()
+                        clearHoverUnderline()
                         restoreNativeHover()
                     }
                 }
@@ -271,8 +276,8 @@ internal class TaigaQuickDocumentationHoverController(
 
         if (
             current?.editor === request.editor &&
-            current.startOffset == request.startOffset &&
-            current.endOffset == request.endOffset
+            current.startOffset == request.documentationRequest.startOffset &&
+            current.endOffset == request.documentationRequest.endOffset
         ) {
             return
         }
@@ -294,8 +299,8 @@ internal class TaigaQuickDocumentationHoverController(
             )
         val highlighter =
             request.editor.markupModel.addRangeHighlighter(
-                request.startOffset,
-                request.endOffset,
+                request.documentationRequest.startOffset,
+                request.documentationRequest.endOffset,
                 HighlighterLayer.HYPERLINK,
                 attributes,
                 HighlighterTargetArea.EXACT_RANGE,
@@ -305,8 +310,8 @@ internal class TaigaQuickDocumentationHoverController(
             HoverUnderline(
                 editor = request.editor,
                 highlighter = highlighter,
-                startOffset = request.startOffset,
-                endOffset = request.endOffset,
+                startOffset = request.documentationRequest.startOffset,
+                endOffset = request.documentationRequest.endOffset,
             )
     }
 
@@ -369,19 +374,18 @@ private fun EditorMouseEvent.toTaigaQuickDocumentationHoverRequest(
     }
 
     val file = PsiDocumentManager.getInstance(project).getPsiFile(editor.document) ?: return null
-    val match =
-        ReadAction.compute<TaigaDocumentationMatch?, RuntimeException> {
-            TaigaTemplateDocumentationResolver.findMatch(file, offset)
+    val documentationRequest =
+        ReadAction.compute<TaigaDocumentationRequest?, RuntimeException> {
+            TaigaDocumentationResolver.findRequest(file, offset)
         } ?: return null
     val sourceFile = file.sourcePath() ?: return null
 
     return TaigaQuickDocumentationHoverRequest(
         editor = editor,
+        event = this,
         anchor = Point(mouseEvent.point),
         sourceFile = sourceFile,
-        subject = match.subject,
-        startOffset = match.startOffset,
-        endOffset = match.endOffset,
+        documentationRequest = documentationRequest,
         modificationStamp = editor.document.modificationStamp,
     )
 }
@@ -408,18 +412,17 @@ private val TaigaQuickDocumentationHoverRequest.key: TaigaQuickDocumentationHove
     get() =
         TaigaQuickDocumentationHoverKey(
             editor = editor,
-            startOffset = startOffset,
-            endOffset = endOffset,
+            startOffset = documentationRequest.startOffset,
+            endOffset = documentationRequest.endOffset,
             modificationStamp = modificationStamp,
         )
 
 private data class TaigaQuickDocumentationHoverRequest(
     val editor: Editor,
+    val event: EditorMouseEvent,
     val anchor: Point,
     val sourceFile: Path,
-    val subject: TaigaDocumentationSubject,
-    val startOffset: Int,
-    val endOffset: Int,
+    val documentationRequest: TaigaDocumentationRequest,
     val modificationStamp: Long,
 )
 
@@ -437,148 +440,4 @@ private data class HoverUnderline(
     val endOffset: Int,
 )
 
-private class TaigaQuickDocumentationPopupPanel(
-    entity: TaigaEntityDoc,
-    subject: TaigaDocumentationSubject,
-    onOpenDocumentation: () -> Unit,
-) : JPanel(BorderLayout()) {
-    init {
-        border = JBUI.Borders.empty(12, 16)
-        isOpaque = true
-
-        val content =
-            JPanel().apply {
-                layout = BoxLayout(this, BoxLayout.Y_AXIS)
-                isOpaque = false
-            }
-
-        content.add(
-            JBLabel(subject.presentationName).apply {
-                font = font.deriveFont(font.style or Font.BOLD)
-                alignmentX = LEFT_ALIGNMENT
-            },
-        )
-
-        (subject.packageName ?: entity.packageNames.singleOrNull())?.let { packageName ->
-            content.add(Box.createVerticalStrut(JBUI.scale(2)))
-            content.add(
-                JBLabel(packageName).apply {
-                    foreground = UIUtil.getContextHelpForeground()
-                    alignmentX = LEFT_ALIGNMENT
-                },
-            )
-        }
-
-        entity.description?.takeIf(String::isNotBlank)?.let { description ->
-            content.add(Box.createVerticalStrut(JBUI.scale(10)))
-            content.add(
-                JBLabel(
-                    "<html><div width='${POPUP_TEXT_WIDTH}'>${description.html()}</div></html>",
-                ).apply {
-                    alignmentX = LEFT_ALIGNMENT
-                },
-            )
-        }
-
-        val details = entity.hoverDetails(subject)
-        if (details.isNotEmpty()) {
-            content.add(Box.createVerticalStrut(JBUI.scale(10)))
-
-            details.forEach { (label, value) ->
-                content.add(
-                    JBLabel(
-                        "<html><b>${label.html()}:</b>&nbsp;&nbsp;$value</html>",
-                    ).apply {
-                        alignmentX = LEFT_ALIGNMENT
-                    },
-                )
-                content.add(Box.createVerticalStrut(JBUI.scale(4)))
-            }
-        }
-
-        content.add(Box.createVerticalStrut(JBUI.scale(6)))
-        content.add(
-            LinkLabel<Any>("Open Taiga UI documentation", null) { _, _ ->
-                onOpenDocumentation()
-            }.apply {
-                alignmentX = LEFT_ALIGNMENT
-            },
-        )
-
-        add(content, BorderLayout.CENTER)
-    }
-
-    fun containsPointer(): Boolean {
-        if (!isShowing) {
-            return false
-        }
-
-        val pointer = MouseInfo.getPointerInfo()?.location ?: return false
-        val local = Point(pointer)
-
-        SwingUtilities.convertPointFromScreen(local, this)
-
-        return contains(local)
-    }
-}
-
-private fun TaigaEntityDoc.hoverDetails(
-    subject: TaigaDocumentationSubject,
-): List<Pair<String, String>> =
-    buildList {
-        (subject.selector ?: selectors.singleOrNull())?.let { selector ->
-            add("Selector" to "<code>${selector.html()}</code>")
-        }
-
-        subject.canonicalImport()?.let { statement ->
-            add("Import" to "<code>${statement.html()}</code>")
-        }
-
-        inputs.takeIf(List<TaigaApiProperty>::isNotEmpty)?.let { properties ->
-            add("Inputs" to properties.toCompactApiHtml())
-        }
-
-        outputs.takeIf(List<TaigaApiProperty>::isNotEmpty)?.let { properties ->
-            add("Outputs" to properties.toCompactApiHtml())
-        }
-    }
-
-private fun TaigaDocumentationSubject.canonicalImport(): String? {
-    val symbol = publicSymbol
-    val resolvedPackageName = packageName
-
-    return if (symbol != null && resolvedPackageName != null) {
-        "import {$symbol} from '$resolvedPackageName';"
-    } else {
-        null
-    }
-}
-
-private fun List<TaigaApiProperty>.toCompactApiHtml(): String {
-    val visible = take(MAX_VISIBLE_API_PROPERTIES)
-    val remaining = size - visible.size
-    val rendered =
-        visible.joinToString(",&nbsp; ") { property ->
-            buildString {
-                append("<code>")
-                append(property.name.html())
-                property.documentedType?.let { type ->
-                    append(": ")
-                    append(type.html())
-                }
-                append("</code>")
-            }
-        }
-
-    return if (remaining > 0) {
-        "$rendered <span style='color:gray'>+$remaining more</span>"
-    } else {
-        rendered
-    }
-}
-
-private fun String.html(): String = StringUtil.escapeXmlEntities(this)
-
 private val HOVER_HIDE_GRACE_PERIOD = 250.milliseconds
-private const val POPUP_TEXT_WIDTH = 520
-private const val MAX_VISIBLE_API_PROPERTIES = 4
