@@ -885,17 +885,6 @@ private fun TaigaQuickDocumentationHoverRequest.isStillCurrent(project: Project)
     return projectState && documentState && uiState && actionContext.isCurrent()
 }
 
-private fun TaigaQuickDocumentationHoverRequest.documentationTargetScreenBounds() =
-    editor.documentationTargetScreenBounds(documentationRequest.startOffset, documentationRequest.endOffset)
-
-private fun TaigaQuickDocumentationHoverRequest.popupPlacement(size: Dimension): TaigaHoverPopupPlacement {
-    val target = documentationTargetScreenBounds()
-    if (explicit) {
-        return TaigaHoverPopupPlacement(Point(target.x, target.y + target.height), TaigaHoverPointerSide.NONE)
-    }
-    return taigaHoverPopupPlacementForScreen(target, size)
-}
-
 private fun TaigaQuickDocumentationHoverRequest.completePresentation(
     panel: TaigaQuickDocumentationPopupPanel,
     refreshing: Boolean,
@@ -924,7 +913,18 @@ private data class TaigaQuickDocumentationHoverRequest(
     val modificationStamp: Long,
     val actionContext: TaigaDocumentationActionContext,
     val explicit: Boolean = false,
-)
+) {
+    fun documentationTargetScreenBounds() =
+        editor.documentationTargetScreenBounds(documentationRequest.startOffset, documentationRequest.endOffset)
+
+    fun popupPlacement(size: Dimension): TaigaHoverPopupPlacement {
+        val target = documentationTargetScreenBounds()
+        if (explicit) {
+            return TaigaHoverPopupPlacement(Point(target.x, target.y + target.height), TaigaHoverPointerSide.NONE)
+        }
+        return taigaHoverPopupPlacementForScreen(target, size)
+    }
+}
 
 private data class TaigaQuickDocumentationHoverKey(
     val editor: Editor,
