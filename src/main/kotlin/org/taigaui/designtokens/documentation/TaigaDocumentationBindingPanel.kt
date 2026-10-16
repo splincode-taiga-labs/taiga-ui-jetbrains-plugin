@@ -16,7 +16,8 @@ internal class TaigaDocumentationBindingPanel(
     applyValue: ((String) -> String)?,
     currentValue: String? = null,
 ) : JPanel() {
-    private var canApply = applyValue != null && member.kind == TaigaApiMemberKind.INPUT && member.binding?.literal != null
+    private var canApply =
+        applyValue != null && member.kind == TaigaApiMemberKind.INPUT && member.binding?.literal != null
     private val prompt = JBLabel()
     private val valueButtons = mutableListOf<JButton>()
 
@@ -56,7 +57,7 @@ internal class TaigaDocumentationBindingPanel(
             add(current)
         }
         if (values.isNotEmpty()) {
-            prompt.text = if (canApply) "Choose a value to apply (Shift-click copies)" else "Choose a literal to copy"
+            prompt.text = if (canApply) "Choose a value to apply (Shift-click/Enter copies)" else "Choose a literal to copy"
             add(
                 prompt.apply {
                     alignmentX = LEFT_ALIGNMENT
@@ -72,7 +73,7 @@ internal class TaigaDocumentationBindingPanel(
                                 valueButtons += this
                                 toolTipText =
                                     if (canApply) {
-                                        "Apply $value to the existing binding; Shift-click to copy"
+                                        "Apply $value to the existing binding; Shift-click/Enter to copy"
                                     } else {
                                         "Copy '$value'"
                                     }
@@ -85,10 +86,11 @@ internal class TaigaDocumentationBindingPanel(
                                             current.toolTipText = current.text
                                         }
                                     } else {
-                                        CopyPasteManager.getInstance().setContents(StringSelection("'$value'"))
-                                        status.text = "Copied '$value'"
+                                        copyLiteral(value, status)
                                     }
                                 }
+                                bind("shift ENTER", "copy-taiga-value") { copyLiteral(value, status) }
+                                bind("shift SPACE", "copy-taiga-value-space") { copyLiteral(value, status) }
                             },
                         )
                     }
@@ -104,6 +106,12 @@ internal class TaigaDocumentationBindingPanel(
             }
             add(status)
         }
+    }
+
+    private fun copyLiteral(value: String, status: JBLabel) {
+        CopyPasteManager.getInstance().setContents(StringSelection("'$value'"))
+        status.text = "Copied '$value'"
+        status.toolTipText = status.text
     }
 }
 

@@ -139,7 +139,10 @@ internal class TaigaQuickDocumentationPopupPanel(
 
     fun showRefreshFailure() = invalidateContext("The source target changed. Reopen its card at the caret.")
 
-    private fun sourceButton(text: String, action: () -> Unit): JButton =
+    private fun sourceButton(
+        text: String,
+        action: () -> Unit,
+    ): JButton =
         JButton(text).apply {
             sourceButtons += this
             isEnabled = !contextStatus.isVisible
@@ -149,7 +152,10 @@ internal class TaigaQuickDocumentationPopupPanel(
     private fun firstFocusable(component: java.awt.Container): JComponent? =
         component.components.firstNotNullOfOrNull { child ->
             when {
-                child is JComponent && (child is JButton || child is LinkLabel<*>) && child.isFocusable && child.isEnabled -> child
+                child is JComponent &&
+                    (child is JButton || child is LinkLabel<*>) &&
+                    child.isFocusable &&
+                    child.isEnabled -> child
                 child is java.awt.Container -> firstFocusable(child)
                 else -> null
             }
@@ -267,7 +273,12 @@ internal class TaigaQuickDocumentationPopupPanel(
                 val label = if (member.kind == TaigaApiMemberKind.OUTPUT) "\$event type" else "Type"
                 add(detail(label, it))
             }
-            add(TaigaDocumentationBindingPanel(member, actions.applyValue, actions.currentValue).also { bindingPanel = it })
+            add(
+                TaigaDocumentationBindingPanel(member, actions.applyValue, actions.currentValue).also {
+                    bindingPanel =
+                        it
+                },
+            )
             val declaredRequiredInputs =
                 member.declaration
                     ?.localDocumentation

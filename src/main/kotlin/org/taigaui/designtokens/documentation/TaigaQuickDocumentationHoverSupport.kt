@@ -4,7 +4,6 @@ import com.intellij.codeInsight.lookup.LookupManager
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.ReadAction
-import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.editor.Editor
@@ -20,7 +19,6 @@ import com.intellij.openapi.editor.event.EditorMouseMotionListener
 import com.intellij.openapi.editor.ex.EditorSettingsExternalizable
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.ui.popup.JBPopupListener
@@ -32,13 +30,6 @@ import com.intellij.openapi.vfs.newvfs.events.VFileEvent
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiFile
 import com.intellij.psi.util.PsiModificationTracker
-import java.awt.KeyboardFocusManager
-import java.awt.MouseInfo
-import java.awt.Point
-import java.nio.file.Path
-import javax.swing.JComponent
-import javax.swing.SwingUtilities
-import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -47,9 +38,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.taigaui.designtokens.icons.ICON_PREVIEW_LOGICAL_SIZE
-import org.taigaui.designtokens.icons.IconCompletionService
-import org.taigaui.designtokens.icons.IconSvgPreviewRenderer
+import java.awt.KeyboardFocusManager
+import java.awt.MouseInfo
+import java.awt.Point
+import java.nio.file.Path
+import javax.swing.JComponent
+import javax.swing.SwingUtilities
+import kotlin.time.Duration.Companion.milliseconds
 
 internal class TaigaQuickDocumentationHoverPopupListener :
     EditorMouseListener,
@@ -97,7 +92,7 @@ internal class TaigaQuickDocumentationHoverController(
     private var popup: JBPopup? = null
     private var popupContent: TaigaQuickDocumentationPopupPanel? = null
     private var previewJob: Job? = null
-    private val iconRenderer = IconSvgPreviewRenderer()
+    private val icons = TaigaDocumentationIcons(project, coroutineScope)
     private var resolutionJob: Job? = null
     private var pendingKey: TaigaQuickDocumentationHoverKey? = null
     private var currentRequest: TaigaQuickDocumentationHoverRequest? = null
@@ -147,14 +142,15 @@ internal class TaigaQuickDocumentationHoverController(
         val file = PsiDocumentManager.getInstance(project).getPsiFile(editor.document) ?: return
         dismissHover(force = true)
         val offset = editor.caretModel.offset
-        val candidate = TaigaDocumentationHoverCandidate(
-            file,
-            editor,
-            editor.offsetToXY(offset),
-            offset,
-            TaigaQuickDocumentationHoverKey(editor, offset, offset, editor.document.modificationStamp),
-            explicit = true,
-        )
+        val candidate =
+            TaigaDocumentationHoverCandidate(
+                file,
+                editor,
+                editor.offsetToXY(offset),
+                offset,
+                TaigaQuickDocumentationHoverKey(editor, offset, offset, editor.document.modificationStamp),
+                explicit = true,
+            )
         pendingKey = candidate.key
         resolutionJob = resolveCandidate(candidate)
     }
@@ -168,14 +164,20 @@ internal class TaigaQuickDocumentationHoverController(
             return
         }
         resolutionJob?.cancel()
-        val candidate = TaigaDocumentationHoverCandidate(
-            file,
-            previous.editor,
-            previous.anchor,
-            offset,
-            TaigaQuickDocumentationHoverKey(previous.editor, offset, offset, previous.editor.document.modificationStamp),
-            explicit = true,
-        )
+        val candidate =
+            TaigaDocumentationHoverCandidate(
+                file,
+                previous.editor,
+                previous.anchor,
+                offset,
+                TaigaQuickDocumentationHoverKey(
+                    previous.editor,
+                    offset,
+                    offset,
+                    previous.editor.document.modificationStamp,
+                ),
+                explicit = true,
+            )
         pendingKey = candidate.key
         resolutionJob = resolveCandidate(candidate, refreshing = true)
     }
@@ -217,20 +219,25 @@ internal class TaigaQuickDocumentationHoverController(
         }
     }
 
-    private fun resolveCandidate(candidate: TaigaDocumentationHoverCandidate, refreshing: Boolean = false): Job =
+    private fun resolveCandidate(
+        candidate: TaigaDocumentationHoverCandidate,
+        refreshing: Boolean = false,
+    ): Job =
         coroutineScope.launch(Dispatchers.Default + CoroutineName("Taiga UI documentation PSI resolution")) {
             val request =
-                ReadAction.nonBlocking<TaigaQuickDocumentationHoverRequest?> {
-                    if (project.isDisposed || !candidate.file.isValid) null else candidate.resolveRequest()
-                }.withDocumentsCommitted(project)
+                ReadAction
+                    .nonBlocking<TaigaQuickDocumentationHoverRequest?> {
+                        if (project.isDisposed || !candidate.file.isValid) null else candidate.resolveRequest()
+                    }.withDocumentsCommitted(project)
                     .inSmartMode(project)
                     .expireWith(project)
                     .expireWhen { !isActive || candidate.editor.isDisposed }
                     .executeSynchronously()
-            val snapshot = request?.let {
-                val service = project.service<TaigaDocsService>()
-                if (refreshing) service.snapshotFor(it.sourceFile) else service.cachedSnapshotFor(it.sourceFile)
-            }
+            val snapshot =
+                request?.let {
+                    val service = project.service<TaigaDocsService>()
+                    if (refreshing) service.snapshotFor(it.sourceFile) else service.cachedSnapshotFor(it.sourceFile)
+                }
             val resolved = request?.let { resolveDocumentation(it.documentationRequest, snapshot) }
             if (request != null && snapshot == null) project.service<TaigaDocsService>().warmUp(request.sourceFile)
             withContext(Dispatchers.EDT) {
@@ -286,11 +293,12 @@ internal class TaigaQuickDocumentationHoverController(
         currentRequest = request
         activeKey = request.key
         rememberRefreshTarget(request)
-        val documentation = if (view?.fullApi == true && resolved is TaigaResolvedDocumentation.Member) {
-            resolved.ownerDocumentation()
-        } else {
-            resolved
-        }
+        val documentation =
+            if (view?.fullApi == true && resolved is TaigaResolvedDocumentation.Member) {
+                resolved.ownerDocumentation()
+            } else {
+                resolved
+            }
         showPopup(request, documentation, view?.showExample == true, view?.fullApi == true, view?.query.orEmpty())
         location?.let { popup?.setLocation(it) }
     }
@@ -492,9 +500,12 @@ internal class TaigaQuickDocumentationHoverController(
                     }
                 },
             togglePin = { togglePin(request, resolved, exampleVisible) },
-            applyValue = bindingEditor?.let { editor -> { value: String ->
-                applyCardChange(request) { editor.apply(value) }
-            } },
+            applyValue =
+                bindingEditor?.let { editor ->
+                    { value: String ->
+                        applyCardChange(request) { editor.apply(value) }
+                    }
+                },
             currentValue = bindingEditor?.currentValue,
             chooseIcon = { reference -> chooseIcon(request, reference) },
             openMember = { member ->
@@ -518,7 +529,14 @@ internal class TaigaQuickDocumentationHoverController(
                 templateEditor?.let { adapter ->
                     { edit ->
                         applyCardChange(request) {
-                            val result = if (edit in resolved.templateEdits()) adapter.apply(edit) else "Reopen the card before applying"
+                            val result =
+                                if (edit in
+                                    resolved.templateEdits()
+                                ) {
+                                    adapter.apply(edit)
+                                } else {
+                                    "Reopen the card before applying"
+                                }
                             if (result.startsWith("Replaced")) edit.replacement?.let { refreshTarget?.name = it }
                             result
                         }
@@ -527,7 +545,10 @@ internal class TaigaQuickDocumentationHoverController(
             refresh = ::refreshCard,
         )
 
-    private fun applyCardChange(request: TaigaQuickDocumentationHoverRequest, apply: () -> String): String {
+    private fun applyCardChange(
+        request: TaigaQuickDocumentationHoverRequest,
+        apply: () -> String,
+    ): String {
         if (!request.actionContext.isCurrent()) {
             popupContent?.invalidateContext()
             return STALE_DOCUMENTATION_MESSAGE
@@ -626,7 +647,8 @@ internal class TaigaQuickDocumentationHoverController(
             return
         }
         bindingMember = member
-        bindingEditor = TaigaDocumentationBindingEditor(project, document, binding, values, request.actionContext::isCurrent)
+        bindingEditor =
+            TaigaDocumentationBindingEditor(project, document, binding, values, request.actionContext::isCurrent)
     }
 
     private fun disposeBindingEditor() {
@@ -643,25 +665,13 @@ internal class TaigaQuickDocumentationHoverController(
         val references = resolved.documentationIcons.filter { it.name.isNotEmpty() }.take(2)
         if (references.isEmpty()) return
 
-        previewJob =
-            coroutineScope.launch(Dispatchers.IO + CoroutineName("Taiga UI documentation icon preview")) {
-                val service = project.service<IconCompletionService>()
-                service.loadNow(request.sourceFile)
-                val previews =
-                    references.mapNotNull { reference ->
-                        service
-                            .svgSourceFor(request.sourceFile, reference.name)
-                            ?.let { source -> iconRenderer.render(source, ICON_PREVIEW_LOGICAL_SIZE) }
-                            ?.let { icon -> TaigaDocumentationIconPreview(reference, icon) }
-                    }
-                withContext(Dispatchers.EDT) {
-                    if (popupContent === panel && request.isStillCurrent(project)) {
-                        panel.showIconPreviews(previews)
-                        popup?.setSize(panel.preferredSize)
-                        popup?.moveToFitScreen()
-                    }
-                }
+        previewJob = icons.loadPreviews(request.sourceFile, references) { previews ->
+            if (popupContent === panel && request.isStillCurrent(project)) {
+                panel.showIconPreviews(previews)
+                popup?.setSize(panel.preferredSize)
+                popup?.moveToFitScreen()
             }
+        }
     }
 
     private fun chooseIcon(
@@ -673,48 +683,7 @@ internal class TaigaQuickDocumentationHoverController(
             return
         }
         dismissHover(request.editor, force = true)
-        coroutineScope.launch(Dispatchers.IO + CoroutineName("Taiga UI documentation icon chooser")) {
-            val names = project.service<IconCompletionService>().loadNow(request.sourceFile)
-            withContext(Dispatchers.EDT) {
-                if (request.isStillCurrent(project) && request.actionContext.isCurrent()) {
-                    if (names.isEmpty()) {
-                        Messages.showInfoMessage(project, "No Taiga UI icons were found in this project.", "Taiga UI")
-                    } else {
-                        JBPopupFactory
-                            .getInstance()
-                            .createPopupChooserBuilder(names)
-                            .setTitle("Choose Taiga UI icon")
-                            .setNamerForFiltering { it }
-                            .setItemChosenCallback { name -> replaceIcon(request, reference, name) }
-                            .createPopup()
-                            .showInBestPositionFor(request.editor)
-                    }
-                }
-            }
-        }
-    }
-
-    private fun replaceIcon(
-        request: TaigaQuickDocumentationHoverRequest,
-        reference: TaigaDocumentationIcon,
-        name: String,
-    ) {
-        if (!request.isStillCurrent(project) || !request.editor.document.isWritable) return
-        WriteCommandAction
-            .writeCommandAction(
-                project,
-            ).withName("Change Taiga UI ${reference.attribute} icon")
-            .run<RuntimeException> {
-                if (!request.actionContext.isCurrent()) return@run
-                val document = request.editor.document
-                val current = document.charsSequence
-                if (reference.endOffset <= current.length &&
-                    current.subSequence(reference.startOffset, reference.endOffset).toString() == reference.name
-                ) {
-                    document.replaceString(reference.startOffset, reference.endOffset, name)
-                    PsiDocumentManager.getInstance(project).commitDocument(document)
-                }
-            }
+        icons.showChooser(request.editor, request.sourceFile, reference) { request.isStillCurrent(project) }
     }
 
     private fun scheduleHide() {
@@ -869,9 +838,12 @@ private fun TaigaQuickDocumentationHoverRequest.isStillCurrent(project: Project)
             editor.document.modificationStamp == modificationStamp
     val uiState =
         LookupManager.getInstance(project).activeLookup == null &&
-            (explicit || EditorSettingsExternalizable
-                .getInstance()
-                .isShowQuickDocOnMouseOverElement)
+            (
+                explicit ||
+                    EditorSettingsExternalizable
+                        .getInstance()
+                        .isShowQuickDocOnMouseOverElement
+            )
 
     return projectState && documentState && uiState && actionContext.isCurrent()
 }

@@ -29,16 +29,24 @@ internal class TaigaDocumentationRefreshTarget(
     private val document: Document,
     request: TaigaDocumentationRequest,
 ) : Disposable {
-    private val element = when (request) {
-        is TaigaDocumentationRequest.Entity -> request.element
-        is TaigaDocumentationRequest.Member -> request.element
-    }
-    private val marker = document.createRangeMarker(
-        element?.startOffset ?: request.startOffset,
-        element?.endOffset ?: request.endOffset,
-    )
-    var name: String = (request as? TaigaDocumentationRequest.Member)?.name
-        ?: document.charsSequence.subSequence(request.startOffset, request.endOffset).toString().trim('[', ']', '(', ')')
+    private val element =
+        when (request) {
+            is TaigaDocumentationRequest.Entity -> request.element
+            is TaigaDocumentationRequest.Member -> request.element
+        }
+    private val marker =
+        document.createRangeMarker(
+            element?.startOffset ?: request.startOffset,
+            element?.endOffset ?: request.endOffset,
+        )
+    var name: String =
+        (request as? TaigaDocumentationRequest.Member)?.name
+            ?: document.charsSequence
+                .subSequence(
+                    request.startOffset,
+                    request.endOffset,
+                ).toString()
+                .trim('[', ']', '(', ')')
 
     @Suppress("ReturnCount")
     fun offset(): Int? {
@@ -51,7 +59,12 @@ internal class TaigaDocumentationRefreshTarget(
             return marker.startOffset + 1
         }
         val attribute = Regex("(?:^|\\s)([\\[(]*${Regex.escape(name)}[\\])]*)(?=\\s*=|\\s|/?>)").find(text)
-        return attribute?.groups?.get(1)?.range?.first?.let { marker.startOffset + it + if (text[it] == '[') 1 else 0 }
+        return attribute
+            ?.groups
+            ?.get(1)
+            ?.range
+            ?.first
+            ?.let { marker.startOffset + it + if (text[it] == '[') 1 else 0 }
     }
 
     override fun dispose() = marker.dispose()
