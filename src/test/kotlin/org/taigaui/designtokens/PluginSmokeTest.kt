@@ -18,6 +18,16 @@ class PluginSmokeTest {
         assertTrue(descriptor.contains("independent community plugin for Taiga UI projects"))
         assertTrue(
             descriptor.contains(
+                "<platform.backend.documentation.targetProvider",
+            ),
+        )
+        assertTrue(
+            descriptor.contains(
+                "<platform.backend.documentation.lookupElementTargetProvider",
+            ),
+        )
+        assertTrue(
+            descriptor.contains(
                 "org.taigaui.designtokens.documentation.TaigaQuickDocumentationTargetProvider",
             ),
         )
