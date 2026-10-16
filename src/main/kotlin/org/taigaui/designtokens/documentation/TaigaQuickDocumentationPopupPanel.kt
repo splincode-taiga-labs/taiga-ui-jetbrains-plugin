@@ -16,8 +16,6 @@ import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
-import java.awt.MouseInfo
-import java.awt.Point
 import java.awt.RenderingHints
 import javax.swing.Box
 import javax.swing.BoxLayout
@@ -26,7 +24,6 @@ import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.JSeparator
-import javax.swing.SwingUtilities
 
 internal data class TaigaDocumentationIconPreview(
     val reference: TaigaDocumentationIcon,
@@ -492,15 +489,6 @@ private fun wrappedLabel(
     }
 
 private fun codeFont(): Font = Font(Font.MONOSPACED, Font.PLAIN, UIUtil.getLabelFont().size)
-
-internal fun JComponent.containsPointer(): Boolean =
-    isShowing &&
-        MouseInfo
-            .getPointerInfo()
-            ?.location
-            ?.let(::Point)
-            ?.also { SwingUtilities.convertPointFromScreen(it, this) }
-            ?.let(::contains) ?: false
 
 private val COMPONENT_COLOR = JBColor(Color(123, 62, 174), Color(190, 139, 245))
 private val DIRECTIVE_COLOR = JBColor(Color(0, 115, 120), Color(97, 215, 208))

@@ -189,6 +189,7 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
         return html
     }
 
+    @Test
     fun testShowsInstalledPipeInAngularInterpolation() {
         val file = configureTemplate("<div>{{ value | tuiMapper : mapper }}</div>")
         warmDocumentation(file)
@@ -205,6 +206,33 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
         assertTrue(requireNotNull(html).contains("Pure pipe"))
     }
 
+    @Test
+    fun testShowsInstalledPipeInInlineTemplate() {
+        val file =
+            configureTypeScript(
+                """
+                import {Component} from '@angular/core';
+                import {TuiMapperPipe} from '@taiga-ui/cdk';
+                @Component({
+                    selector: 'inline-example',
+                    standalone: true,
+                    imports: [TuiMapperPipe],
+                    template: '<div>{{ value | tuiMapper : mapper }}</div>',
+                })
+                export class InlineExampleComponent {}
+                """.trimIndent(),
+            )
+        warmDocumentation(file)
+        myFixture.doHighlighting()
+
+        val html = renderDocumentation(file, "tuiMapper")
+
+        assertNotNull(html)
+        assertTrue(requireNotNull(html).contains("TuiMapperPipe"))
+        assertTrue(requireNotNull(html).contains("Parameters"))
+    }
+
+    @Test
     fun testDoesNotClaimUnknownOrNativePipes() {
         val file = configureTemplate("<div>{{ value | tuiUnknownPipe }} {{ value | async }}</div>")
         warmDocumentation(file)
@@ -213,6 +241,7 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
         assertNull(renderDocumentation(file, "async"))
     }
 
+    @Test
     fun testPreviewsOnlyStaticIconBindings() {
         val file = configureTemplate("<button tuiButton [iconEnd]=\"'@tui.eye'\">Save</button>")
         warmDocumentation(file)
@@ -315,12 +344,18 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
             export interface ComponentMetadata {
                 selector?: string;
                 templateUrl?: string;
+                template?: string;
                 standalone?: boolean;
                 imports?: unknown[];
             }
 
             export declare function Component(metadata: ComponentMetadata): ClassDecorator;
-            export declare function Pipe(metadata: {name: string; pure?: boolean; standalone?: boolean}): ClassDecorator;
+            export interface PipeMetadata {
+                name: string;
+                pure?: boolean;
+                standalone?: boolean;
+            }
+            export declare function Pipe(metadata: PipeMetadata): ClassDecorator;
             """.trimIndent(),
         )
         createFile(
