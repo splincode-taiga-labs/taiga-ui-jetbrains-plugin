@@ -111,13 +111,12 @@ internal class TaigaQuickDocumentationPopupPanel(
             content.add(meta())
             if (resolved.documentationIcons.isNotEmpty()) content.add(previewContent)
         } else {
-        content.add(meta())
+            content.add(meta())
             resolved.description?.takeIf(String::isNotBlank)?.takeUnless { it == resolved.typeText }?.let { description ->
                 content.add(Box.createVerticalStrut(JBUI.scale(12)))
                 content.add(descriptionSection(description))
             }
             content.add(Box.createVerticalStrut(JBUI.scale(14)))
-    
             when (val documentation = resolved) {
                 is TaigaResolvedDocumentation.Entity -> content.add(entityContent(documentation))
                 is TaigaResolvedDocumentation.Member -> content.add(memberContent(documentation))
@@ -130,7 +129,6 @@ internal class TaigaQuickDocumentationPopupPanel(
             }
             addSecondaryActions(showExample)
             if (secondaryContent.componentCount > 0) content.add(detailsSection())
-    
         }
         scroll =
             JBScrollPane(content).apply {
