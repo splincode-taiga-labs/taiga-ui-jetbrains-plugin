@@ -26,7 +26,9 @@ class TaigaQuickDocumentationBindingTest : BasePlatformTestCase() {
         val binding = binding("""<button tuiButton size="s">Save</button>""")
         val editor = TaigaDocumentationBindingEditor(project, myFixture.editor.document, binding, listOf("s", "m", "l"))
         try {
-            WriteCommandAction.runWriteCommandAction(project) { myFixture.editor.document.insertString(0, "<!-- note -->") }
+            WriteCommandAction.runWriteCommandAction(project) {
+                myFixture.editor.document.insertString(0, "<!-- note -->")
+            }
             assertTrue(editor.apply("m").startsWith("Applied"))
             assertTrue(editor.apply("l").startsWith("Applied"))
             assertEquals("""<!-- note --><button tuiButton size="l">Save</button>""", myFixture.editor.document.text)
@@ -44,6 +46,22 @@ class TaigaQuickDocumentationBindingTest : BasePlatformTestCase() {
             }
             assertTrue(editor.apply("m").startsWith("Binding changed"))
             assertTrue(myFixture.editor.document.text.contains("custom"))
+        } finally {
+            editor.dispose()
+        }
+    }
+
+    fun testChangedOwnerCannotReuseThePinnedInputType() {
+        val binding = binding("""<button tuiButton size="s">Save</button>""")
+        val document = myFixture.editor.document
+        val editor = TaigaDocumentationBindingEditor(project, document, binding, listOf("s", "m"))
+        try {
+            val start = document.text.indexOf("tuiButton")
+            WriteCommandAction.runWriteCommandAction(project) {
+                document.replaceString(start, start + "tuiButton".length, "tuiOther")
+            }
+            assertFalse(editor.apply("m").startsWith("Applied"))
+            assertTrue(document.text.contains("size=\"s\""))
         } finally {
             editor.dispose()
         }
@@ -92,7 +110,8 @@ class TaigaQuickDocumentationBindingTest : BasePlatformTestCase() {
     }
 
     fun testRequiredInputsAreReportedOnlyWhenExplicit() {
-        val local = TaigaLocalDocumentationParser.parse("class TuiExample { size = input.required<string>(); label = input(''); }")
+        val local =
+            TaigaLocalDocumentationParser.parse("class TuiExample { size = input.required<string>(); label = input(''); }")
         assertEquals(setOf("size"), local.requiredInputs)
     }
 

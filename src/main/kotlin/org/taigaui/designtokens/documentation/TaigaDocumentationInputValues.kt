@@ -21,20 +21,28 @@ internal fun PsiElement.localInputValues(
     }
     if (visited.size >= MAX_ALIAS_DEPTH || type in visited || !TYPE_NAME.matches(type)) return emptyList()
     val file = containingFile ?: return emptyList()
-    val match = Regex("\\b${Regex.escape(type)}\\b").find(file.text.take(MAX_ALIAS_FILE_TEXT)) ?: return emptyList()
-    val element = file.findElementAt(match.range.first) ?: return emptyList()
-    val declaration = element.resolveTaigaDeclaration(file, match.range.first) ?: return emptyList()
-    val definition = declaration.typeDefinition(type)?.substringAfter('=')?.trim()?.removeSuffix(";") ?: return emptyList()
+    val declaration =
+        Regex("\\b${Regex.escape(type)}\\b")
+            .findAll(text.take(MAX_ALIAS_FILE_TEXT))
+            .take(MAX_ALIAS_REFERENCES)
+            .mapNotNull { match ->
+                val offset = textOffset + match.range.first
+                file.findElementAt(offset)?.resolveTaigaDeclaration(file, offset)
+            }.firstOrNull { element -> element.typeDefinition(type) != null }
+            ?: return emptyList()
+    val definition = declaration.typeDefinition(type) ?: return emptyList()
     return declaration.localInputValues(definition, visited + type)
 }
 
 internal fun TaigaResolvedDocumentation.Member.localValues(): List<String> {
+    if (kind != TaigaApiMemberKind.INPUT) return emptyList()
     val local = declaration?.localDocumentation?.takeIf { property.name in it.inputTypes } ?: subject.localDocumentation
     return local.inputValues[property.name]
         ?: local.inputTypes[property.name]?.let(::finiteStringValues).orEmpty()
 }
 
 private const val MAX_ALIAS_DEPTH = 4
+private const val MAX_ALIAS_REFERENCES = 16
 private const val MAX_ALIAS_FILE_TEXT = 32_000
 private val TYPE_NAME = Regex("[A-Za-z_$][\\w$]*")
 private val STRING_VALUE = Regex("""(['"])([\w .@/-]+)\1""")
