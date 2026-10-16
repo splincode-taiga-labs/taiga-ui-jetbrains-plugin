@@ -2,6 +2,7 @@ package org.taigaui.designtokens.documentation
 
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.ui.JBColor
+import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBTextField
 import com.intellij.ui.components.labels.LinkLabel
