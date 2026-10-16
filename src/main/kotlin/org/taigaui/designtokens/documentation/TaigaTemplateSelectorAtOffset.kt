@@ -10,7 +10,7 @@ internal object TaigaTemplateSelectorAtOffset {
             ?.takeUnless { token -> token.isInsideQuotedValue }
             ?.takeUnless { token -> token.isAttributeValue }
             ?.value
-            ?.takeIf(String::isTaigaSelector)
+            ?.takeIf { value -> value.isTaigaSelector() }
 
     internal fun isTaigaDocumentationKey(value: String): Boolean =
         value.isTaigaSelector() ||
@@ -100,8 +100,7 @@ internal object TaigaTemplateSelectorAtOffset {
 
     private fun Char.isQuote(): Boolean = this == '"' || this == '\''
 
-    private fun Char.isNamePart(): Boolean =
-        isLetterOrDigit() || this in charArrayOf('_', ':', '-', '.')
+    private fun Char.isNamePart(): Boolean = isLetterOrDigit() || this in charArrayOf('_', ':', '-', '.')
 
     private fun String.isTaigaSelector(): Boolean =
         startsWith("tui-") ||
