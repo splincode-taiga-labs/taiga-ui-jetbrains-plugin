@@ -36,7 +36,7 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
     @Test
     fun `registered provider renders local Taiga directive documentation`() {
         val file = configureTemplate("<button tuiButton>Save</button>")
-        warmDocumentation(file)
+        warmDocumentation()
         val offset = file.text.indexOf("tuiButton") + 3
 
         var html: String? = null
@@ -122,7 +122,7 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
         return myFixture.file
     }
 
-    private fun warmDocumentation(file: PsiFile) {
+    private fun warmDocumentation() {
         docsCache.write(docsSource, docsFixture())
         val path = Path.of(myFixture.tempDirFixture.tempDirPath, "src/component.html")
 
