@@ -16,6 +16,8 @@ import org.junit.Assert.assertSame
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import java.nio.file.Files
+import java.nio.file.attribute.FileTime
 import java.util.concurrent.atomic.AtomicInteger
 
 class TaigaDocsIndexStoreCoverageTest {
@@ -57,12 +59,17 @@ class TaigaDocsIndexStoreCoverageTest {
         }
 
     @Test
-    fun `disk cached initial load publishes immediately and refreshes from remote`() =
+    fun `stale disk cached initial load publishes immediately and refreshes from remote`() =
         runBlocking {
             val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-            val cache = TaigaDocsCache(temporaryFolder.newFolder("disk-refresh").toPath())
+            val cacheRoot = temporaryFolder.newFolder("disk-refresh").toPath()
+            val cache = TaigaDocsCache(cacheRoot)
 
             cache.write(source, docs("Cached"))
+            Files.setLastModifiedTime(
+                cacheRoot.resolve("${source.cacheKey}-llms-full.txt"),
+                FileTime.fromMillis(0),
+            )
 
             val fetchCalls = AtomicInteger()
             val repository =
