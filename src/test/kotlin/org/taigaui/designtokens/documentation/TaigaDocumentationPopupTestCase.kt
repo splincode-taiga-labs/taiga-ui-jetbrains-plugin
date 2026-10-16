@@ -1,5 +1,6 @@
 package org.taigaui.designtokens.documentation
 
+import com.intellij.openapi.ui.ComboBox
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.labels.LinkLabel
@@ -16,10 +17,34 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.CompletableFuture
 import javax.imageio.ImageIO
+import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.KeyStroke
 
 abstract class TaigaDocumentationPopupTestCase : BasePlatformTestCase() {
+    internal fun button(
+        panel: Component,
+        title: String,
+    ): JButton =
+        descendants(panel).filterIsInstance<JButton>().first {
+            it.text == title || it.accessibleContext.accessibleName == title
+        }
+
+    internal fun selectValue(
+        panel: Component,
+        value: String,
+    ) {
+        descendants(panel).filterIsInstance<ComboBox<*>>().single().selectedItem = value
+    }
+
+    internal fun visibleDescendants(component: Component): Sequence<Component> =
+        descendants(component).filter { child -> generateSequence(child) { it.parent }.all(Component::isVisible) }
+
+    internal fun expandDetails(panel: Component) {
+        val toggle = descendants(panel).filterIsInstance<LinkLabel<*>>().first { it.text == "Details ▸" }
+        activate(toggle, "ENTER")
+    }
+
     internal fun activate(
         component: JComponent,
         key: String,

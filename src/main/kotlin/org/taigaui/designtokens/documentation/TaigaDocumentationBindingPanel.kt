@@ -1,179 +1,175 @@
 package org.taigaui.designtokens.documentation
 
 import com.intellij.openapi.ide.CopyPasteManager
+import com.intellij.openapi.ui.ComboBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.JBUI
+import java.awt.BorderLayout
 import java.awt.Dimension
-import java.awt.GridLayout
+import java.awt.Font
 import java.awt.datatransfer.StringSelection
+import javax.swing.Box
 import javax.swing.BoxLayout
+import javax.swing.DefaultComboBoxModel
 import javax.swing.JButton
 import javax.swing.JPanel
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
 
 internal class TaigaDocumentationBindingPanel(
-    member: TaigaResolvedDocumentation.Member,
-    applyValue: ((String) -> String)?,
+    private val member: TaigaResolvedDocumentation.Member,
+    private val applyValue: ((String) -> String)?,
     currentValue: String? = null,
     private val resize: () -> Unit = {},
 ) : JPanel() {
     private val canApply =
         applyValue != null && member.kind == TaigaApiMemberKind.INPUT && member.binding?.literal != null
-    private val prompt = JBLabel()
-    private val applyButtons = mutableListOf<JButton>()
-    private var contextCurrent = true
-
-    fun invalidateContext() {
-        contextCurrent = false
-        prompt.text = "Refresh to apply. Copy remains available."
-        applyButtons.forEach {
-            it.isEnabled = false
-            it.toolTipText = STALE_DOCUMENTATION_MESSAGE
+    private val values =
+        member.localValues().ifEmpty {
+            member.possibleValues().ifEmpty {
+                member.property.documentedType
+                    ?.let(::finiteStringValues)
+                    .orEmpty()
+            }
         }
-    }
+    private var currentValue = currentValue ?: member.binding?.literal
+    private val current = JBLabel().apply { alignmentX = LEFT_ALIGNMENT }
+    private val status =
+        JBLabel().apply {
+            alignmentX = LEFT_ALIGNMENT
+            isVisible = false
+        }
+    private val choices = ComboBox(values.toTypedArray())
+    private val apply = JButton("Apply")
+    private val copy = JButton("Copy")
+    private var contextCurrent = true
 
     init {
         layout = BoxLayout(this, BoxLayout.Y_AXIS)
         isOpaque = false
         alignmentX = LEFT_ALIGNMENT
-        val values =
-            member.localValues().ifEmpty {
-                member.possibleValues().ifEmpty {
-                    member.property.documentedType
-                        ?.let(::finiteStringValues)
-                        .orEmpty()
-                }
-            }
-        val status =
-            JBLabel(" ").apply {
-                alignmentX = LEFT_ALIGNMENT
-                maximumSize = Dimension(Int.MAX_VALUE, preferredSize.height)
-            }
-        val current = JBLabel().apply { alignmentX = LEFT_ALIGNMENT }
-        member.binding?.let { binding ->
-            current.text =
-                if (binding.literal != null) {
-                    "Current value: ${currentValue ?: binding.literal}"
-                } else {
-                    "Current value: dynamic expression"
-                }
-            current.maximumSize = Dimension(Int.MAX_VALUE, current.preferredSize.height)
-            current.toolTipText = current.text
-            add(current)
-        }
+        updateCurrentValue()
+        if (member.binding != null) add(current)
         if (values.isNotEmpty()) {
-            prompt.text =
-                if (canApply) "Allowed values" else member.valueActionUnavailableReason()
-            add(
-                prompt.apply {
-                    alignmentX = LEFT_ALIGNMENT
-                },
-            )
-            val choices =
-                JPanel(GridLayout(0, VALUE_COLUMNS, JBUI.scale(6), JBUI.scale(4))).apply {
-                    isOpaque = false
-                    alignmentX = LEFT_ALIGNMENT
-                }
-
-            fun showValues(visible: List<String>) {
-                applyButtons.clear()
-                choices.removeAll()
-                visible.forEach { value ->
-                    choices.add(
-                        JPanel().apply {
-                            isOpaque = false
-                            layout = BoxLayout(this, BoxLayout.Y_AXIS)
-                            add(JBLabel("'$value'"))
-                            add(
-                                JButton("Apply '$value'").apply {
-                                    applyButtons += this
-                                    isEnabled = canApply && contextCurrent
-                                    toolTipText =
-                                        if (!contextCurrent) {
-                                            STALE_DOCUMENTATION_MESSAGE
-                                        } else if (canApply) {
-                                            "Apply '$value' to this binding"
-                                        } else {
-                                            member
-                                                .valueActionUnavailableReason()
-                                        }
-                                    addActionListener {
-                                        status.text = applyValue?.invoke(value)
-                                        status.toolTipText = status.text
-                                        if (status.text?.startsWith("Applied") == true) {
-                                            current.text = "Current value: $value"
-                                            current.toolTipText = current.text
-                                        }
-                                    }
-                                    bind("ENTER", "apply-input-value") { if (isEnabled) doClick() }
-                                },
-                            )
-                            add(
-                                JButton("Copy '$value'").apply {
-                                    toolTipText = "Copy '$value'"
-                                    addActionListener { copyLiteral(value, status) }
-                                    bind("ENTER", "copy-input-value") { doClick() }
-                                },
-                            )
-                        },
-                    )
-                }
-                choices.revalidate()
-                choices.repaint()
-                if (choices.parent != null) resize()
+            add(Box.createVerticalStrut(JBUI.scale(6)))
+            choices.apply {
+                getAccessibleContext().accessibleName = "Allowed input values"
+                preferredSize = Dimension(JBUI.scale(220), preferredSize.height)
+                this@TaigaDocumentationBindingPanel.currentValue?.takeIf { it in values }?.let { selectedItem = it }
+                addActionListener { updateActions() }
             }
-            showValues(values.take(MAX_VISIBLE_VALUES))
-            add(choices)
-            if (values.size > MAX_VISIBLE_VALUES) {
-                val search =
-                    JBTextField().apply {
-                        emptyText.text = "Search all ${values.size} values"
-                        getAccessibleContext().accessibleName = "Search allowed input values"
-                        isVisible = false
-                        alignmentX = LEFT_ALIGNMENT
-                        maximumSize = Dimension(Int.MAX_VALUE, preferredSize.height)
-                    }
-                search.document.addDocumentListener(
-                    object : DocumentListener {
-                        private fun filter() {
-                            val filtered = values.filter { it.contains(search.text.trim(), ignoreCase = true) }
-                            showValues(filtered)
-                            status.text = "${filtered.size} of ${values.size} values"
-                        }
-
-                        override fun insertUpdate(event: DocumentEvent) = filter()
-
-                        override fun removeUpdate(event: DocumentEvent) = filter()
-
-                        override fun changedUpdate(event: DocumentEvent) = filter()
-                    },
-                )
-                add(search)
-                add(
-                    JButton("Show all (${values.size})").apply {
-                        alignmentX = LEFT_ALIGNMENT
-                        addActionListener {
-                            isVisible = false
-                            search.isVisible = true
-                            showValues(values)
-                            search.requestFocusInWindow()
-                        }
-                    },
-                )
-            }
+            if (values.size > SEARCHABLE_VALUES_THRESHOLD) add(valueSearch())
+            add(valueActions())
+            if (!canApply) showStatus(member.valueActionUnavailableReason())
             add(status)
+            updateActions()
         }
     }
 
-    private fun copyLiteral(
-        value: String,
-        status: JBLabel,
-    ) {
-        CopyPasteManager.getInstance().setContents(StringSelection("'$value'"))
-        status.text = "Copied '$value'"
-        status.toolTipText = status.text
+    fun invalidateContext() {
+        contextCurrent = false
+        showStatus("Refresh to apply. Copy remains available.")
+        updateActions()
+    }
+
+    private fun updateActions() {
+        val value = choices.selectedItem as? String
+        apply.isEnabled = canApply && contextCurrent && value != null && value != currentValue
+        apply.toolTipText =
+            when {
+                !contextCurrent -> STALE_DOCUMENTATION_MESSAGE
+                !canApply -> member.valueActionUnavailableReason()
+                value == currentValue -> "This value is already applied"
+                else -> "Apply the selected value to this binding"
+            }
+        copy.isEnabled = value != null
+        copy.toolTipText = value?.let { "Copy '$it'" }
+        choices.toolTipText = value
+    }
+
+    private fun valueActions(): JPanel =
+        JPanel(BorderLayout(JBUI.scale(8), 0)).apply {
+            isOpaque = false
+            alignmentX = LEFT_ALIGNMENT
+            add(
+                JBLabel("Value").apply {
+                    foreground = CARD_MUTED_FOREGROUND
+                    font = font.deriveFont(Font.PLAIN)
+                },
+                BorderLayout.WEST,
+            )
+            add(choices, BorderLayout.CENTER)
+            add(
+                JPanel().apply {
+                    isOpaque = false
+                    layout = BoxLayout(this, BoxLayout.X_AXIS)
+                    add(apply)
+                    add(Box.createHorizontalStrut(JBUI.scale(4)))
+                    add(copy)
+                },
+                BorderLayout.EAST,
+            )
+            maximumSize = Dimension(Int.MAX_VALUE, preferredSize.height)
+            apply.addActionListener {
+                val value = choices.selectedItem as? String ?: return@addActionListener
+                val result = applyValue?.invoke(value).orEmpty()
+                if (result.startsWith("Applied")) {
+                    currentValue = value
+                    updateCurrentValue()
+                    updateActions()
+                }
+                showStatus(result)
+            }
+            copy.addActionListener {
+                val value = choices.selectedItem as? String ?: return@addActionListener
+                CopyPasteManager.getInstance().setContents(StringSelection("'$value'"))
+                showStatus("Copied '$value'")
+            }
+            apply.bind("ENTER", "apply-input-value") { if (apply.isEnabled) apply.doClick() }
+            copy.bind("ENTER", "copy-input-value") { if (copy.isEnabled) copy.doClick() }
+        }
+
+    private fun valueSearch(): JBTextField =
+        JBTextField().apply {
+            emptyText.text = "Search all ${values.size} values"
+            getAccessibleContext().accessibleName = "Search allowed input values"
+            alignmentX = LEFT_ALIGNMENT
+            maximumSize = Dimension(Int.MAX_VALUE, preferredSize.height)
+            document.addDocumentListener(
+                object : DocumentListener {
+                    private fun filter() {
+                        val selected = choices.selectedItem as? String
+                        val filtered = values.filter { it.contains(text.trim(), ignoreCase = true) }
+                        choices.model = DefaultComboBoxModel(filtered.toTypedArray())
+                        if (selected != null && selected in filtered) choices.selectedItem = selected
+                        updateActions()
+                        showStatus("${filtered.size} of ${values.size} values")
+                    }
+
+                    override fun insertUpdate(event: DocumentEvent) = filter()
+
+                    override fun removeUpdate(event: DocumentEvent) = filter()
+
+                    override fun changedUpdate(event: DocumentEvent) = filter()
+                },
+            )
+        }
+
+    private fun updateCurrentValue() {
+        current.text = "Current value: ${currentValue ?: "dynamic expression"}"
+        current.foreground = CARD_MUTED_FOREGROUND
+        current.font = current.font.deriveFont(Font.PLAIN)
+        current.maximumSize = Dimension(Int.MAX_VALUE, current.preferredSize.height)
+        current.toolTipText = current.text
+    }
+
+    private fun showStatus(message: String) {
+        status.text = message
+        status.toolTipText = message
+        status.isVisible = message.isNotEmpty()
+        status.maximumSize = Dimension(Int.MAX_VALUE, status.preferredSize.height)
+        if (parent != null) resize()
     }
 }
 
@@ -185,5 +181,4 @@ private fun TaigaResolvedDocumentation.Member.valueActionUnavailableReason(): St
         else -> "Source editing is unavailable. Copy is available."
     }
 
-private const val VALUE_COLUMNS = 3
-private const val MAX_VISIBLE_VALUES = 12
+private const val SEARCHABLE_VALUES_THRESHOLD = 12

@@ -173,7 +173,7 @@ class TaigaQuickDocumentationPopupPanelTest : TaigaDocumentationPopupTestCase() 
                 requireNotNull(member),
                 actions = TaigaDocumentationPopupActions(goBack = { back = true }),
             )
-        assertEquals("Back", (focused.preferredFocus as? JButton)?.text)
+        assertEquals("Back", focused.preferredFocus.accessibleContext.accessibleName)
     }
 
     fun testEmptyIconInputOffersChooseIconWithoutAnSvgPreview() {
@@ -205,8 +205,8 @@ class TaigaQuickDocumentationPopupPanelTest : TaigaDocumentationPopupTestCase() 
                 actions = TaigaDocumentationPopupActions(togglePin = { toggled = true }),
                 pinned = true,
             )
-        descendants(panel).filterIsInstance<JButton>().first { it.text == "Unpin" }.doClick()
-        descendants(panel).filterIsInstance<JButton>().first { it.text == "Close" }.doClick()
+        button(panel, "Unpin").doClick()
+        button(panel, "Close").doClick()
         assertTrue(toggled)
         assertTrue(closed)
     }
@@ -240,7 +240,8 @@ class TaigaQuickDocumentationPopupPanelTest : TaigaDocumentationPopupTestCase() 
                     ),
                 pinned = true,
             )
-        descendants(panel).filterIsInstance<JButton>().first { it.text == "Apply 'm'" }.doClick()
+        selectValue(panel, "m")
+        button(panel, "Apply").doClick()
         assertEquals("m", applied)
         assertTrue(labelText(panel).contains("Current value: m"))
         assertTrue(labelText(panel).contains("Undo available"))
@@ -251,6 +252,10 @@ class TaigaQuickDocumentationPopupPanelTest : TaigaDocumentationPopupTestCase() 
                 .filter { it.text == "Current value: m" || it.text.startsWith("Applied m") }
         changingLabels.forEach {
             assertTrue("Feedback must fit: ${it.text}", it.width >= it.getFontMetrics(it.font).stringWidth(it.text))
+            assertTrue("Feedback must have height: ${it.text}", it.height > 0)
+            val viewport = descendants(panel).filterIsInstance<JViewport>().first()
+            val position = SwingUtilities.convertPoint(it.parent, it.location, viewport)
+            assertTrue("Feedback must be visible: ${it.text}", position.y + it.height <= viewport.height)
         }
     }
 
@@ -269,9 +274,10 @@ class TaigaQuickDocumentationPopupPanelTest : TaigaDocumentationPopupTestCase() 
                 TaigaApiMemberKind.INPUT,
             )
         val panel = TaigaQuickDocumentationPopupPanel(member)
-        val apply = descendants(panel).filterIsInstance<JButton>().first { it.text == "Apply 'm'" }
+        selectValue(panel, "m")
+        val apply = button(panel, "Apply")
         assertFalse(apply.isEnabled)
-        descendants(panel).filterIsInstance<JButton>().first { it.text == "Copy 'm'" }.doClick()
+        button(panel, "Copy").doClick()
         assertTrue(labelText(panel).contains("Copied 'm'"))
         assertTrue(member.localValues().isEmpty())
     }
@@ -293,7 +299,7 @@ class TaigaQuickDocumentationPopupPanelTest : TaigaDocumentationPopupTestCase() 
                     ),
             )
         assertTrue(panel.isFocusCycleRoot)
-        assertEquals("Pin", (panel.preferredFocus as? JButton)?.text)
+        assertEquals("Pin", panel.preferredFocus.accessibleContext.accessibleName)
         activate(panel.preferredFocus, "ENTER")
         assertTrue(pinned)
         val links = descendants(panel).filterIsInstance<LinkLabel<*>>()
@@ -343,17 +349,18 @@ class TaigaQuickDocumentationPopupPanelTest : TaigaDocumentationPopupTestCase() 
         val chooser = buttons.first { it.text == "Choose icon" }
         assertFalse(chooser.isEnabled)
         activate(chooser, "ENTER")
-        val apply = buttons.first { it.text == "Apply 'm'" }
+        selectValue(panel, "m")
+        val apply = button(panel, "Apply")
         assertFalse(apply.isEnabled)
         activate(apply, "ENTER")
-        activate(buttons.first { it.text == "Copy 'm'" }, "ENTER")
+        activate(button(panel, "Copy"), "ENTER")
         assertEquals(0, writes)
         assertTrue(labelText(panel).contains("Copied 'm'"))
         assertTrue(labelText(panel).contains("Code changed"))
         activate(panel, "F5")
         assertTrue(refreshed)
         renderAndSave(panel, "stale-binding")
-        val value = buttons.first { it.text == "Copy 'm'" }
+        val value = button(panel, "Copy")
         val viewport = descendants(panel).filterIsInstance<JViewport>().first()
         val position = SwingUtilities.convertPoint(value.parent, value.location, viewport)
         assertTrue(
@@ -411,12 +418,14 @@ class TaigaQuickDocumentationPopupPanelTest : TaigaDocumentationPopupTestCase() 
                         "Applied $it"
                     }),
             )
-        val value = descendants(panel).filterIsInstance<JButton>().first { it.text == "Copy 'm'" }
+        selectValue(panel, "m")
+        val value = button(panel, "Copy")
         activate(value, "ENTER")
         value.doClick()
         assertEquals(0, writes)
         assertTrue(labelText(panel).contains("Copied 'm'"))
-        val apply = descendants(panel).filterIsInstance<JButton>().first { it.text == "Apply 'm'" }
+        selectValue(panel, "m")
+        val apply = button(panel, "Apply")
         activate(apply, "ENTER")
         assertEquals(1, writes)
         assertTrue(labelText(panel).contains("Applied m"))
