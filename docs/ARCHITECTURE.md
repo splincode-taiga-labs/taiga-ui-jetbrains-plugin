@@ -200,7 +200,7 @@ Hover cards share a header, semantic kind badge, package metadata, and working d
 
 Locally resolved declarations contribute bounded, immutable presentation facts: source location, Angular selector, signal-input types, literal or injected input defaults, and a pipe's transform signature. Purity is shown only when local `@Pipe`/`definePipe` metadata establishes it. The standalone argument of `PipeDeclaration` is never interpreted as purity. Unknown defaults and dynamic expressions remain unknown; no JavaScript is evaluated.
 
-Angular template pipes are resolved through host/injected PSI references into installed Taiga packages before documentation enrichment. Ordinary pipes and unrelated local symbols remain owned by the IDE.
+Angular template pipes are resolved through host/injected PSI references into installed Taiga packages before documentation enrichment. This covers external and inline templates. Ordinary pipes and unrelated local symbols remain owned by the IDE. Hover captures the pointer and document generation on EDT, then resolves PSI in a background read action; cancelled or stale candidates cannot publish a card.
 
 The documentation UI may consume the existing icon catalog and renderer through an editor-level adapter. It introduces no independent icon discovery or source precedence. SVG loading/rendering runs separately on IO workers, so documentation can appear before a preview is ready. Late results are applied only to the still-current card and document.
 
