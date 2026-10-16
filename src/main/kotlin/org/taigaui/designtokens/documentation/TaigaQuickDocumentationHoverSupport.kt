@@ -107,7 +107,11 @@ internal class TaigaQuickDocumentationHoverController(
         } else if (candidate.key == pendingKey) {
             cancelScheduledHide()
             currentRequest?.takeIf { it.documentationRequest.shouldUnderline }?.let { request ->
-                underline.show(request.editor, request.documentationRequest.startOffset, request.documentationRequest.endOffset)
+                underline.show(
+                    request.editor,
+                    request.documentationRequest.startOffset,
+                    request.documentationRequest.endOffset,
+                )
             }
         } else {
             resolutionJob?.cancel()
@@ -149,6 +153,7 @@ internal class TaigaQuickDocumentationHoverController(
         if (editor.project == project) {
             resolutionJob?.cancel()
             resolutionJob = null
+            pendingKey = null
             hoverJob?.cancel()
             hoverJob = null
             underline.clear()
@@ -327,7 +332,8 @@ internal class TaigaQuickDocumentationHoverController(
                 service.loadNow(request.sourceFile)
                 val previews =
                     references.mapNotNull { reference ->
-                        service.svgSourceFor(request.sourceFile, reference.name)
+                        service
+                            .svgSourceFor(request.sourceFile, reference.name)
                             ?.let { source -> iconRenderer.render(source, ICON_PREVIEW_LOGICAL_SIZE) }
                             ?.let { icon -> TaigaDocumentationIconPreview(reference, icon) }
                     }
@@ -353,7 +359,9 @@ internal class TaigaQuickDocumentationHoverController(
                     if (names.isEmpty()) {
                         Messages.showInfoMessage(project, "No Taiga UI icons were found in this project.", "Taiga UI")
                     } else {
-                        JBPopupFactory.getInstance().createPopupChooserBuilder(names)
+                        JBPopupFactory
+                            .getInstance()
+                            .createPopupChooserBuilder(names)
                             .setTitle("Choose Taiga UI icon")
                             .setNamerForFiltering { it }
                             .setItemChosenCallback { name -> replaceIcon(request, reference, name) }
@@ -374,7 +382,9 @@ internal class TaigaQuickDocumentationHoverController(
         WriteCommandAction.runWriteCommandAction(project) {
             val document = request.editor.document
             val current = document.charsSequence
-            if (reference.endOffset <= current.length && current.subSequence(reference.startOffset, reference.endOffset).toString() == reference.name) {
+            if (reference.endOffset <= current.length &&
+                current.subSequence(reference.startOffset, reference.endOffset).toString() == reference.name
+            ) {
                 document.replaceString(reference.startOffset, reference.endOffset, name)
                 PsiDocumentManager.getInstance(project).commitDocument(document)
             }
@@ -430,9 +440,8 @@ internal class TaigaQuickDocumentationHoverController(
     }
 }
 
-private fun EditorMouseEvent.toTaigaDocumentationHoverCandidate(
-    project: Project,
-): TaigaDocumentationHoverCandidate? {
+@Suppress("ReturnCount")
+private fun EditorMouseEvent.toTaigaDocumentationHoverCandidate(project: Project): TaigaDocumentationHoverCandidate? {
     if (!canStartTaigaDocumentationHover(project)) {
         return null
     }
@@ -446,7 +455,10 @@ private fun EditorMouseEvent.toTaigaDocumentationHoverCandidate(
     if (start == end) return null
 
     return TaigaDocumentationHoverCandidate(
-        file, editor, Point(mouseEvent.point), offset,
+        file,
+        editor,
+        Point(mouseEvent.point),
+        offset,
         TaigaQuickDocumentationHoverKey(editor, start, end, editor.document.modificationStamp),
     )
 }

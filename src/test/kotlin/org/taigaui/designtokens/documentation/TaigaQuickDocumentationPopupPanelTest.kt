@@ -76,7 +76,12 @@ class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
                 val panel =
                     TaigaQuickDocumentationPopupPanel(
                         documentation,
-                        actions = TaigaDocumentationPopupActions(navigateToSource = {}, chooseIcon = {}, openMember = {}),
+                        actions =
+                            TaigaDocumentationPopupActions(
+                                navigateToSource = {},
+                                chooseIcon = {},
+                                openMember = {},
+                            ),
                         previews = previews,
                     )
                 val size = panel.preferredSize
@@ -103,7 +108,14 @@ class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
                 path,
                 """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M2 12 Q12 -2 22 12 Q12 26 2 12Z" fill="none" stroke="#111" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="none" stroke="#111" stroke-width="2"/></svg>""",
             )
-            val icon = CompletableFuture.supplyAsync { IconSvgPreviewRenderer().render(IconSvgSource.Local(path), 64) }.join()
+            val icon =
+                CompletableFuture
+                    .supplyAsync {
+                        IconSvgPreviewRenderer().render(
+                            IconSvgSource.Local(path),
+                            64,
+                        )
+                    }.join()
             return TaigaDocumentationIconPreview(reference, requireNotNull(icon))
         } finally {
             Files.deleteIfExists(path)
@@ -123,7 +135,11 @@ class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
                     TaigaApiProperty("iconStart", "[iconStart]", "string", "Icon at the start"),
                     TaigaApiProperty("iconEnd", "[iconEnd]", "string", "Icon at the end"),
                 ),
-            local = TaigaLocalDocumentation(selector = "a[tuiButton],button[tuiButton],label[tuiButton]", defaults = listOf(TaigaInputDefault("size", provider = "TUI_BUTTON_OPTIONS"))),
+            local =
+                TaigaLocalDocumentation(
+                    selector = "a[tuiButton],button[tuiButton],label[tuiButton]",
+                    defaults = listOf(TaigaInputDefault("size", provider = "TUI_BUTTON_OPTIONS")),
+                ),
         )
 
     private fun component(): TaigaResolvedDocumentation.Entity =
@@ -173,8 +189,17 @@ class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
         return TaigaResolvedDocumentation.Entity(
             entity =
                 TaigaEntityDoc(
-                    "${kind.name.lowercase()}/$selector", name, setOf(packageName), kind, "5.0.0", description,
-                    setOf(name), setOf(selector), inputs, emptyList(), null,
+                    "${kind.name.lowercase()}/$selector",
+                    name,
+                    setOf(packageName),
+                    kind,
+                    "5.0.0",
+                    description,
+                    setOf(name),
+                    setOf(selector),
+                    inputs,
+                    emptyList(),
+                    null,
                     java.net.URI.create("https://taiga-ui.dev/"),
                 ),
             subject = TaigaDocumentationSubject(selector, name, packageName, local),

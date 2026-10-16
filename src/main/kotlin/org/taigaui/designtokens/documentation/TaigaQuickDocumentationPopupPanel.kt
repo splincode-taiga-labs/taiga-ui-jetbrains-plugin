@@ -77,13 +77,18 @@ internal class TaigaQuickDocumentationPopupPanel(
             }
         }
 
-        scroll = JBScrollPane(content).apply {
-            border = JBUI.Borders.empty()
-            isOpaque = false
-            viewport.isOpaque = false
-            horizontalScrollBarPolicy = JBScrollPane.HORIZONTAL_SCROLLBAR_NEVER
-            preferredSize = Dimension(JBUI.scale(CONTENT_WIDTH), content.preferredSize.height.coerceAtMost(JBUI.scale(MAX_BODY_HEIGHT)))
-        }
+        scroll =
+            JBScrollPane(content).apply {
+                border = JBUI.Borders.empty()
+                isOpaque = false
+                viewport.isOpaque = false
+                horizontalScrollBarPolicy = JBScrollPane.HORIZONTAL_SCROLLBAR_NEVER
+                preferredSize =
+                    Dimension(
+                        JBUI.scale(CONTENT_WIDTH),
+                        content.preferredSize.height.coerceAtMost(JBUI.scale(MAX_BODY_HEIGHT)),
+                    )
+            }
         add(scroll, BorderLayout.CENTER)
         add(footer(), BorderLayout.SOUTH)
     }
@@ -91,7 +96,8 @@ internal class TaigaQuickDocumentationPopupPanel(
     fun showIconPreviews(values: List<TaigaDocumentationIconPreview>) {
         previewContent.removeAll()
         addIconPreviews(previewContent, values)
-        scroll.preferredSize = Dimension(JBUI.scale(CONTENT_WIDTH), content.preferredSize.height.coerceAtMost(JBUI.scale(MAX_BODY_HEIGHT)))
+        scroll.preferredSize =
+            Dimension(JBUI.scale(CONTENT_WIDTH), content.preferredSize.height.coerceAtMost(JBUI.scale(MAX_BODY_HEIGHT)))
         revalidate()
         repaint()
     }
@@ -108,7 +114,7 @@ internal class TaigaQuickDocumentationPopupPanel(
                 },
             )
             add(Box.createHorizontalStrut(JBUI.scale(10)))
-            add(badge(resolved.badge))
+            add(TaigaDocumentationBadge(resolved.badge))
             add(Box.createHorizontalGlue())
         }
 
@@ -128,23 +134,34 @@ internal class TaigaQuickDocumentationPopupPanel(
             when (entity.badge) {
                 "Pipe" -> add(pipeContent(entity.localDocumentation.pipe))
                 "Type" -> entity.typeText?.let { add(codeRow(it)) }
-                else -> {
-                    if (entity.icons.isNotEmpty()) {
-                        addIconPreviews(previewContent, previews)
-                        add(previewContent)
-                    }
-                    entity.localDocumentation.selector?.let { selector ->
-                        val elements = selector.split(',').map { it.substringBefore('[').trim() }.filter(String::isNotBlank).distinct()
-                        if (elements.isNotEmpty() && entity.badge == "Directive") {
-                            add(detail("Elements", elements.joinToString(" · ")))
-                        }
-                    }
-                    addApiSection(this, "Parameters", entity.entity.inputs, TaigaApiMemberKind.INPUT)
-                    addApiSection(this, "Events", entity.entity.outputs, TaigaApiMemberKind.OUTPUT)
-                    entity.localDocumentation.defaults.take(MAX_VISIBLE_DEFAULTS).forEach { add(defaultNote(it)) }
-                }
+                else -> addControlContent(this, entity)
             }
         }
+
+    private fun addControlContent(
+        content: JPanel,
+        entity: TaigaResolvedDocumentation.Entity,
+    ) {
+        if (entity.icons.isNotEmpty()) {
+            addIconPreviews(previewContent, previews)
+            content.add(previewContent)
+        }
+        val elements =
+            entity.localDocumentation.selector
+                ?.split(',')
+                ?.map { it.substringBefore('[').trim() }
+                ?.filter(String::isNotBlank)
+                ?.distinct()
+                .orEmpty()
+        if (elements.isNotEmpty() && entity.badge == "Directive") {
+            content.add(detail("Elements", elements.joinToString(" · ")))
+        }
+        addApiSection(content, "Parameters", entity.entity.inputs, TaigaApiMemberKind.INPUT)
+        addApiSection(content, "Events", entity.entity.outputs, TaigaApiMemberKind.OUTPUT)
+        entity.localDocumentation.defaults
+            .take(MAX_VISIBLE_DEFAULTS)
+            .forEach { content.add(defaultNote(it)) }
+    }
 
     private fun memberContent(member: TaigaResolvedDocumentation.Member): JComponent =
         verticalPanel().apply {
@@ -152,7 +169,11 @@ internal class TaigaQuickDocumentationPopupPanel(
             member.possibleValues().takeIf(List<String>::isNotEmpty)?.let { values ->
                 add(detail("Possible values", values.joinToString("  ·  ")))
             }
-            member.localDocumentation.defaults.firstOrNull { it.name == member.property.name }?.let { add(defaultNote(it)) }
+            member.localDocumentation.defaults.firstOrNull { it.name == member.property.name }?.let {
+                add(
+                    defaultNote(it),
+                )
+            }
             member.declaration?.publicSymbol?.takeIf { it != member.ownerName }?.let { owner ->
                 add(detail("Declared by", owner))
             }
@@ -216,7 +237,10 @@ internal class TaigaQuickDocumentationPopupPanel(
                         },
                         BorderLayout.WEST,
                     )
-                    add(wrappedLabel(preview.reference.name, CONTENT_WIDTH - 112).apply { font = codeFont() }, BorderLayout.CENTER)
+                    add(
+                        wrappedLabel(preview.reference.name, CONTENT_WIDTH - 112).apply { font = codeFont() },
+                        BorderLayout.CENTER,
+                    )
                 },
             )
             content.add(Box.createVerticalStrut(JBUI.scale(12)))
@@ -234,10 +258,11 @@ internal class TaigaQuickDocumentationPopupPanel(
         content.add(
             table(
                 properties.take(MAX_VISIBLE_API_PROPERTIES).map { property ->
-                    property.name to listOfNotNull(
-                        resolved.localDocumentation.inputTypes[property.name] ?: property.documentedType,
-                        property.description,
-                    ).joinToString(" — ").take(MAX_PROPERTY_DESCRIPTION_LENGTH)
+                    property.name to
+                        listOfNotNull(
+                            resolved.localDocumentation.inputTypes[property.name] ?: property.documentedType,
+                            property.description,
+                        ).joinToString(" — ").take(MAX_PROPERTY_DESCRIPTION_LENGTH)
                 },
             ) { name ->
                 val entity = resolved as? TaigaResolvedDocumentation.Entity
@@ -245,8 +270,13 @@ internal class TaigaQuickDocumentationPopupPanel(
                 if (entity != null && property != null) {
                     actions.openMember?.invoke(
                         TaigaResolvedDocumentation.Member(
-                            entity.entity, entity.subject, entity.startOffset, entity.endOffset,
-                            null, property, kind,
+                            entity.entity,
+                            entity.subject,
+                            entity.startOffset,
+                            entity.endOffset,
+                            null,
+                            property,
+                            kind,
                         ),
                     )
                 }
@@ -359,7 +389,9 @@ private fun note(
         add(wrappedLabel(description, CONTENT_WIDTH - 36), BorderLayout.CENTER)
     }
 
-private class DocumentationNotePanel(private val color: Color) : JPanel(BorderLayout(0, JBUI.scale(6))) {
+private class DocumentationNotePanel(
+    private val color: Color,
+) : JPanel(BorderLayout(0, JBUI.scale(6))) {
     init {
         isOpaque = false
     }
@@ -404,9 +436,9 @@ private fun sectionTitle(title: String): JComponent =
         alignmentX = JComponent.LEFT_ALIGNMENT
     }
 
-private fun badge(text: String): JComponent = TaigaDocumentationBadge(text)
-
-private class TaigaDocumentationBadge(text: String) : JBLabel(text) {
+private class TaigaDocumentationBadge(
+    text: String,
+) : JBLabel(text) {
     init {
         foreground =
             when (text) {
@@ -452,7 +484,9 @@ private fun wrappedLabel(
     text: String,
     width: Int = CONTENT_WIDTH,
 ): JBLabel =
-    JBLabel("<html><div width='$width'>${StringUtil.escapeXmlEntities(text).replace("\n", "<br>")}</div></html>").apply {
+    JBLabel(
+        "<html><div width='$width'>${StringUtil.escapeXmlEntities(text).replace("\n", "<br>")}</div></html>",
+    ).apply {
         foreground = CARD_FOREGROUND
         alignmentX = JComponent.LEFT_ALIGNMENT
     }
@@ -461,7 +495,10 @@ private fun codeFont(): Font = Font(Font.MONOSPACED, Font.PLAIN, UIUtil.getLabel
 
 internal fun JComponent.containsPointer(): Boolean =
     isShowing &&
-        MouseInfo.getPointerInfo()?.location?.let(::Point)
+        MouseInfo
+            .getPointerInfo()
+            ?.location
+            ?.let(::Point)
             ?.also { SwingUtilities.convertPointFromScreen(it, this) }
             ?.let(::contains) ?: false
 

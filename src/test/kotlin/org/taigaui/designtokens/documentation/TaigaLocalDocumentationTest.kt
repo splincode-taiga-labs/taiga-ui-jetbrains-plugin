@@ -54,14 +54,20 @@ class TaigaLocalDocumentationTest {
 
     @Test
     fun `respects explicit impure pipe metadata`() {
-        val local = TaigaLocalDocumentationParser.parse("@Pipe({name: 'tuiFormatNumber', pure: false}) class TuiFormatNumberPipe {}")
+        val local =
+            TaigaLocalDocumentationParser.parse(
+                "@Pipe({name: 'tuiFormatNumber', pure: false}) class TuiFormatNumberPipe {}",
+            )
 
         assertEquals(false, requireNotNull(local.pipe).pure)
     }
 
     @Test
     fun `does not guess a computed purity flag`() {
-        val local = TaigaLocalDocumentationParser.parse("@Pipe({name: 'tuiMapper', pure: configuredPurity}) class TuiMapperPipe {}")
+        val local =
+            TaigaLocalDocumentationParser.parse(
+                "@Pipe({name: 'tuiMapper', pure: configuredPurity}) class TuiMapperPipe {}",
+            )
 
         assertNull(requireNotNull(local.pipe).pure)
     }
@@ -104,8 +110,15 @@ class TaigaLocalDocumentationTest {
     @Test
     fun `does not split nested types callback parameters and literal commas`() {
         assertEquals(
-            listOf("value: U", "mapper: (value: U, index: number) => G", "settings: Record<string, number>", "suffix: string = ','"),
-            splitTypeScriptParameters("value: U, mapper: (value: U, index: number) => G, settings: Record<string, number>, suffix: string = ','"),
+            listOf(
+                "value: U",
+                "mapper: (value: U, index: number) => G",
+                "settings: Record<string, number>",
+                "suffix: string = ','",
+            ),
+            splitTypeScriptParameters(
+                "value: U, mapper: (value: U, index: number) => G, settings: Record<string, number>, suffix: string = ','",
+            ),
         )
     }
 }

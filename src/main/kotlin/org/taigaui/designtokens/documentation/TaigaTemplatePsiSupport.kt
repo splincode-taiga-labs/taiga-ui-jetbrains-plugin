@@ -28,11 +28,12 @@ internal fun findTaigaPipeReference(
     while (start > 0 && text[start - 1].isJavaIdentifierPart()) start--
     while (end < text.length && text[end].isJavaIdentifierPart()) end++
     val name = text.subSequence(start, end).toString()
-    if (!PIPE_NAME.matches(name)) return null
     var previous = start - 1
     while (previous >= 0 && text[previous].isWhitespace()) previous--
+    val hasPipeOperator = previous >= 0 && text[previous] == '|'
+    val isBooleanOperator = previous > 0 && text[previous - 1] == '|'
 
-    return if (previous >= 0 && text[previous] == '|' && (previous == 0 || text[previous - 1] != '|')) {
+    return if (PIPE_NAME.matches(name) && hasPipeOperator && !isBooleanOperator) {
         TaigaPipeReference(name, start, end)
     } else {
         null
@@ -42,11 +43,17 @@ internal fun findTaigaPipeReference(
 internal fun XmlTag.documentationIcons(): List<TaigaDocumentationIcon> =
     attributes.mapNotNull { attribute ->
         val name = attribute.bindingName().removeSurrounding("[", "]")
-        val value = attribute.value?.trim().orEmpty().removeSurrounding("'", "'").removeSurrounding("\"", "\"")
-        val element = attribute.valueElement
-        val offset = element?.text?.indexOf(value) ?: -1
+        val value =
+            attribute.value
+                ?.trim()
+                .orEmpty()
+                .removeSurrounding("'", "'")
+                .removeSurrounding("\"", "\"")
+        if (name !in ICON_ATTRIBUTES || !STATIC_ICON.matches(value)) return@mapNotNull null
+        val element = attribute.valueElement ?: return@mapNotNull null
+        val offset = element.text.indexOf(value)
 
-        if (name in ICON_ATTRIBUTES && STATIC_ICON.matches(value) && element != null && offset >= 0) {
+        if (offset >= 0) {
             val start = element.textRange.startOffset + offset
 
             TaigaDocumentationIcon(name, value, start, start + value.length)

@@ -63,22 +63,28 @@ internal object TaigaLocalDocumentationParser {
         val end = start?.let { closingParenthesis(text, it) }
         val parameters =
             if (start != null && end != null) {
-                splitTypeScriptParameters(text.substring(start + 1, end)).mapNotNull(::parseParameter).map { parameter ->
-                    parameter.copy(
-                        description =
-                            Regex("""@param\s+${Regex.escape(parameter.name)}\s+([^\n*]+)""")
-                                .find(text.substring(0, transform?.range?.first ?: 0))
-                                ?.groupValues
-                                ?.get(1)
-                                ?.trim(),
-                    )
-                }
+                splitTypeScriptParameters(text.substring(start + 1, end))
+                    .mapNotNull(::parseParameter)
+                    .map { parameter ->
+                        parameter.copy(
+                            description =
+                                Regex("""@param\s+${Regex.escape(parameter.name)}\s+([^\n*]+)""")
+                                    .find(text.substring(0, transform.range.first))
+                                    ?.groupValues
+                                    ?.get(1)
+                                    ?.trim(),
+                        )
+                    }
             } else {
                 emptyList()
             }
         val result =
             end?.let { offset ->
-                RETURN_TYPE.find(text.substring(offset + 1))?.groupValues?.get(1)?.trim()
+                RETURN_TYPE
+                    .find(text.substring(offset + 1))
+                    ?.groupValues
+                    ?.get(1)
+                    ?.trim()
             }
 
         return TaigaPipeDocumentation(
@@ -88,7 +94,11 @@ internal object TaigaLocalDocumentationParser {
             // The third Ivy PipeDeclaration argument is standalone, NOT purity.
             pure =
                 metadata?.let { attributes ->
-                    PURE.find(attributes)?.groupValues?.get(1)?.toBoolean()
+                    PURE
+                        .find(attributes)
+                        ?.groupValues
+                        ?.get(1)
+                        ?.toBoolean()
                         ?: true.takeUnless { PURE_PROPERTY.containsMatchIn(attributes) }
                 },
             invocation = end?.let { RETURN_CALL.find(text.substring(it + 1))?.groupValues?.get(1) },
