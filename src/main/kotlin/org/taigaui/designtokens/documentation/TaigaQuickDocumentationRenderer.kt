@@ -54,7 +54,7 @@ internal object TaigaQuickDocumentationRenderer {
         }
         resolved.localDocumentation.pipe?.let { appendPipeSections(it) }
         resolved.typeText?.takeIf(String::isNotBlank)?.let { type ->
-            addSection("Type:", "<code>${type.html()}</code>")
+            addSection("Type:", "<code>${documentationCodeHtml(type)}</code>")
         }
 
         resolved.effectiveUsage?.takeIf(String::isNotBlank)?.let { usage ->
@@ -62,7 +62,7 @@ internal object TaigaQuickDocumentationRenderer {
         }
 
         resolved.canonicalImport()?.let { statement ->
-            addSection("Import:", "<code>${statement.html()}</code>")
+            addSection("Import:", "<code>${documentationCodeHtml(statement)}</code>")
         }
 
         addApiSection("Inputs:", resolved.entity.inputs)
@@ -118,7 +118,7 @@ internal object TaigaQuickDocumentationRenderer {
             if (member.required) addSection("Requirement:", "Required input")
         }
         resolved.typeText?.takeIf(String::isNotBlank)?.let { type ->
-            addSection("Type:", "<code>${type.html()}</code>")
+            addSection("Type:", "<code>${documentationCodeHtml(type)}</code>")
         }
 
         resolved.effectiveUsage?.takeIf(String::isNotBlank)?.let { usage ->
@@ -196,9 +196,9 @@ internal object TaigaQuickDocumentationRenderer {
 
     private fun String.asCodeBlock(): String =
         if ('\n' in this) {
-            "<pre><code>${html()}</code></pre>"
+            "<pre><code>${documentationCodeHtml(this)}</code></pre>"
         } else {
-            "<code>${html()}</code>"
+            "<code>${documentationCodeHtml(this)}</code>"
         }
 
     private fun String.html(): String = StringUtil.escapeXmlEntities(this)

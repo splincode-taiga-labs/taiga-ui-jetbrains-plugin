@@ -78,11 +78,17 @@ class TaigaQuickDocumentationPopupPanelTest : TaigaDocumentationPopupTestCase() 
         val components = descendants(panel).toList()
         val text = labelText(panel)
 
-        assertFalse(components.any { it is JTabbedPane })
-        assertTrue(text.contains("Parameters"))
+        assertTrue(components.any { it is JTabbedPane })
+        assertTrue(
+            components
+                .filterIsInstance<JTabbedPane>()
+                .single()
+                .getTitleAt(0)
+                .startsWith("Inputs"),
+        )
         assertTrue(text.contains("TUI_BUTTON_OPTIONS"))
         assertFalse(text.contains("automation-id"))
-        assertFalse(text.contains("import {"))
+        assertTrue(descendants(panel).any { it.accessibleContext?.accessibleName?.contains("import {") == true })
         val sizeLink = components.filterIsInstance<LinkLabel<*>>().first { it.text == "size" }
         sizeLink.doClick()
         assertEquals("size", selected)
@@ -195,6 +201,7 @@ class TaigaQuickDocumentationPopupPanelTest : TaigaDocumentationPopupTestCase() 
                 ).get(KeyStroke.getKeyStroke("alt LEFT"))
         panel.actionMap.get(backKey).actionPerformed(ActionEvent(panel, ActionEvent.ACTION_PERFORMED, "back"))
         assertTrue(back)
+        expandDetails(panel)
         renderAndSave(panel, "api-browser")
         val provider =
             descendants(panel)

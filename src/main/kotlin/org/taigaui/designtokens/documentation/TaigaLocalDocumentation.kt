@@ -57,6 +57,7 @@ internal data class TaigaLocalApiMember(
     val description: String? = null,
     val deprecated: String? = null,
     val replacement: String? = null,
+    val declaredAcceptedType: String? = null,
 )
 
 /** Reads bounded local declaration text; it never evaluates application code. */
@@ -175,15 +176,28 @@ internal fun splitTypeScriptParameters(text: String): List<String> {
             }
         } else {
             when (char) {
-                '\'', '"', '`' -> quote = char
-                '(', '[', '{', '<' -> depth++
-                ')', ']', '}' -> depth--
-                '>' -> if (depth > 0 && text.getOrNull(index - 1) != '=') depth--
-                ',' ->
+                '\'', '"', '`' -> {
+                    quote = char
+                }
+
+                '(', '[', '{', '<' -> {
+                    depth++
+                }
+
+                ')', ']', '}' -> {
+                    depth--
+                }
+
+                '>' -> {
+                    if (depth > 0 && text.getOrNull(index - 1) != '=') depth--
+                }
+
+                ',' -> {
                     if (depth == 0) {
                         result += text.substring(start, index).trim()
                         start = index + 1
                     }
+                }
             }
         }
     }
@@ -201,7 +215,10 @@ private fun closingParenthesis(
 
     for (index in start until text.length) {
         when (text[index]) {
-            '(' -> depth++
+            '(' -> {
+                depth++
+            }
+
             ')' -> {
                 depth--
                 if (depth == 0) return index

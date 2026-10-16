@@ -1,6 +1,8 @@
 package org.taigaui.designtokens.documentation
 
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
@@ -13,11 +15,15 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.nio.file.Files
 import java.nio.file.attribute.FileTime
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 class TaigaDocsIndexStoreCoverageTest {
@@ -119,11 +125,18 @@ class TaigaDocsIndexStoreCoverageTest {
             val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
             val cache = TaigaDocsCache(temporaryFolder.newFolder("coalesced-refresh").toPath())
             val calls = AtomicInteger()
+            val blockRefresh = AtomicBoolean(false)
+            val started = CompletableDeferred<Unit>()
+            val release = CountDownLatch(1)
             val repository =
                 TaigaDocsRepository(
                     fetcher =
                         TaigaDocsFetcher {
                             calls.incrementAndGet()
+                            if (blockRefresh.get()) {
+                                started.complete(Unit)
+                                assertTrue(release.await(5, TimeUnit.SECONDS))
+                            }
                             docs("Remote")
                         },
                     cache = cache,
@@ -133,11 +146,15 @@ class TaigaDocsIndexStoreCoverageTest {
             try {
                 requireNotNull(store.indexFor(source))
                 calls.set(0)
+                blockRefresh.set(true)
 
-                val results =
+                val requests =
                     List(4) {
-                        async { store.refresh(source) }
-                    }.awaitAll()
+                        async(start = CoroutineStart.UNDISPATCHED) { store.refresh(source) }
+                    }
+                withTimeout(5_000) { started.await() }
+                release.countDown()
+                val results = requests.awaitAll()
 
                 assertEquals(1, calls.get())
                 assertEquals(4, results.count { it != null })

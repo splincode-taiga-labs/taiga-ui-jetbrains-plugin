@@ -57,7 +57,12 @@ class TaigaQuickDocumentationIntegrationTest : CodeInsightFixtureTestCase<EmptyM
         assertTrue(requireNotNull(html).contains("@taiga-ui/core"))
         assertTrue(
             "Expected the canonical documentation example: $html",
-            requireNotNull(html).contains(StringUtil.escapeXmlEntities("<button tuiButton>Save</button>")),
+            requireNotNull(
+                html,
+            ).replace(
+                Regex("</?span[^>]*>"),
+                "",
+            ).contains(StringUtil.escapeXmlEntities("<button tuiButton>Save</button>")),
         )
         assertTrue(!requireNotNull(html).contains("Current"))
     }

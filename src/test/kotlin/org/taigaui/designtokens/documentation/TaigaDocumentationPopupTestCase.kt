@@ -34,6 +34,9 @@ abstract class TaigaDocumentationPopupTestCase : BasePlatformTestCase() {
         panel: Component,
         value: String,
     ) {
+        descendants(panel).filterIsInstance<LinkLabel<*>>().firstOrNull { it.text == "Details ▸" }?.let {
+            activate(it, "ENTER")
+        }
         descendants(panel).filterIsInstance<ComboBox<*>>().single().selectedItem = value
     }
 
