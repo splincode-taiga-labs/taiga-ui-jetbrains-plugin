@@ -483,81 +483,85 @@ internal class TaigaQuickDocumentationHoverController(
                     compactHover = compactHover,
                     hoverPointer = !request.explicit && !pinned,
                 )
-            val existingPopup = popup?.takeIf { it.isVisible && !pinned && !request.explicit }
-            val existingHost = popupHost
-            if (existingPopup != null && existingHost != null) {
-                popupContent = panel
-                existingHost.showCard(panel)
-                existingPopup.setSize(existingHost.preferredSize)
-                positionTaigaHoverCard(existingPopup, panel, request.documentationTargetScreenBounds())
-                panel.restoreScrollPosition(view.scrollPosition)
-                request.completePresentation(panel, refreshInProgress)
-                loadIconPreviews(request, resolved, panel)
-                return
-            }
-
-            val host = TaigaDocumentationPopupHost(panel)
-            val createdPopup =
-                createTaigaDocumentationPopup(
-                    project,
-                    host,
-                    panel.preferredFocus,
-                    requestFocus,
-                    request.explicit,
-                    pinned,
-                ) {
-                    currentRequest?.documentationTargetScreenBounds() ?: request.documentationTargetScreenBounds()
-                }
-
-            createdPopup.addListener(
-                object : JBPopupListener {
-                    override fun onClosed(event: LightweightWindowEvent) {
-                        if (popup === createdPopup) {
-                            pinned = false
-                            pinnedSize = null
-                            pinnedLocation = null
-                            refreshInProgress = false
-                            resolutionJob?.cancel()
-                            cardEditors.dispose()
-                            history.clear()
-                            currentView = null
-                            popup = null
-                            popupContent = null
-                            popupHost?.stopTransition()
-                            popupHost = null
-                            activeKey = null
-                            pendingKey = null
-                            currentRequest = null
-                            refreshTarget?.dispose()
-                            refreshTarget = null
-                            previewJob?.cancel()
-                            previewJob = null
-                            hoverJob = null
-                            cancelScheduledHide()
-                            underline.clear()
-                            nativeHoverSuppression.restore()
-                        }
+            if (!reuseHoverPopup(request, panel)) {
+                val host = TaigaDocumentationPopupHost(panel)
+                val createdPopup =
+                    createTaigaDocumentationPopup(
+                        project,
+                        host,
+                        panel.preferredFocus,
+                        requestFocus,
+                        request.explicit,
+                        pinned,
+                    ) {
+                        currentRequest?.documentationTargetScreenBounds() ?: request.documentationTargetScreenBounds()
                     }
-                },
-            )
-
-            popup = createdPopup
-            popupContent = panel
-            popupHost = host
-            createdPopup.showTaigaDocumentationPopup(
-                panel,
-                request.editor,
-                request.documentationTargetScreenBounds(),
-                request.popupPlacement(panel.preferredSize),
-                pinnedSize,
-                pinnedLocation,
-                pinned,
-                request.explicit,
-            )
+                registerPopupCleanup(createdPopup)
+                popup = createdPopup
+                popupContent = panel
+                popupHost = host
+                createdPopup.showTaigaDocumentationPopup(
+                    panel,
+                    request.editor,
+                    request.documentationTargetScreenBounds(),
+                    request.popupPlacement(panel.preferredSize),
+                    pinnedSize,
+                    pinnedLocation,
+                    pinned,
+                    request.explicit,
+                )
+            }
             panel.restoreScrollPosition(view.scrollPosition)
             request.completePresentation(panel, refreshInProgress)
             loadIconPreviews(request, resolved, panel)
         }
+    }
+
+    private fun reuseHoverPopup(
+        request: TaigaQuickDocumentationHoverRequest,
+        panel: TaigaQuickDocumentationPopupPanel,
+    ): Boolean {
+        val existingPopup = popup?.takeIf { it.isVisible && !pinned && !request.explicit } ?: return false
+        val host = popupHost ?: return false
+        popupContent = panel
+        host.showCard(panel)
+        existingPopup.setSize(host.preferredSize)
+        positionTaigaHoverCard(existingPopup, panel, request.documentationTargetScreenBounds())
+        return true
+    }
+
+    private fun registerPopupCleanup(createdPopup: JBPopup) {
+        createdPopup.addListener(
+            object : JBPopupListener {
+                override fun onClosed(event: LightweightWindowEvent) {
+                    if (popup === createdPopup) {
+                        pinned = false
+                        pinnedSize = null
+                        pinnedLocation = null
+                        refreshInProgress = false
+                        resolutionJob?.cancel()
+                        cardEditors.dispose()
+                        history.clear()
+                        currentView = null
+                        popup = null
+                        popupContent = null
+                        popupHost?.stopTransition()
+                        popupHost = null
+                        activeKey = null
+                        pendingKey = null
+                        currentRequest = null
+                        refreshTarget?.dispose()
+                        refreshTarget = null
+                        previewJob?.cancel()
+                        previewJob = null
+                        hoverJob = null
+                        cancelScheduledHide()
+                        underline.clear()
+                        nativeHoverSuppression.restore()
+                    }
+                }
+            },
+        )
     }
 
     private fun popupActions(
