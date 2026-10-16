@@ -242,7 +242,11 @@ internal class TaigaQuickDocumentationHoverController(
                     .executeSynchronously()
             withContext(Dispatchers.EDT) {
                 if (pendingKey == candidate.key) {
-                    if (refreshing) popupContent?.showRefreshProgress(false) else resolutionStatus.showLoading()
+                    if (refreshing) {
+                        popupContent?.showRefreshProgress(false)
+                    } else if (popup?.isVisible != true) {
+                        resolutionStatus.showLoading()
+                    }
                 }
             }
             val snapshot =
@@ -276,7 +280,7 @@ internal class TaigaQuickDocumentationHoverController(
                 if (popup?.isVisible == true) scheduleHide() else clearHover()
             }
             !request.isStillCurrent(project) || (snapshot != null && resolved == null) -> clearHover()
-            else -> handleRequest(request, resolved)
+            else -> handleRequest(request, resolved, candidate.key)
         }
     }
 
@@ -366,10 +370,23 @@ internal class TaigaQuickDocumentationHoverController(
     private fun handleRequest(
         request: TaigaQuickDocumentationHoverRequest,
         cachedResolved: TaigaResolvedDocumentation?,
+        candidateKey: TaigaQuickDocumentationHoverKey,
     ) {
-        currentRequest = request
         cancelScheduledHide()
 
+        if (popup?.isVisible == true) {
+            // A repeated event in the same attribute must not rebuild or reposition the card.
+            hoverJob?.cancel()
+            hoverJob = null
+            if (request.key != activeKey) {
+                // Keep the old popup visible until the next target has actually settled.
+                hoverJob = scheduleHover(request, cachedResolved, candidateKey, switching = true)
+            }
+            return
+        }
+
+        currentRequest = request
+        nativeHoverSuppression.suppress(request.editor)
         if (request.documentationRequest.shouldHighlight) {
             underline.show(
                 request.editor,
@@ -380,8 +397,6 @@ internal class TaigaQuickDocumentationHoverController(
             underline.clear()
         }
 
-        nativeHoverSuppression.suppress(request.editor)
-
         if (request.key != activeKey) {
             rememberRefreshTarget(request)
             hoverJob?.cancel()
@@ -390,16 +405,18 @@ internal class TaigaQuickDocumentationHoverController(
             currentView = null
             cardEditors.dispose()
             activeKey = request.key
-            hoverJob = scheduleHover(request, cachedResolved)
+            hoverJob = scheduleHover(request, cachedResolved, candidateKey)
         }
     }
 
     private fun scheduleHover(
         request: TaigaQuickDocumentationHoverRequest,
         cachedResolved: TaigaResolvedDocumentation?,
+        candidateKey: TaigaQuickDocumentationHoverKey,
+        switching: Boolean = false,
     ): Job =
         coroutineScope.launch(Dispatchers.Default + CoroutineName("Taiga UI quick documentation hover")) {
-            delay(DOCUMENTATION_HOVER_SHOW_DELAY)
+            delay(taigaDocumentationHoverDelay(switching))
 
             val resolved =
                 cachedResolved
@@ -409,22 +426,32 @@ internal class TaigaQuickDocumentationHoverController(
                         ?.resolve(request.documentationRequest)
 
             withContext(Dispatchers.EDT) {
-                if (resolved == null || activeKey != request.key || !request.isStillCurrent(project)) {
-                    if (activeKey == request.key) {
-                        clearHover()
+                when {
+                    pendingKey != candidateKey || !request.isStillCurrent(project) -> Unit
+                    resolved == null -> clearHover()
+                    else -> {
+                        hoverJob = null
+                        if (switching) {
+                            // Commit the replacement only after resolution and the switching dwell.
+                            hidePopup(restoreNativeHover = false)
+                            cardEditors.dispose()
+                            history.clear()
+                            currentView = null
+                            currentRequest = request
+                            activeKey = request.key
+                            rememberRefreshTarget(request)
+                        }
+                        if (request.documentationRequest.shouldHighlight) {
+                            underline.show(
+                                request.editor,
+                                request.documentationRequest.startOffset,
+                                request.documentationRequest.endOffset,
+                            )
+                        } else {
+                            underline.clear()
+                        }
+                        showView(request, TaigaDocumentationView(resolved))
                     }
-                } else {
-                    hoverJob = null
-                    if (request.documentationRequest.shouldHighlight) {
-                        underline.show(
-                            request.editor,
-                            request.documentationRequest.startOffset,
-                            request.documentationRequest.endOffset,
-                        )
-                    } else {
-                        underline.clear()
-                    }
-                    showView(request, TaigaDocumentationView(resolved))
                 }
             }
         }
@@ -938,5 +965,4 @@ private val TaigaDocumentationRequest.shouldHighlight: Boolean
         this is TaigaDocumentationRequest.Member ||
             (this is TaigaDocumentationRequest.Entity && subjects.any { subject -> subject.selector != null })
 
-private val DOCUMENTATION_HOVER_SHOW_DELAY = 850.milliseconds
 private val HOVER_HIDE_GRACE_PERIOD = 750.milliseconds

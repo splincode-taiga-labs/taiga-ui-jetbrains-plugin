@@ -3,6 +3,7 @@ package org.taigaui.designtokens.documentation
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.labels.LinkLabel
 import javax.swing.JTabbedPane
+import kotlin.time.Duration.Companion.milliseconds
 
 class TaigaQuickDocumentationPresentationRegressionTest : TaigaDocumentationPopupTestCase() {
     fun testFlattenedButtonExampleGetsAttributeIndentationWithoutSplittingQuotedExpressions() {
@@ -123,6 +124,13 @@ class TaigaQuickDocumentationPresentationRegressionTest : TaigaDocumentationPopu
 
         // The top inset is part of the card, not a full-width stripe painted in the editor color.
         assertEquals(panel.background.rgb, image.getRGB(panel.width - 16, 3))
+    }
+
+    fun testHoverSwitchUsesShorterDwellWithoutMovingOnTinyGeometryChanges() {
+        assertEquals(850.milliseconds, taigaDocumentationHoverDelay(switching = false))
+        assertEquals(200.milliseconds, taigaDocumentationHoverDelay(switching = true))
+        assertFalse(shouldRepositionTaigaHoverCard(java.awt.Point(100, 100), java.awt.Point(102, 98)))
+        assertTrue(shouldRepositionTaigaHoverCard(java.awt.Point(100, 100), java.awt.Point(116, 100)))
     }
 
     fun testHoverPlacementPrefersRightWithoutCoveringTheAttribute() {
