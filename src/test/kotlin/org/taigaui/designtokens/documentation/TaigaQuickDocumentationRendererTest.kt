@@ -1,5 +1,6 @@
 package org.taigaui.designtokens.documentation
 
+import com.intellij.openapi.util.text.StringUtil
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -36,7 +37,7 @@ class TaigaQuickDocumentationRendererTest {
 
         assertTrue(html.contains("TuiButton"))
         assertTrue(html.contains("@taiga-ui/core"))
-        assertTrue(html.contains("import {TuiButton} from '@taiga-ui/core';"))
+        assertTrue(html.contains(StringUtil.escapeXmlEntities("import {TuiButton} from '@taiga-ui/core';")))
         assertTrue(html.contains("tuiButton"))
         assertTrue(html.contains("TuiSizeXS | TuiSizeL"))
         assertTrue(html.contains("&lt;button tuiButton&gt;Save&lt;/button&gt;"))
