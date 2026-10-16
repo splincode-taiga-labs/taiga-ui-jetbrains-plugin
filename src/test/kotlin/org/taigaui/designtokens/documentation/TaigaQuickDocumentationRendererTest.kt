@@ -6,62 +6,118 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TaigaQuickDocumentationRendererTest {
+    private val source = requireNotNull(TaigaDocsSources.forMajor(5))
+
     @Test
-    fun `renders compact directive documentation without duplicate external link`() {
-        val source = requireNotNull(TaigaDocsSources.forMajor(5))
-        val entity =
-            TaigaEntityDoc(
-                sectionId = "components/button",
-                title = "Button",
-                packageNames = setOf("@taiga-ui/core"),
-                kind = TaigaDocKind.COMPONENT,
-                version = "5.0.0",
-                description = "Button is a basic component.",
-                publicSymbols = setOf("TuiButton"),
-                selectors = setOf("tuiButton"),
-                inputs =
-                    listOf(
-                        TaigaApiProperty(
-                            name = "size",
-                            signature = "[size]",
-                            documentedType = "TuiSizeXS | TuiSizeL",
-                            description = "Button size",
-                        ),
+    fun `renders directive entity documentation`() {
+        val entity = buttonEntity()
+        val resolved =
+            TaigaResolvedDocumentation.Entity(
+                entity = entity,
+                subject =
+                    TaigaDocumentationSubject(
+                        selector = "tuiButton",
+                        publicSymbol = "TuiButton",
+                        packageName = "@taiga-ui/core",
                     ),
-                outputs = emptyList(),
-                example = TaigaExample("html", "<button tuiButton>Save</button>"),
-                documentationUri = source.documentationUri("components/button"),
+                startOffset = 0,
+                endOffset = 9,
+                usage = null,
+                typeDefinition = null,
             )
 
-        val html =
-            TaigaQuickDocumentationRenderer.render(
-                entity,
-                TaigaDocumentationSubject(
-                    selector = "tuiButton",
-                    publicSymbol = "TuiButton",
-                    packageName = "@taiga-ui/core",
-                ),
-            )
+        val html = TaigaQuickDocumentationRenderer.render(resolved)
 
         assertTrue(html.contains("TuiButton"))
+        assertTrue(html.contains("Directive"))
         assertTrue(html.contains("@taiga-ui/core"))
-        assertTrue(html.contains("tuiButton"))
-        assertTrue(html.contains("TuiSizeXS | TuiSizeL"))
         assertTrue(
             html.contains(
                 StringUtil.escapeXmlEntities("import {TuiButton} from '@taiga-ui/core';"),
             ),
         )
-        assertTrue(html.contains("&lt;button tuiButton&gt;Save&lt;/button&gt;"))
+        assertTrue(html.contains("iconEnd"))
+        assertTrue(html.contains("valueChange"))
         assertFalse(html.contains("Open full Taiga UI documentation"))
         assertFalse(html.contains("taiga-ui.dev"))
     }
 
     @Test
-    fun `omits large example and truncates long api lists`() {
-        val source = requireNotNull(TaigaDocsSources.forMajor(5))
+    fun `renders focused input documentation and possible values`() {
+        val entity = buttonEntity()
+        val resolved =
+            TaigaResolvedDocumentation.Member(
+                entity = entity,
+                subject =
+                    TaigaDocumentationSubject(
+                        selector = "tuiButton",
+                        publicSymbol = "TuiButton",
+                        packageName = "@taiga-ui/core",
+                    ),
+                startOffset = 0,
+                endOffset = 6,
+                usage = "<button tuiButton [size]=\"value\">...</button>",
+                property = entity.inputs.first { property -> property.name == "size" },
+                kind = TaigaApiMemberKind.INPUT,
+            )
+
+        val html = TaigaQuickDocumentationRenderer.render(resolved)
+
+        assertTrue(html.contains("size"))
+        assertTrue(html.contains("Input"))
+        assertTrue(html.contains("of TuiButton"))
+        assertTrue(html.contains("Controls the button size"))
+        assertTrue(html.contains("Possible values"))
+        assertTrue(html.contains("xs"))
+        assertTrue(html.contains("xl"))
+        assertTrue(html.contains("See also"))
+        assertTrue(html.contains("iconEnd"))
+    }
+
+    @Test
+    fun `renders type entity definition`() {
+        val entity =
+            TaigaEntityDoc(
+                sectionId = "types/appearance",
+                title = "Appearance",
+                packageNames = setOf("@taiga-ui/core"),
+                kind = TaigaDocKind.TYPE,
+                version = "5.0.0",
+                description = "Available button appearances.",
+                publicSymbols = setOf("TuiAppearance"),
+                selectors = emptySet(),
+                inputs = emptyList(),
+                outputs = emptyList(),
+                example = null,
+                documentationUri = source.documentationUri("types/appearance"),
+            )
+        val resolved =
+            TaigaResolvedDocumentation.Entity(
+                entity = entity,
+                subject =
+                    TaigaDocumentationSubject(
+                        selector = null,
+                        publicSymbol = "TuiAppearance",
+                        packageName = "@taiga-ui/core",
+                    ),
+                startOffset = 0,
+                endOffset = 13,
+                usage = null,
+                typeDefinition = "'primary' | 'secondary' | 'accent'",
+            )
+
+        val html = TaigaQuickDocumentationRenderer.render(resolved)
+
+        assertTrue(html.contains("TuiAppearance"))
+        assertTrue(html.contains("Type"))
+        assertTrue(html.contains("primary"))
+        assertTrue(html.contains("secondary"))
+    }
+
+    @Test
+    fun `truncates long api lists`() {
         val inputs =
-            (1..7).map { index ->
+            (1..8).map { index ->
                 TaigaApiProperty(
                     name = "input$index",
                     signature = "[input$index]",
@@ -70,35 +126,69 @@ class TaigaQuickDocumentationRendererTest {
                 )
             }
         val entity =
-            TaigaEntityDoc(
-                sectionId = "components/example",
-                title = "Example",
-                packageNames = setOf("@taiga-ui/core"),
-                kind = TaigaDocKind.COMPONENT,
-                version = "5.0.0",
-                description = "Compact docs.",
-                publicSymbols = setOf("TuiExample"),
-                selectors = setOf("tui-example"),
+            buttonEntity(
                 inputs = inputs,
-                outputs = emptyList(),
-                example = TaigaExample("html", "x".repeat(300)),
-                documentationUri = source.documentationUri("components/example"),
+            )
+        val resolved =
+            TaigaResolvedDocumentation.Entity(
+                entity = entity,
+                subject =
+                    TaigaDocumentationSubject(
+                        selector = "tuiButton",
+                        publicSymbol = "TuiButton",
+                        packageName = "@taiga-ui/core",
+                    ),
+                startOffset = 0,
+                endOffset = 9,
+                usage = null,
+                typeDefinition = null,
             )
 
-        val html =
-            TaigaQuickDocumentationRenderer.render(
-                entity,
-                TaigaDocumentationSubject(
-                    selector = "tui-example",
-                    publicSymbol = "TuiExample",
-                    packageName = "@taiga-ui/core",
-                ),
-            )
+        val html = TaigaQuickDocumentationRenderer.render(resolved)
 
         assertTrue(html.contains("input1"))
-        assertTrue(html.contains("input5"))
-        assertFalse(html.contains("input6"))
+        assertTrue(html.contains("input6"))
+        assertFalse(html.contains("input7"))
         assertTrue(html.contains("+2 more"))
-        assertFalse(html.contains("x".repeat(40)))
     }
+
+    private fun buttonEntity(
+        inputs: List<TaigaApiProperty> =
+            listOf(
+                TaigaApiProperty(
+                    name = "iconEnd",
+                    signature = "[iconEnd]",
+                    documentedType = "TuiIcon",
+                    description = "Icon displayed at the end.",
+                ),
+                TaigaApiProperty(
+                    name = "size",
+                    signature = "[size]",
+                    documentedType = "'xs' | 's' | 'm' | 'l' | 'xl'",
+                    description = "Controls the button size.",
+                ),
+            ),
+    ): TaigaEntityDoc =
+        TaigaEntityDoc(
+            sectionId = "components/button",
+            title = "Button",
+            packageNames = setOf("@taiga-ui/core"),
+            kind = TaigaDocKind.COMPONENT,
+            version = "5.0.0",
+            description = "Button is a basic component.",
+            publicSymbols = setOf("TuiButton"),
+            selectors = setOf("tuiButton"),
+            inputs = inputs,
+            outputs =
+                listOf(
+                    TaigaApiProperty(
+                        name = "valueChange",
+                        signature = "(valueChange)",
+                        documentedType = "MouseEvent",
+                        description = "Emitted when the value changes.",
+                    ),
+                ),
+            example = TaigaExample("html", "<button tuiButton>Save</button>"),
+            documentationUri = source.documentationUri("components/button"),
+        )
 }
