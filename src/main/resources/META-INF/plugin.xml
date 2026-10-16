@@ -83,6 +83,9 @@
             source="web-types/event-plugins@3.1.0.web-types.json"
             enableByDefault="false"
         />
+        <platform.backend.documentation.targetProvider
+            implementation="org.taigaui.designtokens.documentation.TaigaQuickDocumentationTargetProvider"
+        />
         <psi.referenceContributor
             language="CSS"
             implementation="org.taigaui.designtokens.navigation.DesignTokenReferenceContributor"
