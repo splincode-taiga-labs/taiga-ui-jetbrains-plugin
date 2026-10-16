@@ -548,6 +548,12 @@ internal class TaigaQuickDocumentationHoverController(
                     }
                 },
             refresh = ::refreshCard,
+            resize = {
+                popupContent?.let { panel ->
+                    popup?.setSize(panel.preferredSize)
+                    popup?.moveToFitScreen()
+                }
+            },
         )
 
     private fun applyCardChange(
