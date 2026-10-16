@@ -73,7 +73,7 @@ class TaigaQuickDocumentationPopupPanelTest : TaigaDocumentationPopupTestCase() 
                 null,
                 owner.entity.inputs.first(),
                 TaigaApiMemberKind.INPUT,
-                binding = TaigaDocumentationBinding("size", 0, 8, "size=\\"m\\"", 6, 7, "m", false),
+                binding = TaigaDocumentationBinding("size", 0, 8, "size=\"m\"", 6, 7, "m", false),
             )
         val otherReceiver = member.copy(subject = member.subject.copy(publicSymbol = "TuiButtonLoading"))
         val shared = member.copy(receivers = listOf(member, otherReceiver))
