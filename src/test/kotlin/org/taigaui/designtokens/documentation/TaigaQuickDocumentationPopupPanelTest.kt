@@ -449,5 +449,4 @@ class TaigaQuickDocumentationPopupPanelTest : TaigaDocumentationPopupTestCase() 
             JBColor.setDark(!previousBright)
         }
     }
-
 }

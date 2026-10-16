@@ -104,10 +104,7 @@ internal class TaigaQuickDocumentationHoverController(
     private var currentRequest: TaigaQuickDocumentationHoverRequest? = null
 
     private var pinned = false
-    private var bindingEditor: TaigaDocumentationBindingEditor? = null
-    private var bindingMember: TaigaResolvedDocumentation.Member? = null
-    private var templateEditor: TaigaDocumentationTemplateEditor? = null
-    private var templateElement: TaigaDocumentationElement? = null
+    private val cardEditors = TaigaDocumentationCardEditors(project)
     private var currentView: TaigaDocumentationView? = null
     private val history = ArrayDeque<TaigaDocumentationView>()
     private var refreshTarget: TaigaDocumentationRefreshTarget? = null
@@ -173,7 +170,7 @@ internal class TaigaQuickDocumentationHoverController(
     }
 
     private fun refreshCard(focusEditor: Boolean = false) {
-        val previous = currentRequest ?: return
+        val previous = currentRequest?.takeUnless { refreshInProgress } ?: return
         val offset = refreshTarget?.offset()
         val file = PsiDocumentManager.getInstance(project).getPsiFile(previous.editor.document)
         if (offset == null || file == null) {
@@ -325,15 +322,17 @@ internal class TaigaQuickDocumentationHoverController(
         val previous = if (refreshing) history.mapNotNull { it.refreshed(resolved, snapshot) } else emptyList()
         val location = popup?.takeIf { it.isVisible }?.locationOnScreen
         hidePopup(restoreNativeHover = false)
-        disposeBindingEditor()
-        disposeTemplateEditor()
+        cardEditors.dispose()
         history.clear()
         history.addAll(previous)
         currentRequest = request
         activeKey = request.key
         rememberRefreshTarget(request)
         showView(request, view ?: TaigaDocumentationView(resolved), requestFocus = !focusEditor)
-        location?.let { popup?.setLocation(it) }
+        location?.let {
+            popup?.setLocation(it)
+            popup?.moveToFitScreen()
+        }
         if (focusEditor) focusTaigaDocumentationEditor(project, request.editor)
     }
 
@@ -373,8 +372,7 @@ internal class TaigaQuickDocumentationHoverController(
         }
     }
 
-    private fun hasInteractiveCard(): Boolean =
-        resolutionStatus.isVisible || popupContent?.hasKeyboardFocus() == true
+    private fun hasInteractiveCard(): Boolean = resolutionStatus.isVisible || popupContent?.hasKeyboardFocus() == true
 
     private fun handleRequest(
         request: TaigaQuickDocumentationHoverRequest,
@@ -401,8 +399,7 @@ internal class TaigaQuickDocumentationHoverController(
             hidePopup(restoreNativeHover = false)
             history.clear()
             currentView = null
-            disposeBindingEditor()
-            disposeTemplateEditor()
+            cardEditors.dispose()
             activeKey = request.key
             hoverJob = scheduleHover(request, cachedResolved)
         }
@@ -456,8 +453,7 @@ internal class TaigaQuickDocumentationHoverController(
 
         if (canShow) {
             if (pinned) nativeHoverSuppression.restore() else nativeHoverSuppression.suppress(request.editor)
-            prepareBindingEditor(request, resolved)
-            prepareTemplateEditor(request, resolved)
+            cardEditors.prepare(request.editor, resolved, request.actionContext, request.isStillCurrent(project))
             currentView = view
 
             val panel =
@@ -493,8 +489,7 @@ internal class TaigaQuickDocumentationHoverController(
                             pinnedLocation = null
                             refreshInProgress = false
                             resolutionJob?.cancel()
-                            disposeBindingEditor()
-                            disposeTemplateEditor()
+                            cardEditors.dispose()
                             history.clear()
                             currentView = null
                             popup = null
@@ -551,12 +546,12 @@ internal class TaigaQuickDocumentationHoverController(
                 },
             togglePin = { togglePin(request, resolved, exampleVisible) },
             applyValue =
-                bindingEditor?.let { editor ->
+                cardEditors.binding?.let { editor ->
                     { value: String ->
                         applyCardChange(request) { editor.apply(value) }
                     }
                 },
-            currentValue = bindingEditor?.currentValue,
+            currentValue = cardEditors.binding?.currentValue,
             chooseIcon = { reference -> chooseIcon(request, reference) },
             openMember = { member ->
                 navigate(request, TaigaDocumentationView(member))
@@ -590,7 +585,7 @@ internal class TaigaQuickDocumentationHoverController(
         request: TaigaQuickDocumentationHoverRequest,
         resolved: TaigaResolvedDocumentation,
     ): ((TaigaDocumentationTemplateEdit) -> String)? =
-        templateEditor?.let { adapter ->
+        cardEditors.template?.let { adapter ->
             { edit ->
                 applyCardChange(request, focusEditor = edit.kind == TaigaTemplateEditKind.ADD_REQUIRED) {
                     val result =
@@ -647,7 +642,10 @@ internal class TaigaQuickDocumentationHoverController(
                 pinnedLocation = null
             }
             showView(request, view)
-            location?.let { popup?.setLocation(it) }
+            location?.let {
+                popup?.setLocation(it)
+                popup?.moveToFitScreen()
+            }
         }
     }
 
@@ -668,66 +666,6 @@ internal class TaigaQuickDocumentationHoverController(
 
     private fun captureCurrentView(): TaigaDocumentationView? =
         currentView?.let { it.copy(scrollPosition = popupContent?.scrollPosition ?: it.scrollPosition) }
-
-    private fun prepareTemplateEditor(
-        request: TaigaQuickDocumentationHoverRequest,
-        resolved: TaigaResolvedDocumentation,
-    ) {
-        val element = resolved.templateElement
-        if (element == templateElement) return
-        disposeTemplateEditor()
-        if (element == null) return
-        val document = request.editor.document
-        val unchanged =
-            element.endOffset <= document.textLength &&
-                document.charsSequence.subSequence(element.startOffset, element.endOffset).toString() == element.text
-        if (unchanged && request.isStillCurrent(project) && document.isWritable) {
-            templateElement = element
-            templateEditor =
-                TaigaDocumentationTemplateEditor(
-                    project,
-                    document,
-                    element,
-                    isContextCurrent = request.actionContext::isCurrent,
-                ) { request.editor.caretModel.moveToOffset(it) }
-        }
-    }
-
-    private fun disposeTemplateEditor() {
-        templateEditor?.dispose()
-        templateEditor = null
-        templateElement = null
-    }
-
-    @Suppress("ReturnCount")
-    private fun prepareBindingEditor(
-        request: TaigaQuickDocumentationHoverRequest,
-        resolved: TaigaResolvedDocumentation,
-    ) {
-        val member = resolved as? TaigaResolvedDocumentation.Member
-        if (member == bindingMember) return
-        disposeBindingEditor()
-        val binding = member?.binding ?: return
-        val values = member.localValues()
-        if (member.kind != TaigaApiMemberKind.INPUT || binding.literal == null || values.isEmpty()) return
-        if (!request.isStillCurrent(project) || !request.editor.document.isWritable) return
-        val document = request.editor.document
-        if (binding.endOffset > document.textLength ||
-            binding.context.any { it.endOffset > document.textLength } ||
-            document.charsSequence.subSequence(binding.startOffset, binding.endOffset).toString() != binding.text
-        ) {
-            return
-        }
-        bindingMember = member
-        bindingEditor =
-            TaigaDocumentationBindingEditor(project, document, binding, values, request.actionContext::isCurrent)
-    }
-
-    private fun disposeBindingEditor() {
-        bindingEditor?.dispose()
-        bindingEditor = null
-        bindingMember = null
-    }
 
     private fun loadIconPreviews(
         request: TaigaQuickDocumentationHoverRequest,
@@ -789,8 +727,7 @@ internal class TaigaQuickDocumentationHoverController(
         resolutionStatus.hide()
         refreshTarget?.dispose()
         refreshTarget = null
-        disposeBindingEditor()
-        disposeTemplateEditor()
+        cardEditors.dispose()
         currentView = null
         history.clear()
         resolutionJob?.cancel()
