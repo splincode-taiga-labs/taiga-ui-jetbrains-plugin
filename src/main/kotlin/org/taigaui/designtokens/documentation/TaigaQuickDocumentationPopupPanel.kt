@@ -357,7 +357,7 @@ private fun highlightTypeScript(code: String): String =
     }
 
 private fun String.highlight(color: Color): String =
-    "<span style='color:${color.htmlColor()}'>${codeHtml()}</span>"
+    "<font color='${color.htmlColor()}'>${codeHtml()}</font>"
 
 private fun String.codeHtml(): String =
     StringUtil
