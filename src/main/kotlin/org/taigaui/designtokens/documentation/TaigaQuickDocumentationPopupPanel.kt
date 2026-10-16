@@ -146,6 +146,22 @@ internal class TaigaQuickDocumentationPopupPanel(
             addActionListener { action() }
         }
 
+    private fun firstFocusable(component: java.awt.Container): JComponent? =
+        component.components.firstNotNullOfOrNull { child ->
+            when {
+                child is JComponent && (child is JButton || child is LinkLabel<*>) && child.isFocusable && child.isEnabled -> child
+                child is java.awt.Container -> firstFocusable(child)
+                else -> null
+            }
+        }
+
+    private fun keyboardButtons(component: JComponent) {
+        if (component is JButton) {
+            component.bind("ENTER", "activate-taiga-button") { if (component.isEnabled) component.doClick() }
+        }
+        component.components.filterIsInstance<JComponent>().forEach(::keyboardButtons)
+    }
+
     fun showIconPreviews(values: List<TaigaDocumentationIconPreview>) {
         previewContent.removeAll()
         addIconPreviews(previewContent, values)
@@ -645,22 +661,6 @@ private fun link(
         bind("ENTER", "activate-taiga-link", action)
         bind("SPACE", "activate-taiga-link-space", action)
     }
-
-private fun firstFocusable(component: java.awt.Container): JComponent? =
-    component.components.firstNotNullOfOrNull { child ->
-        when {
-            child is JComponent && (child is JButton || child is LinkLabel<*>) && child.isFocusable && child.isEnabled -> child
-            child is java.awt.Container -> firstFocusable(child)
-            else -> null
-        }
-    }
-
-private fun keyboardButtons(component: JComponent) {
-    if (component is JButton) {
-        component.bind("ENTER", "activate-taiga-button") { if (component.isEnabled) component.doClick() }
-    }
-    component.components.filterIsInstance<JComponent>().forEach(::keyboardButtons)
-}
 
 private fun wrappedLabel(
     text: String,
