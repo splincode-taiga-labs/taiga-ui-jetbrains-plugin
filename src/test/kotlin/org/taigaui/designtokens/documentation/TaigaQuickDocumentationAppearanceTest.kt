@@ -21,13 +21,16 @@ class TaigaQuickDocumentationAppearanceTest : TaigaDocumentationPopupTestCase() 
         assertTrue(panel.preferredSize.height > baseline)
     }
 
-    fun testReferenceLayoutIsAlsoUsedForMouseHover() {
+    fun testAllPassiveHoverKindsAreCompactButExplicitAndExpandedCardsStayFull() {
         val owner = directive()
-        assertFalse(TaigaDocumentationView(owner).isCompactHover(false))
         val member = owner.focusedMember(owner.entity.inputs.first(), TaigaApiMemberKind.INPUT)
-        assertFalse(TaigaDocumentationView(member).isCompactHover(false))
-        assertTrue(TaigaDocumentationView(pipe()).isCompactHover(false))
-        assertFalse(TaigaDocumentationView(pipe()).isCompactHover(true))
+        listOf(owner, member, pipe()).forEach { resolved ->
+            assertTrue(TaigaDocumentationView(resolved).isCompactHover(false))
+            assertFalse(TaigaDocumentationView(resolved).isCompactHover(true))
+            assertFalse(TaigaDocumentationView(resolved, expanded = true).isCompactHover(false))
+            assertFalse(TaigaDocumentationView(resolved, fullApi = true).isCompactHover(false))
+            assertFalse(TaigaDocumentationView(resolved, showExample = true).isCompactHover(false))
+        }
     }
 
     fun testNativeHtmlAndTypeScriptHighlightingPreservesFormattingAndEscapesMarkup() {
