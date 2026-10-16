@@ -206,17 +206,7 @@ internal class TaigaQuickDocumentationHoverController(
         val candidate = event.toTaigaDocumentationHoverCandidate(project)
 
         if (candidate == null) {
-            resolutionJob?.cancel()
-            resolutionJob = null
-            pendingKey = null
-            hoverJob?.cancel()
-            hoverJob = null
-            if (popup?.isVisible == true) {
-                // Keep the source highlighted while the user moves from the editor into the card.
-                scheduleHide()
-            } else {
-                clearHover()
-            }
+            pointerLeftSource()
         } else if (candidate.key == pendingKey) {
             cancelScheduledHide()
             currentRequest?.takeIf { it.documentationRequest.shouldHighlight }?.let { request ->
@@ -353,18 +343,21 @@ internal class TaigaQuickDocumentationHoverController(
         if (pinned || refreshInProgress || hasInteractiveCard()) {
             return
         }
-        if (editor.project == project) {
-            resolutionJob?.cancel()
-            resolutionJob = null
-            pendingKey = null
-            hoverJob?.cancel()
-            hoverJob = null
+        if (editor.project == project) pointerLeftSource()
+    }
 
-            if (popup?.isVisible == true) {
-                scheduleHide()
-            } else {
-                clearHover()
-            }
+    private fun pointerLeftSource() {
+        resolutionJob?.cancel()
+        resolutionJob = null
+        pendingKey = null
+        hoverJob?.cancel()
+        hoverJob = null
+
+        // Keep the source highlight until the card closes, including the crossing to its popup.
+        if (popup?.isVisible == true) {
+            scheduleHide()
+        } else {
+            clearHover()
         }
     }
 
@@ -511,24 +504,16 @@ internal class TaigaQuickDocumentationHoverController(
 
             popup = createdPopup
             popupContent = panel
-            if (pinned) pinnedSize?.let(createdPopup::setSize)
-            val initialPlacement = request.popupPlacement(panel.preferredSize)
-            createdPopup.showInScreenCoordinates(request.editor.contentComponent, initialPlacement.location)
-            if (pinned) {
-                pinnedLocation?.let(createdPopup::setLocation)
-                createdPopup.moveToFitScreen()
-            } else if (request.explicit) {
-                createdPopup.moveToFitScreen()
-            } else {
-                positionTaigaHoverCard(
-                    createdPopup,
-                    panel,
-                    request.editor.documentationTargetScreenBounds(
-                        request.documentationRequest.startOffset,
-                        request.documentationRequest.endOffset,
-                    ),
-                )
-            }
+            createdPopup.showTaigaDocumentationPopup(
+                panel,
+                request.editor,
+                request.documentationTargetScreenBounds(),
+                request.popupPlacement(panel.preferredSize),
+                pinnedSize,
+                pinnedLocation,
+                pinned,
+                request.explicit,
+            )
             panel.restoreScrollPosition(view.scrollPosition)
             request.completePresentation(panel, refreshInProgress)
             loadIconPreviews(request, resolved, panel)
@@ -608,25 +593,19 @@ internal class TaigaQuickDocumentationHoverController(
         }
 
     private fun resizePopup() {
-        val panel = popupContent ?: return
-        val popup = popup ?: return
+        val panel = popupContent
+        val popup = popup
+        if (panel == null || popup == null) return
         if (pinned) {
             popup.moveToFitScreen()
-            return
-        }
-        popup.setSize(panel.preferredSize)
-        val request = currentRequest
-        if (request != null && !request.explicit && popup.isVisible) {
-            positionTaigaHoverCard(
-                popup,
-                panel,
-                request.editor.documentationTargetScreenBounds(
-                    request.documentationRequest.startOffset,
-                    request.documentationRequest.endOffset,
-                ),
-            )
         } else {
-            popup.moveToFitScreen()
+            popup.setSize(panel.preferredSize)
+            val request = currentRequest
+            if (request != null && !request.explicit && popup.isVisible) {
+                positionTaigaHoverCard(popup, panel, request.documentationTargetScreenBounds())
+            } else {
+                popup.moveToFitScreen()
+            }
         }
     }
 
@@ -906,12 +885,11 @@ private fun TaigaQuickDocumentationHoverRequest.isStillCurrent(project: Project)
     return projectState && documentState && uiState && actionContext.isCurrent()
 }
 
+private fun TaigaQuickDocumentationHoverRequest.documentationTargetScreenBounds() =
+    editor.documentationTargetScreenBounds(documentationRequest.startOffset, documentationRequest.endOffset)
+
 private fun TaigaQuickDocumentationHoverRequest.popupPlacement(size: Dimension): TaigaHoverPopupPlacement {
-    val target =
-        editor.documentationTargetScreenBounds(
-            documentationRequest.startOffset,
-            documentationRequest.endOffset,
-        )
+    val target = documentationTargetScreenBounds()
     if (explicit) {
         return TaigaHoverPopupPlacement(Point(target.x, target.y + target.height), TaigaHoverPointerSide.NONE)
     }
