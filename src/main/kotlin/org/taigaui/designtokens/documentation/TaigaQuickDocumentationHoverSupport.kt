@@ -378,11 +378,15 @@ internal class TaigaQuickDocumentationHoverController(
         disposeBindingEditor()
         val binding = member?.binding ?: return
         val values = member.localValues()
-        if (member.kind != TaigaApiMemberKind.INPUT || binding.literal == null || values.isEmpty() ||
-            !request.isStillCurrent(project) || !request.editor.document.isWritable
+        if (member.kind != TaigaApiMemberKind.INPUT || binding.literal == null || values.isEmpty()) return
+        if (!request.isStillCurrent(project) || !request.editor.document.isWritable) return
+        val document = request.editor.document
+        if (binding.endOffset > document.textLength ||
+            binding.context.any { it.endOffset > document.textLength } ||
+            document.charsSequence.subSequence(binding.startOffset, binding.endOffset).toString() != binding.text
         ) return
         bindingMember = member
-        bindingEditor = TaigaDocumentationBindingEditor(project, request.editor.document, binding, values)
+        bindingEditor = TaigaDocumentationBindingEditor(project, document, binding, values)
     }
 
     private fun disposeBindingEditor() {

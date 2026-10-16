@@ -20,18 +20,20 @@ internal fun PsiElement.localInputValues(
         return if (parts.any(List<String>::isEmpty)) emptyList() else parts.flatten().distinct()
     }
     if (visited.size >= MAX_ALIAS_DEPTH || type in visited || !TYPE_NAME.matches(type)) return emptyList()
-    val file = containingFile ?: return emptyList()
-    val declaration =
-        Regex("\\b${Regex.escape(type)}\\b")
-            .findAll(text.take(MAX_ALIAS_FILE_TEXT))
-            .take(MAX_ALIAS_REFERENCES)
-            .mapNotNull { match ->
-                val offset = textRange.startOffset + match.range.first
-                file.findElementAt(offset)?.resolveTaigaDeclaration(file, offset)
-            }.firstOrNull { element -> element.typeDefinition(type) != null }
-            ?: return emptyList()
+    val declaration = resolveInputAlias(type) ?: return emptyList()
     val definition = declaration.typeDefinition(type) ?: return emptyList()
     return declaration.localInputValues(definition, visited + type)
+}
+
+private fun PsiElement.resolveInputAlias(type: String): PsiElement? {
+    val file = containingFile ?: return null
+    return Regex("\\b${Regex.escape(type)}\\b")
+        .findAll(text.take(MAX_ALIAS_FILE_TEXT))
+        .take(MAX_ALIAS_REFERENCES)
+        .mapNotNull { match ->
+            val offset = textRange.startOffset + match.range.first
+            file.findElementAt(offset)?.resolveTaigaDeclaration(file, offset)
+        }.firstOrNull { element -> element.typeDefinition(type) != null }
 }
 
 internal fun TaigaResolvedDocumentation.Member.localValues(): List<String> {

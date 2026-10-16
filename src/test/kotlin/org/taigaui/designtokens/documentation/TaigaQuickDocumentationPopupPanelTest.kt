@@ -116,7 +116,7 @@ class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
         val entity = directive()
         val member = TaigaResolvedDocumentation.Member(
             entity.entity,
-            entity.subject,
+            entity.subject.copy(localDocumentation = TaigaLocalDocumentation(inputTypes = mapOf("size" to "TuiSize"))),
             0,
             4,
             null,
