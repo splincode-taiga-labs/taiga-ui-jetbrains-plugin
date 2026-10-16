@@ -21,6 +21,16 @@ class PluginSmokeTest {
         )
         assertTrue(
             descriptor.contains(
+                "<platform.backend.documentation.targetProvider",
+            ),
+        )
+        assertTrue(
+            descriptor.contains(
+                "<platform.backend.documentation.lookupElementTargetProvider",
+            ),
+        )
+        assertTrue(
+            descriptor.contains(
                 "org.taigaui.designtokens.documentation.TaigaQuickDocumentationTargetProvider",
             ),
         )
