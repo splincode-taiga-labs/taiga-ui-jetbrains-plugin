@@ -146,7 +146,9 @@ internal object TaigaDocumentationResolver {
                 ),
             startOffset = element.textRange.startOffset,
             endOffset = element.textRange.endOffset,
-            typeDefinition = declaration?.typeDefinition(publicSymbol),
+            typeDefinition =
+                declaration?.typeDefinition(publicSymbol)
+                    ?: file.taigaImportedTypeDefinition(publicSymbol, packageName),
         )
     }
 }
