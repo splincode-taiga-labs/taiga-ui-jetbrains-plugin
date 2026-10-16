@@ -7,7 +7,19 @@ import com.intellij.util.ui.JBUI
 import java.awt.Dimension
 import java.awt.Point
 import java.awt.Rectangle
+import kotlin.math.abs
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import javax.swing.SwingUtilities
+
+internal fun taigaDocumentationHoverDelay(switching: Boolean): Duration =
+    if (switching) 200.milliseconds else 850.milliseconds
+
+internal fun shouldRepositionTaigaHoverCard(
+    current: Point,
+    desired: Point,
+    tolerance: Int = 3,
+): Boolean = abs(current.x - desired.x) > tolerance || abs(current.y - desired.y) > tolerance
 
 internal enum class TaigaHoverPointerSide {
     LEFT,
@@ -79,8 +91,10 @@ internal fun positionTaigaHoverCard(
 ) {
     if (!popup.isVisible) return
     val placement = taigaHoverPopupPlacementForScreen(target, popup.size)
-    popup.setLocation(placement.location)
-    popup.moveToFitScreen()
+    if (shouldRepositionTaigaHoverCard(popup.locationOnScreen, placement.location, JBUI.scale(3))) {
+        popup.setLocation(placement.location)
+        popup.moveToFitScreen()
+    }
     panel.alignHoverPointer(
         target.y + target.height / 2 - popup.locationOnScreen.y,
         placement.pointerSide,
