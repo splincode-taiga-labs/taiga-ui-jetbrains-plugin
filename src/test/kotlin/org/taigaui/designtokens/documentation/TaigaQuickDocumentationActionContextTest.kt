@@ -32,13 +32,18 @@ class TaigaQuickDocumentationActionContextTest : BasePlatformTestCase() {
     }
 
     fun testInstalledDeclarationsInvalidateAnExplicitApiDependency() {
-        val declaration = myFixture.tempDirFixture.createFile(
-            "node_modules/@taiga-ui/core/button.d.ts", "export declare class TuiButton {}",
-        )
+        val declaration =
+            myFixture.tempDirFixture.createFile(
+                "node_modules/@taiga-ui/core/button.d.ts",
+                "export declare class TuiButton {}",
+            )
         myFixture.configureByText("component.html", "<button tuiButton></button>")
-        val context = TaigaDocumentationActionContext(
-            project, myFixture.editor.document, listOf(Path.of(declaration.path)),
-        )
+        val context =
+            TaigaDocumentationActionContext(
+                project,
+                myFixture.editor.document,
+                listOf(Path.of(declaration.path)),
+            )
         val document = requireNotNull(FileDocumentManager.getInstance().getDocument(declaration))
         WriteCommandAction.runWriteCommandAction(project) { document.insertString(0, "// API changed\n") }
         assertFalse(context.isCurrent())
