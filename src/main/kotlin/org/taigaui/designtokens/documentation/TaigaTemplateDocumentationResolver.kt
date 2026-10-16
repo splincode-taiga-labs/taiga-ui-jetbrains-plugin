@@ -133,5 +133,5 @@ internal object TaigaTemplateDocumentationResolver {
             (value.startsWith("tui") && value.length > 3 && (value[3].isUpperCase() || value[3].isDigit()))
 
     private val NAME_TOKENS = setOf(XmlTokenType.XML_NAME, XmlTokenType.XML_TAG_NAME)
-    private val TAIGA_PACKAGE_PATH = Regex("""(?:^|/)@taiga-ui/([^/]+)(?:/|$)""")
+    private val TAIGA_PACKAGE_PATH = Regex("""(?:^|/)node_modules/@taiga-ui/([^/]+)(?:/|$)""")
 }
