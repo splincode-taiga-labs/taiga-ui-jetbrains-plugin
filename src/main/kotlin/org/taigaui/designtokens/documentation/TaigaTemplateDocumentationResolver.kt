@@ -122,9 +122,6 @@ internal object TaigaTemplateDocumentationResolver {
         return "@taiga-ui/" + match.groupValues[1]
     }
 
-    internal fun isTaigaDocumentationKey(value: String): Boolean =
-        isTaigaSelector(value) || isTaigaPublicSymbol(value)
-
     private fun isTaigaPublicSymbol(value: String): Boolean =
         value.startsWith("Tui") &&
             value.length > 3 &&
