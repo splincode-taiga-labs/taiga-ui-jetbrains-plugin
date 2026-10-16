@@ -86,3 +86,27 @@ internal fun positionTaigaHoverCard(
         placement.pointerSide,
     )
 }
+
+/** Position the popup after its real size is known and keep pinned/explicit geometry unchanged. */
+@Suppress("LongParameterList")
+internal fun JBPopup.showTaigaDocumentationPopup(
+    panel: TaigaQuickDocumentationPopupPanel,
+    editor: Editor,
+    target: Rectangle,
+    initialPlacement: TaigaHoverPopupPlacement,
+    pinnedSize: Dimension?,
+    pinnedLocation: Point?,
+    pinned: Boolean,
+    explicit: Boolean,
+) {
+    if (pinned) pinnedSize?.let(::setSize)
+    showInScreenCoordinates(editor.contentComponent, initialPlacement.location)
+    if (pinned) {
+        pinnedLocation?.let(::setLocation)
+        moveToFitScreen()
+    } else if (explicit) {
+        moveToFitScreen()
+    } else {
+        positionTaigaHoverCard(this, panel, target)
+    }
+}

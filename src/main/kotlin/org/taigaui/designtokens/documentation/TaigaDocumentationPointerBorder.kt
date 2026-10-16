@@ -24,8 +24,7 @@ internal class TaigaDocumentationPointerBorder : AbstractBorder() {
     override fun getBorderInsets(
         component: Component,
         insets: Insets,
-    ): Insets =
-        getBorderInsets(component).let { insets.apply { set(it.top, it.left, it.bottom, it.right) } }
+    ): Insets = getBorderInsets(component).let { insets.apply { set(it.top, it.left, it.bottom, it.right) } }
 
     override fun paintBorder(
         component: Component,
