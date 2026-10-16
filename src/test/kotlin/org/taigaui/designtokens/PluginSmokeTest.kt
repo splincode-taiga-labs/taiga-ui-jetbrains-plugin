@@ -19,5 +19,10 @@ class PluginSmokeTest {
         assertTrue(
             descriptor.contains("com.intellij.diagnostic.JetBrainsMarketplaceErrorReportSubmitter"),
         )
+        assertTrue(
+            descriptor.contains(
+                "org.taigaui.designtokens.documentation.TaigaQuickDocumentationTargetProvider",
+            ),
+        )
     }
 }
