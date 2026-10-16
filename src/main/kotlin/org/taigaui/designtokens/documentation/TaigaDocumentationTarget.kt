@@ -196,17 +196,17 @@ internal fun TaigaResolvedDocumentation.canonicalImport(): String? {
     }
 }
 
-internal fun TaigaResolvedDocumentation.possibleValues(): List<String> =
-    typeText
-        ?.let { type ->
-            STRING_LITERAL.findAll(type)
-                .map { match -> match.groupValues[1] }
-                .distinct()
-                .toList()
-        }
-        .orEmpty()
-        .takeIf { values -> values.size > 1 }
-        .orEmpty()
+internal fun TaigaResolvedDocumentation.possibleValues(): List<String> {
+    val type = typeText ?: return emptyList()
+    val values =
+        STRING_LITERAL
+            .findAll(type)
+            .map { match -> match.groupValues[1] }
+            .distinct()
+            .toList()
+
+    return values.takeIf { items -> items.size > 1 }.orEmpty()
+}
 
 internal fun TaigaResolvedDocumentation.relatedMembers(limit: Int = 4): List<String> =
     when (this) {
