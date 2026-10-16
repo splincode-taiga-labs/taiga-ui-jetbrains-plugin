@@ -306,6 +306,41 @@ class TaigaQuickDocumentationIntegrationTest : CodeInsightFixtureTestCase<EmptyM
         assertTrue((dynamicRequest as? TaigaDocumentationRequest.Entity)?.icons?.isEmpty() == true)
     }
 
+    @Test
+    fun testPlainInputAndEntityCardsCaptureExistingBinding() {
+        val file = configureTemplate("<button tuiButton size=\"s\">Save</button>")
+        warmDocumentation(file)
+        val member = TaigaDocumentationResolver.findRequest(file, file.text.indexOf("size") + 1)
+        assertEquals("s", (member as? TaigaDocumentationRequest.Member)?.binding?.literal)
+        assertNotNull(renderDocumentation(file, "size"))
+        val entity = TaigaDocumentationResolver.findRequest(file, file.text.indexOf("tuiButton") + 2)
+        assertEquals("s", (entity as? TaigaDocumentationRequest.Entity)?.bindings?.firstOrNull { it.name == "size" }?.literal)
+    }
+
+    @Test
+    fun testInstalledInputAliasesResolveToFiniteValuesAndCyclesRemainUnknown() {
+        val virtualFile = createFile(
+            workspaceRoot.resolve("node_modules/@taiga-ui/core/binding.d.ts"),
+            """
+            export type TuiSmall = 's' | 'm';
+            export type TuiLarge = 'l';
+            export type TuiSizes = TuiSmall | TuiLarge;
+            export type TuiCycleA = TuiCycleB;
+            export type TuiCycleB = TuiCycleA;
+            export declare class TuiBinding {
+                size: InputSignal<TuiSizes>;
+                cycle: InputSignal<TuiCycleA>;
+            }
+            """.trimIndent(),
+        )
+        myFixture.configureFromExistingVirtualFile(virtualFile)
+        val file = myFixture.file
+        val element = requireNotNull(file.findElementAt(file.text.indexOf("TuiBinding")))
+        val local = element.localDocumentation("TuiBinding")
+        assertEquals(listOf("s", "m", "l"), local.inputValues["size"])
+        assertTrue(local.inputValues["cycle"].orEmpty().isEmpty())
+    }
+
     private fun nthIndexOf(
         text: String,
         needle: String,

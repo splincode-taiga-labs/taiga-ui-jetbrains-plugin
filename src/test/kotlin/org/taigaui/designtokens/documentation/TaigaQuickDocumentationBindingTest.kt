@@ -2,7 +2,7 @@ package org.taigaui.designtokens.documentation
 
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.command.undo.UndoManager
-import com.intellij.openapi.fileEditor.TextEditorProvider
+import com.intellij.openapi.fileEditor.impl.text.TextEditorProvider
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.psi.xml.XmlAttribute
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
@@ -13,7 +13,7 @@ class TaigaQuickDocumentationBindingTest : BasePlatformTestCase() {
         val editor = TaigaDocumentationBindingEditor(project, myFixture.editor.document, binding, listOf("s", "m", "l"))
         try {
             assertTrue(editor.apply("m").startsWith("Applied"))
-            assertEquals("""<button tuiButton [size] = "&#39;m&#39;">Save</button>""", myFixture.editor.document.text)
+            assertEquals("""<button tuiButton [size] = "'m'">Save</button>""", myFixture.editor.document.text)
             val textEditor = TextEditorProvider.getInstance().getTextEditor(myFixture.editor)
             UndoManager.getInstance(project).undo(textEditor)
             assertEquals("""<button tuiButton [size] = "'s'">Save</button>""", myFixture.editor.document.text)
@@ -62,10 +62,26 @@ class TaigaQuickDocumentationBindingTest : BasePlatformTestCase() {
         }
     }
 
+    fun testReadOnlyDocumentAndOutOfTypeValuesDoNotChangeSource() {
+        val binding = binding("""<button tuiButton size="s">Save</button>""")
+        val document = myFixture.editor.document
+        val before = document.text
+        val editor = TaigaDocumentationBindingEditor(project, document, binding, listOf("s", "m"))
+        try {
+            assertEquals("Copy this value instead", editor.apply("unknown"))
+            document.setReadOnly(true)
+            assertTrue(editor.apply("m").startsWith("File is read-only"))
+            assertEquals(before, document.text)
+        } finally {
+            document.setReadOnly(false)
+            editor.dispose()
+        }
+    }
+
     fun testSingleQuotedHtmlAttributeRemainsValid() {
         val binding = binding("""<button tuiButton [size]='"s"'>Save</button>""")
         assertEquals("s", binding.literal)
-        assertEquals("[size]='&#39;m&#39;'", binding.replacement("m"))
+        assertEquals("[size]='\"m\"'", binding.replacement("m"))
     }
 
     fun testOnlyCompleteFiniteStringUnionsAuthorizeValues() {
