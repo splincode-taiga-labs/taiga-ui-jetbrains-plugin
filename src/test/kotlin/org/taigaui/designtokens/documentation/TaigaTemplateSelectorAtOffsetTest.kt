@@ -55,6 +55,15 @@ class TaigaTemplateSelectorAtOffsetTest {
     }
 
     @Test
+    fun ignoresTaigaLikeTextInsideUnquotedAttributeValue() {
+        val html = "<div title=tuiButton></div>"
+
+        assertNull(
+            TaigaTemplateSelectorAtOffset.find(html, html.indexOf("tuiButton") + 2),
+        )
+    }
+
+    @Test
     fun ignoresNonTaigaElementsAndAttributes() {
         val html = "<button class=\"primary\">Save</button>"
 
