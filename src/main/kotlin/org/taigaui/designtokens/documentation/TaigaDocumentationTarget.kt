@@ -17,6 +17,7 @@ internal sealed interface TaigaDocumentationRequest {
         override val usage: String? = null,
         val typeDefinition: String? = null,
         val icons: List<TaigaDocumentationIcon> = emptyList(),
+        val bindings: List<TaigaDocumentationBinding> = emptyList(),
     ) : TaigaDocumentationRequest
 
     data class Member(
@@ -27,6 +28,7 @@ internal sealed interface TaigaDocumentationRequest {
         override val endOffset: Int,
         override val usage: String? = null,
         val declaration: TaigaDocumentationSubject? = null,
+        val binding: TaigaDocumentationBinding? = null,
     ) : TaigaDocumentationRequest
 }
 
@@ -45,6 +47,7 @@ internal sealed interface TaigaResolvedDocumentation {
         override val usage: String?,
         val typeDefinition: String?,
         val icons: List<TaigaDocumentationIcon> = emptyList(),
+        val bindings: List<TaigaDocumentationBinding> = emptyList(),
     ) : TaigaResolvedDocumentation
 
     data class Member(
@@ -56,6 +59,7 @@ internal sealed interface TaigaResolvedDocumentation {
         val property: TaigaApiProperty,
         val kind: TaigaApiMemberKind,
         val declaration: TaigaDocumentationSubject? = null,
+        val binding: TaigaDocumentationBinding? = null,
     ) : TaigaResolvedDocumentation
 }
 
@@ -71,6 +75,7 @@ internal fun TaigaDocsSnapshot.resolve(request: TaigaDocumentationRequest): Taig
                         endOffset = request.endOffset,
                         usage = request.usage,
                         typeDefinition = request.typeDefinition,
+                        bindings = request.bindings,
                         icons =
                             request.icons.filter { icon ->
                                 entity.inputs.any { property ->
@@ -101,6 +106,7 @@ internal fun TaigaDocsSnapshot.resolve(request: TaigaDocumentationRequest): Taig
                     property = property,
                     kind = request.kind,
                     declaration = request.declaration?.takeIf { subject -> subject.packageName != null },
+                    binding = request.binding,
                 )
             }
     }

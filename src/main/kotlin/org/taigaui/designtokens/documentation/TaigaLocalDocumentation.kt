@@ -35,6 +35,8 @@ internal data class TaigaLocalDocumentation(
     val pipe: TaigaPipeDocumentation? = null,
     val inputTypes: Map<String, String> = emptyMap(),
     val defaults: List<TaigaInputDefault> = emptyList(),
+    val inputValues: Map<String, List<String>> = emptyMap(),
+    val requiredInputs: Set<String> = emptySet(),
 )
 
 /** Reads bounded local declaration text; it never evaluates application code. */
@@ -50,6 +52,7 @@ internal object TaigaLocalDocumentationParser {
                     match.groupValues[1] to match.groupValues[2].trim()
                 },
             defaults = INPUT_INITIALIZER.findAll(declaration).mapNotNull(::parseDefault).toList(),
+            requiredInputs = REQUIRED_INPUT.findAll(declaration).map { it.groupValues[1] }.toSet(),
         )
     }
 
@@ -206,3 +209,5 @@ private val INPUT_INITIALIZER = Regex("""\b([\w$]+)\s*=\s*input(?:<[^>]+>)?\(([^
 private val INJECT = Regex("""\binject\s*(?:<[^>]+>)?\(\s*([A-Z][A-Z_0-9]+)\s*[,)]""")
 private val LITERAL = Regex("""(?:'[^'\\]*'|"[^"\\]*"|true|false|null|undefined|-?\d+(?:\.\d+)?)""")
 private const val MAX_DECLARATION_LENGTH = 32_000
+
+private val REQUIRED_INPUT = Regex("""\b([\w$]+)\s*=\s*(?:\w+\.)?input\.required(?:<[^>]+>)?\(""")
