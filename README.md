@@ -18,13 +18,15 @@ The plugin reads the Taiga UI packages installed in the current project, so comp
 
 ## Contextual documentation
 
-Hover a Taiga UI component, directive, pipe, or input/output to see its purpose and relevant API directly in the editor. Component and directive cards show parameters immediately; clicking a parameter opens its focused description. Directive cards can explain applicable elements and documented local defaults. Pipe cards show their arguments, result, and recalculation behavior when that information is available.
+Hover a Taiga UI component, directive, pipe, or input/output to see its purpose and relevant API directly in the editor. Input cards show every directive that receives the binding, including inherited declarations and exposed `hostDirectives` aliases, using Angular's selector matching and component import scope. Installed declarations provide cards even when online documentation is unavailable or omits the input. Component and directive cards show parameters immediately; clicking a parameter opens its focused description. Directive cards can explain applicable elements and documented local defaults. Pipe cards show their arguments, result, and recalculation behavior when that information is available.
 
-Use **Pin** to keep a card open while editing; **Unpin**, **Close**, or Escape dismiss it when appropriate. Binding cards distinguish the current value from a library default and show required inputs when explicitly known. Literal choices can update an existing static input when its finite string type is confirmed by the installed package. The edit supports Undo and refuses to overwrite a binding that changed after opening the card. Dynamic expressions and choices known only from online documentation offer copying instead.
+Use **Pin** to keep a card open while editing; **Unpin**, **Close**, or Escape dismiss it when appropriate. Binding cards distinguish the current value from a library default and show required inputs, expanded type aliases, and accepted transform types when available. Literal choices can update an existing static input when its finite string type is confirmed by every receiver of that binding. The edit supports Undo and refuses to overwrite a binding that changed after opening the card. Dynamic expressions and choices known only from online documentation offer copying instead.
 
-When an element has a static `@tui.*` icon value, its card can show an SVG preview and a **Choose icon** action. The chooser searches the project's existing icon catalog and replaces the selected literal with undo support. Dynamic expressions remain untouched.
+Hovering `iconEnd`, `iconStart`, or another icon input with a static `@tui.*` value shows its SVG preview and a **Choose icon** action directly in the input card. The chooser searches the project's existing icon catalog and replaces the selected literal with undo support. Element cards also offer icon previews. Dynamic expressions remain untouched.
 
-Cards link to full documentation and locally resolved source definitions. Examples are opened on demand. Standard Quick Documentation and completion documentation remain available.
+Cards can add a missing required input with an empty expression ready to fill in, or rename a deprecated binding when the installed declaration explicitly identifies a compatible replacement. Both actions support Undo and check that the element has not changed. Cards link to locally resolved source definitions and official documentation; examples are opened on demand.
+
+Use **View … API** from an input or **Browse API** from an owner to explore all of its installed inputs and outputs. Search by name, type, or description; use **↑/↓** and **Enter** to open a member, **Ctrl/Cmd+F** to focus search, and **Alt+Left** or **Back** to return with the search preserved. Standard Quick Documentation and completion documentation remain available.
 
 ## Design tokens
 

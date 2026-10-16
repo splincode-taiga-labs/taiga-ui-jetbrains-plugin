@@ -32,7 +32,14 @@ private fun PsiElement.resolveInputAlias(type: String): PsiElement? {
         .take(MAX_ALIAS_REFERENCES)
         .mapNotNull { match ->
             val offset = textRange.startOffset + match.range.first
-            file.findElementAt(offset)?.resolveTaigaDeclaration(file, offset)
+            file
+                .findElementAt(offset)
+                ?.candidateReferences(file, offset)
+                ?.asSequence()
+                ?.flatMap { it.resolutionCandidates(false) }
+                ?.flatMap { sequenceOf(it, it.navigationElement, it.originalElement) }
+                ?.distinct()
+                ?.firstOrNull { it.typeDefinition(type) != null }
         }.firstOrNull { element -> element.typeDefinition(type) != null }
 }
 
@@ -50,11 +57,7 @@ internal fun PsiElement.inputDocumentation(
     val originalName = field.groupValues[1]
     val declaredType = field.groupValues[2].trim()
     val type =
-        SIGNAL_TYPE
-            .matchEntire(declaredType)
-            ?.groupValues
-            ?.get(1)
-            ?.trim() ?: declaredType
+        inputTypePresentation(declaredType).writeType
     return local.copy(
         inputTypes = local.inputTypes + (name to type),
         inputValues = local.inputValues + (name to localInputValues(type)),
@@ -68,8 +71,60 @@ internal fun PsiElement.inputDocumentation(
     )
 }
 
+internal data class TaigaInputTypePresentation(
+    val readType: String,
+    val writeType: String,
+)
+
+internal fun PsiElement.inputFieldType(fieldName: String? = null): String? {
+    val signature = text.trim().take(MAX_INPUT_FIELD_TEXT)
+    return INPUT_FIELD
+        .matchEntire(signature)
+        ?.groupValues
+        ?.get(2)
+        ?.trim()
+        ?: fieldName?.let { name ->
+            Regex("\\b${Regex.escape(name)}[!?]?\\s*:\\s*([^;=]+)")
+                .find(signature)
+                ?.groupValues
+                ?.get(1)
+                ?.trim()
+        }
+}
+
+/** The second InputSignalWithTransform argument is what a template may pass. */
+@Suppress("ReturnCount")
+internal fun inputTypePresentation(type: String): TaigaInputTypePresentation {
+    val match = SIGNAL_TYPE.matchEntire(type.trim()) ?: return TaigaInputTypePresentation(type, type)
+    val arguments = splitTypeScriptParameters(match.groupValues[2])
+    val read = arguments.firstOrNull() ?: return TaigaInputTypePresentation(type, type)
+    val write = if (match.groupValues[1] == "InputSignalWithTransform") arguments.getOrNull(1) ?: type else read
+    return TaigaInputTypePresentation(read, write)
+}
+
+@Suppress("ReturnCount")
+internal fun PsiElement.expandedInputType(
+    type: String,
+    visited: Set<String> = emptySet(),
+): String? {
+    if (visited.size >= MAX_ALIAS_DEPTH || type in visited) return null
+    val values = localInputValues(type)
+    if (values.isNotEmpty()) return values.joinToString(" | ") { "'$it'" }.takeIf { it != type }
+    if (!TYPE_NAME.matches(type)) return null
+    val declaration = resolveInputAlias(type) ?: return null
+    val definition = declaration.typeDefinition(type) ?: return null
+    return declaration.expandedInputType(definition, visited + type) ?: definition.take(MAX_EXPANDED_TYPE)
+}
+
+@Suppress("ReturnCount")
 internal fun TaigaResolvedDocumentation.Member.localValues(): List<String> {
     if (kind != TaigaApiMemberKind.INPUT) return emptyList()
+    if (!subject.localDocumentation.receiversComplete) return emptyList()
+    if (receivers.isNotEmpty()) {
+        val sets = receivers.map { it.localValues() }
+        if (sets.any(List<String>::isEmpty)) return emptyList()
+        return sets.reduce { left, right -> left.filter { it in right } }
+    }
     val local = declaration?.localDocumentation?.takeIf { property.name in it.inputTypes } ?: subject.localDocumentation
     return local.inputValues[property.name]
         ?: local.inputTypes[property.name]?.let(::finiteStringValues).orEmpty()
@@ -84,4 +139,5 @@ private val STRING_VALUE = Regex("""(['"])([\w .@/-]+)\1""")
 private const val MAX_INPUT_FIELD_TEXT = 8_000
 private val INPUT_FIELD =
     Regex("""(?:(?:public|protected|private|readonly|declare|override|abstract)\s+)*([\w$]+)[!?]?\s*:\s*([^;=]+);?""")
-private val SIGNAL_TYPE = Regex("""(?:[\w$]+\.)?InputSignal<([\s\S]+)>""")
+private val SIGNAL_TYPE = Regex("""(?:[\w$]+\.)?(InputSignal|InputSignalWithTransform)<([\s\S]+)>""")
+private const val MAX_EXPANDED_TYPE = 800

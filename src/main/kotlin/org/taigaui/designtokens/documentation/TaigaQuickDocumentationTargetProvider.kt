@@ -51,10 +51,9 @@ internal class TaigaQuickDocumentationTargetProvider :
 
         if (snapshot == null) {
             service.warmUp(sourceFile)
-            return null
         }
 
-        val resolved = snapshot.resolve(request) ?: return null
+        val resolved = resolveDocumentation(request, snapshot) ?: return null
 
         return TaigaQuickDocumentationTarget(resolved)
     }
