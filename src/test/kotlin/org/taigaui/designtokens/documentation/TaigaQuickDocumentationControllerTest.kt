@@ -6,10 +6,12 @@ import com.intellij.openapi.command.undo.UndoManager
 import com.intellij.openapi.components.service
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.EditorFactory
+import com.intellij.openapi.editor.RangeMarker
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.impl.text.TextEditorProvider
 import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.wm.IdeFocusManager
+import com.intellij.platform.backend.documentation.impl.computeDocumentationBlocking
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.testFramework.DumbModeTestUtils
 import com.intellij.testFramework.ServiceContainerUtil
@@ -44,7 +46,10 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
             object : UiInterceptors.PersistentUiInterceptor<JBPopup>(JBPopup::class.java) {
                 override fun shouldIntercept(component: JBPopup): Boolean = true
 
-                override fun doIntercept(component: JBPopup, owner: RelativePoint?) {
+                override fun doIntercept(
+                    component: JBPopup,
+                    owner: RelativePoint?,
+                ) {
                     shown += component
                     documentationComponents(component.content)
                         .filterIsInstance<TaigaQuickDocumentationPopupPanel>()
@@ -65,7 +70,7 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
 
     override fun tearDown() {
         try {
-            controller.dismissHover(force = true)
+            if (::controller.isInitialized) controller.dismissHover(force = true)
             project.service<TaigaDocsService>().clearMemory()
         } finally {
             super.tearDown()
@@ -89,7 +94,8 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
             (shown.last() as AbstractPopup).shouldRequestFocus(),
         )
         assertEquals("<button tuiButton [size]=\"\">Save</button>", myFixture.editor.document.text)
-        UndoManager.getInstance(project).undo(TextEditorProvider.getInstance().getTextEditor(myFixture.editor))
+        UndoManager.getInstance(project)
+            .undo(TextEditorProvider.getInstance().getTextEditor(myFixture.editor))
         assertEquals("<button tuiButton>Save</button>", myFixture.editor.document.text)
     }
 
@@ -104,7 +110,11 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
         }
         await("refresh after immediate typing") { requireNotNull(job).isCompleted }
         assertEquals("<button tuiButton [size]=\"flag\">Save</button>", myFixture.editor.document.text)
-        assertEquals(myFixture.editor.document.text.indexOf("flag") + 4, myFixture.editor.caretModel.offset)
+        assertEquals(
+            myFixture.editor.document.text
+                .indexOf("flag") + 4,
+            myFixture.editor.caretModel.offset,
+        )
     }
 
     fun testF5RebasesBrowsedMemberHistoryQuerySelectionAndPinnedGeometry() {
@@ -116,7 +126,10 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
         open("<button tuiButton size=\"m\">Save</button>", "tuiButton")
         button("Pin").doClick()
         link("Browse API →").doClick()
-        descendants(panel()).filterIsInstance<JBTextField>().single().text = "Size"
+        descendants(panel())
+            .filterIsInstance<JBTextField>()
+            .single()
+            .text = "Size"
         val list = descendants(panel()).filterIsInstance<JBList<*>>().single()
         list.selectedIndex =
             (0 until list.model.size).first {
@@ -151,7 +164,13 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
         )
         activate(panel(), "alt LEFT")
         assertTrue(view().fullApi)
-        assertEquals("Size", descendants(panel()).filterIsInstance<JBTextField>().single().text)
+        assertEquals(
+            "Size",
+            descendants(panel())
+                .filterIsInstance<JBTextField>()
+                .single()
+                .text,
+        )
         val selected =
             descendants(panel()).filterIsInstance<JBList<*>>().single().selectedValue as TaigaDocumentationApiRow
         assertEquals("INPUT:newSize", selected.key)
@@ -228,7 +247,10 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
         }
         await("stale import context") { !button("Apply 'l'").isEnabled }
         assertEquals(STALE_DOCUMENTATION_MESSAGE, apply("l"))
-        assertTrue(myFixture.editor.document.text.contains("size=\"m\""))
+        assertTrue(
+            myFixture.editor.document.text
+                .contains("size=\"m\""),
+        )
         assertTrue(button("Copy 'l'").isEnabled)
     }
 
@@ -243,10 +265,16 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
         val editor = TextEditorProvider.getInstance().getTextEditor(myFixture.editor)
         undo.undo(editor)
         assertEquals(STALE_DOCUMENTATION_MESSAGE, apply("l"))
-        assertTrue(myFixture.editor.document.text.contains("size=\"m\""))
+        assertTrue(
+            myFixture.editor.document.text
+                .contains("size=\"m\""),
+        )
         undo.redo(editor)
         assertEquals(STALE_DOCUMENTATION_MESSAGE, apply("l"))
-        assertTrue(myFixture.editor.document.text.contains("size=\"s\""))
+        assertTrue(
+            myFixture.editor.document.text
+                .contains("size=\"s\""),
+        )
     }
 
     fun testDeletedTargetCannotRedirectAnOldActionToTheNextElement() {
@@ -272,6 +300,8 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
         assertSame(myFixture.editor, documentationField<Editor?>(suppression, "editor"))
         assertNotNull(adapters.binding)
         assertNotNull(adapters.template)
+        val bindingRange = documentationField<RangeMarker>(requireNotNull(adapters.binding), "marker")
+        val elementRange = documentationField<RangeMarker>(requireNotNull(adapters.template), "marker")
         button("Pin").doClick()
         assertNull(documentationField<Editor?>(suppression, "editor"))
         button("Unpin").doClick()
@@ -279,9 +309,32 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
         button("Close").doClick()
         assertNull(adapters.binding)
         assertNull(adapters.template)
+        assertFalse(bindingRange.isValid)
+        assertFalse(elementRange.isValid)
         assertNull(documentationField<Editor?>(suppression, "editor"))
         assertNull(documentationField<Any?>(controller, "refreshTarget"))
         assertNull(panelOrNull())
+    }
+
+    fun testNativeCompletionProvidesInstalledDocumentationWithoutOpeningAnInteractiveCard() {
+        configure("<button tuiB>Save</button>", "tuiB")
+        myFixture.editor.caretModel.moveToOffset(myFixture.file.text.indexOf("tuiB") + "tuiB".length)
+        val items = myFixture.completeBasic().orEmpty()
+        val item = items.firstOrNull { it.lookupString == "tuiButton" }
+        assertNotNull("Expected native Angular completion: ${items.map { it.lookupString }}", item)
+        val target =
+            TaigaQuickDocumentationTargetProvider()
+                .documentationTarget(
+                    myFixture.file,
+                    requireNotNull(item),
+                    myFixture.editor.caretModel.offset,
+                )
+        assertNotNull(target)
+        val html = requireNotNull(computeDocumentationBlocking(requireNotNull(target).createPointer())).html
+        assertTrue(html.contains("TuiButton"))
+        assertTrue(html.contains("@taiga-ui/core"))
+        assertNull(panelOrNull())
+        assertTrue(shown.isEmpty())
     }
 
     fun testInlineSharedBindingAndHostDirectiveUseTheHostEditor() {
@@ -304,7 +357,11 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
         )
         assertEquals(listOf("m"), shared.localValues())
         val binding = requireNotNull(shared.binding)
-        assertEquals(binding.text, myFixture.editor.document.text.substring(binding.startOffset, binding.endOffset))
+        assertEquals(
+            binding.text,
+            myFixture.editor.document.text
+                .substring(binding.startOffset, binding.endOffset),
+        )
         myFixture.editor.caretModel.moveToOffset(text.indexOf("iconEnd=\"\"") + 1)
         controller.showFromCaret(myFixture.editor)
         await("inline host-directive input") { panelOrNull() != null }
@@ -315,13 +372,19 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
         assertEquals("Choose icon", button("Choose icon").text)
     }
 
-    private fun open(text: String, needle: String) {
+    private fun open(
+        text: String,
+        needle: String,
+    ) {
         configure(text, needle)
         controller.showFromCaret(myFixture.editor)
         await("installed API card") { panelOrNull() != null }
     }
 
-    private fun configure(text: String, needle: String) {
+    private fun configure(
+        text: String,
+        needle: String,
+    ) {
         val file = myFixture.tempDirFixture.createFile("src/component.html", text)
         myFixture.configureFromExistingVirtualFile(file)
         PsiDocumentManager.getInstance(project).commitAllDocuments()
@@ -359,7 +422,10 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
         assertNull(documentationField<Any?>(controller, "refreshTarget"))
     }
 
-    private fun await(description: String, condition: () -> Boolean) {
+    private fun await(
+        description: String,
+        condition: () -> Boolean,
+    ) {
         repeat(1_000) {
             UIUtil.dispatchAllInvocationEvents()
             if (condition()) return
@@ -368,7 +434,14 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
         fail("Timed out waiting for $description")
     }
 
-    private fun setField(target: Any, name: String, value: Any) {
-        target.javaClass.getDeclaredField(name).apply { isAccessible = true }.set(target, value)
+    private fun setField(
+        target: Any,
+        name: String,
+        value: Any,
+    ) {
+        target.javaClass
+            .getDeclaredField(name)
+            .apply { isAccessible = true }
+            .set(target, value)
     }
 }
