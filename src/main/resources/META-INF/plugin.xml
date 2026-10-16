@@ -83,14 +83,10 @@
             source="web-types/event-plugins@3.1.0.web-types.json"
             enableByDefault="false"
         />
-        <platform.backend.documentation.symbolTargetProvider
-            id="taiga-ui-quick-documentation"
-            order="first"
+        <platform.backend.documentation.targetProvider
             implementation="org.taigaui.designtokens.documentation.TaigaQuickDocumentationTargetProvider"
         />
         <platform.backend.documentation.lookupElementTargetProvider
-            id="taiga-ui-quick-documentation-completion"
-            order="first"
             implementation="org.taigaui.designtokens.documentation.TaigaQuickDocumentationTargetProvider"
         />
         <psi.referenceContributor
