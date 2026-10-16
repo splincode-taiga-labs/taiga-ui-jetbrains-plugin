@@ -321,6 +321,7 @@ sequenceDiagram
 - Cold completion warming and selected-item resolution run off the UI thread.
 - Token completion may reuse a stale-but-valid name snapshot while a refresh is in progress.
 - Unknown-token inspection requires a fresh strict snapshot before reporting warnings.
+- Unknown-token and deprecated-token inspections analyze the whole file and declare `runForWholeFile` in both their implementation and registration. Their file-level results must be recomputed when a cold catalog becomes available and restarts highlighting.
 - Rebuilds are lazy after invalidation.
 - Concurrent cache misses for the same logical source should be coalesced rather than performing duplicate work.
 

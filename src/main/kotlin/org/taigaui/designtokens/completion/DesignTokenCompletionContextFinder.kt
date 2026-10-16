@@ -37,6 +37,8 @@ internal object DesignTokenCompletionContextFinder {
 class UnknownDesignTokenInspection :
     LocalInspectionTool(),
     DumbAware {
+    override fun runForWholeFile(): Boolean = true
+
     override fun buildVisitor(
         holder: ProblemsHolder,
         isOnTheFly: Boolean,
