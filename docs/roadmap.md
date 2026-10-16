@@ -1,6 +1,6 @@
-# Splincode Companion roadmap
+# Taiga Community roadmap
 
-Splincode Companion is developed in small, reviewable increments. Completed stages are kept here as historical milestones; active implementation details and acceptance criteria live in GitHub issues and epics.
+Taiga Community is developed in small, reviewable increments. Completed stages are kept here as historical milestones; active implementation details and acceptance criteria live in GitHub issues and epics.
 
 Each production change should leave the project in a buildable state and pass the relevant tests, ktlint, detekt, plugin structure checks, and CI.
 
@@ -17,7 +17,7 @@ The production publishing pipeline is already in place and production releases h
 - [x] production releases are published, latest: [v0.1.3](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/releases/tag/v0.1.3);
 - [ ] install the Marketplace-delivered artifact on a supported IDE and smoke-test the core token/icon workflows.
 
-### Stage 8 — Taiga UI Companion
+### Stage 8 — Taiga Community
 
 Status: planned / in progress.
 
