@@ -52,19 +52,6 @@ internal class TaigaQuickDocumentationPopupPanel(
         add(content, BorderLayout.CENTER)
     }
 
-    fun containsPointer(): Boolean {
-        if (!isShowing) {
-            return false
-        }
-
-        val pointer = MouseInfo.getPointerInfo()?.location ?: return false
-        val local = Point(pointer)
-
-        SwingUtilities.convertPointFromScreen(local, this)
-
-        return contains(local)
-    }
-
     private fun createHeader(onClose: () -> Unit): JComponent =
         JPanel().apply {
             layout = BoxLayout(this, BoxLayout.X_AXIS)
@@ -256,3 +243,14 @@ internal class TaigaQuickDocumentationPopupPanel(
         const val MAX_VISIBLE_API_PROPERTIES = 6
     }
 }
+
+
+internal fun JComponent.containsPointer(): Boolean =
+    isShowing &&
+        MouseInfo
+            .getPointerInfo()
+            ?.location
+            ?.let(::Point)
+            ?.also { point -> SwingUtilities.convertPointFromScreen(point, this) }
+            ?.let(::contains)
+            ?: false
