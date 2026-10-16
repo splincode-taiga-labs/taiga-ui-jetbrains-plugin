@@ -25,6 +25,7 @@ internal data class TaigaDocumentationSubject(
 }
 
 internal object TaigaTemplateDocumentationResolver {
+    @Suppress("ReturnCount")
     fun find(
         file: PsiFile,
         offset: Int,
@@ -56,6 +57,7 @@ internal object TaigaTemplateDocumentationResolver {
         return symbol.toLocalSubject(selector = name)
     }
 
+    @Suppress("ReturnCount")
     fun find(
         file: PsiFile,
         element: LookupElement,
@@ -72,12 +74,9 @@ internal object TaigaTemplateDocumentationResolver {
             return null
         }
 
-        val symbol = PolySymbolCodeCompletionItem.getPolySymbol(element)
-
-        return symbol?.toLocalSubject(selector, requestedSymbol)
-            ?: PolySymbolCodeCompletionItem
-                .getPsiElement(element)
-                ?.toLocalSubject(selector, requestedSymbol)
+        return PolySymbolCodeCompletionItem
+            .getPsiElement(element)
+            ?.toLocalSubject(selector, requestedSymbol)
     }
 
     private fun PolySymbol.toLocalSubject(
@@ -109,6 +108,7 @@ internal object TaigaTemplateDocumentationResolver {
             .mapNotNull { named -> named.name }
             .firstOrNull(::isTaigaPublicSymbol)
 
+    @Suppress("ReturnCount")
     private fun PsiElement.taigaPackageName(): String? {
         val path =
             containingFile
