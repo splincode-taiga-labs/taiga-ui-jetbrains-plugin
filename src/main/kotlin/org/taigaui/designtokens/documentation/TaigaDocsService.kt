@@ -35,6 +35,7 @@ internal class TaigaDocsService(
         return if (context != null && index != null) TaigaDocsSnapshot(context, index) else null
     }
 
+    @Suppress("ReturnCount")
     fun cachedSnapshotFor(sourceFile: Path): TaigaDocsSnapshot? {
         val context = projectContexts[sourceFile.normalized()] ?: return null
         val index =
