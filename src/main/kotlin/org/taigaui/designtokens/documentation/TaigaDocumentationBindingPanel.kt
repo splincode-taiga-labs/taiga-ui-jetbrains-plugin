@@ -6,7 +6,6 @@ import com.intellij.util.ui.JBUI
 import java.awt.Dimension
 import java.awt.GridLayout
 import java.awt.datatransfer.StringSelection
-import java.awt.event.ActionEvent
 import javax.swing.BoxLayout
 import javax.swing.JButton
 import javax.swing.JPanel
@@ -16,15 +15,17 @@ internal class TaigaDocumentationBindingPanel(
     applyValue: ((String) -> String)?,
     currentValue: String? = null,
 ) : JPanel() {
-    private var canApply =
+    private val canApply =
         applyValue != null && member.kind == TaigaApiMemberKind.INPUT && member.binding?.literal != null
     private val prompt = JBLabel()
-    private val valueButtons = mutableListOf<JButton>()
+    private val applyButtons = mutableListOf<JButton>()
 
     fun invalidateContext() {
-        canApply = false
-        prompt.text = "Choose a literal to copy; refresh to apply"
-        valueButtons.forEach { it.toolTipText = "Copy '${it.text}'" }
+        prompt.text = "Refresh to apply. Copy remains available."
+        applyButtons.forEach {
+            it.isEnabled = false
+            it.toolTipText = STALE_DOCUMENTATION_MESSAGE
+        }
     }
 
     init {
@@ -58,7 +59,7 @@ internal class TaigaDocumentationBindingPanel(
         }
         if (values.isNotEmpty()) {
             prompt.text =
-                if (canApply) "Choose a value to apply (Shift-click/Enter copies)" else "Choose a literal to copy"
+                if (canApply) "Allowed values" else member.valueActionUnavailableReason()
             add(
                 prompt.apply {
                     alignmentX = LEFT_ALIGNMENT
@@ -70,28 +71,37 @@ internal class TaigaDocumentationBindingPanel(
                     alignmentX = LEFT_ALIGNMENT
                     values.take(MAX_VISIBLE_VALUES).forEach { value ->
                         add(
-                            JButton(value).apply {
-                                valueButtons += this
-                                toolTipText =
-                                    if (canApply) {
-                                        "Apply $value to the existing binding; Shift-click/Enter to copy"
-                                    } else {
-                                        "Copy '$value'"
-                                    }
-                                addActionListener { event ->
-                                    if (canApply && event.modifiers and ActionEvent.SHIFT_MASK == 0) {
-                                        status.text = applyValue?.invoke(value)
-                                        status.toolTipText = status.text
-                                        if (status.text?.startsWith("Applied") == true) {
-                                            current.text = "Current value: $value"
-                                            current.toolTipText = current.text
+                            JPanel().apply {
+                                isOpaque = false
+                                layout = BoxLayout(this, BoxLayout.Y_AXIS)
+                                add(JBLabel("'$value'"))
+                                add(
+                                    JButton("Apply '$value'").apply {
+                                        applyButtons += this
+                                        isEnabled = canApply
+                                        toolTipText =
+                                            if (canApply) {
+                                                "Apply '$value' to this binding"
+                                            } else {
+                                                member
+                                                    .valueActionUnavailableReason()
+                                            }
+                                        addActionListener {
+                                            status.text = applyValue?.invoke(value)
+                                            status.toolTipText = status.text
+                                            if (status.text?.startsWith("Applied") == true) {
+                                                current.text = "Current value: $value"
+                                                current.toolTipText = current.text
+                                            }
                                         }
-                                    } else {
-                                        copyLiteral(value, status)
-                                    }
-                                }
-                                bind("shift ENTER", "copy-taiga-value") { copyLiteral(value, status) }
-                                bind("shift SPACE", "copy-taiga-value-space") { copyLiteral(value, status) }
+                                    },
+                                )
+                                add(
+                                    JButton("Copy '$value'").apply {
+                                        toolTipText = "Copy '$value'"
+                                        addActionListener { copyLiteral(value, status) }
+                                    },
+                                )
                             },
                         )
                     }
@@ -118,6 +128,14 @@ internal class TaigaDocumentationBindingPanel(
         status.toolTipText = status.text
     }
 }
+
+private fun TaigaResolvedDocumentation.Member.valueActionUnavailableReason(): String =
+    when {
+        binding?.literal == null && binding != null -> "Dynamic expression. Copy a value to use it manually."
+        binding == null -> "No existing binding. Copy a value to use it manually."
+        localValues().isEmpty() -> "Installed types do not confirm a finite set of values. Copy is available."
+        else -> "Source editing is unavailable. Copy is available."
+    }
 
 private const val VALUE_COLUMNS = 3
 private const val MAX_VISIBLE_VALUES = 12
