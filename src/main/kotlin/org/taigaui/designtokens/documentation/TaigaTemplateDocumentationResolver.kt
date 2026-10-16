@@ -45,7 +45,8 @@ internal object TaigaTemplateDocumentationResolver {
 
         val name = element.text.takeIf(::isTaigaSelector) ?: return null
         val symbol =
-            PsiTreeUtil.getParentOfType(element, XmlAttribute::class.java, false)
+            PsiTreeUtil
+                .getParentOfType(element, XmlAttribute::class.java, false)
                 ?.descriptor
                 ?.let { descriptor -> (descriptor as? HtmlAttributeSymbolDescriptor)?.symbol }
                 ?: PsiTreeUtil
