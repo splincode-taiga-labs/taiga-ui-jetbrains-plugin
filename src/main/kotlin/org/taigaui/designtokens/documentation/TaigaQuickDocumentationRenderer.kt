@@ -4,11 +4,11 @@ import com.intellij.lang.documentation.DocumentationMarkup
 import com.intellij.openapi.util.text.StringUtil
 
 internal object TaigaQuickDocumentationRenderer {
-    fun render(entity: TaigaEntityDoc): String =
+    fun render(\n        entity: TaigaEntityDoc,\n        subject: TaigaDocumentationSubject,\n    ): String =
         buildString {
             append(DocumentationMarkup.DEFINITION_START)
             append("<b>")
-            append(entity.displaySymbol().html())
+            append((subject.publicSymbol ?: entity.displaySymbol()).html())
             append("</b>")
 
             entity.packageNames.sorted().takeIf { packages -> packages.isNotEmpty() }?.let { packages ->
@@ -37,7 +37,7 @@ internal object TaigaQuickDocumentationRenderer {
                         },
             )
 
-            entity.canonicalImport()?.let { statement ->
+            subject.canonicalImport()?.let { statement ->
                 addSection(
                     title = "Import:",
                     content = "<code>${statement.html()}</code>",
@@ -108,16 +108,10 @@ internal object TaigaQuickDocumentationRenderer {
 
     private fun TaigaEntityDoc.displaySymbol(): String = publicSymbols.firstOrNull() ?: title
 
-    private fun TaigaEntityDoc.canonicalImport(): String? {
-        val symbol = publicSymbols.firstOrNull()
-        val packageName = packageNames.singleOrNull()
-
-        return if (symbol != null && packageName != null) {
+    private fun TaigaDocumentationSubject.canonicalImport(): String? =
+        publicSymbol?.let { symbol ->
             "import {$symbol} from '$packageName';"
-        } else {
-            null
         }
-    }
 
     private fun String.html(): String = StringUtil.escapeXmlEntities(this)
 }
