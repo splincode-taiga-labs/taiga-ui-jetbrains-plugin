@@ -53,9 +53,8 @@ internal object TaigaTemplateDocumentationResolver {
                     .getParentOfType(element, XmlTag::class.java, false)
                     ?.descriptor
                     ?.let { descriptor -> (descriptor as? HtmlElementSymbolDescriptor)?.symbol }
-                ?: return null
 
-        return symbol.toLocalSubject(selector = name)
+        return symbol?.toLocalSubject(selector = name)
             ?: TaigaDocumentationSubject(
                 selector = name,
                 publicSymbol = null,
