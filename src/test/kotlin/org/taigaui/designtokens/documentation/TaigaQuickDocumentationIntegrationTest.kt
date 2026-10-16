@@ -114,9 +114,9 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
     }
 
     private fun configureTemplate(template: String): PsiFile {
-        val file = myFixture.addFileToProject("src/component.html", template)
+        val file = myFixture.tempDirFixture.createFile("src/component.html", template)
 
-        myFixture.configureFromExistingVirtualFile(file.virtualFile)
+        myFixture.configureFromExistingVirtualFile(file)
         PsiDocumentManager.getInstance(project).commitAllDocuments()
 
         return myFixture.file
@@ -124,7 +124,7 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
 
     private fun warmDocumentation(file: PsiFile) {
         docsCache.write(docsSource, docsFixture())
-        val path = Path.of(requireNotNull(file.virtualFile).path)
+        val path = Path.of(myFixture.tempDirFixture.tempDirPath, "src/component.html")
 
         runBlocking {
             assertNotNull(project.service<TaigaDocsService>().snapshotFor(path))
@@ -132,7 +132,7 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
     }
 
     private fun configureAngularProject() {
-        myFixture.addFileToProject(
+        myFixture.tempDirFixture.createFile(
             "angular.json",
             """
             {
@@ -146,7 +146,7 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
             }
             """.trimIndent(),
         )
-        myFixture.addFileToProject(
+        myFixture.tempDirFixture.createFile(
             "package.json",
             """
             {
@@ -159,7 +159,7 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
             }
             """.trimIndent(),
         )
-        myFixture.addFileToProject(
+        myFixture.tempDirFixture.createFile(
             "node_modules/@angular/core/package.json",
             """
             {
@@ -169,7 +169,7 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
             }
             """.trimIndent(),
         )
-        myFixture.addFileToProject(
+        myFixture.tempDirFixture.createFile(
             "node_modules/@angular/core/index.d.ts",
             """
             export interface ComponentMetadata {
@@ -180,7 +180,7 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
             export declare function Component(metadata: ComponentMetadata): ClassDecorator;
             """.trimIndent(),
         )
-        myFixture.addFileToProject(
+        myFixture.tempDirFixture.createFile(
             "src/component.ts",
             """
             import {Component} from '@angular/core';
@@ -195,7 +195,7 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
     }
 
     private fun configureTaigaPackage() {
-        myFixture.addFileToProject(
+        myFixture.tempDirFixture.createFile(
             "node_modules/@taiga-ui/core/package.json",
             """
             {
@@ -205,7 +205,7 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
             }
             """.trimIndent(),
         )
-        myFixture.addFileToProject(
+        myFixture.tempDirFixture.createFile(
             "node_modules/@taiga-ui/core/web-types.json",
             """
             {
