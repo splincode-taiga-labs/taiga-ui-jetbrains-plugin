@@ -36,6 +36,31 @@ private fun PsiElement.resolveInputAlias(type: String): PsiElement? {
         }.firstOrNull { element -> element.typeDefinition(type) != null }
 }
 
+/** Input symbols can expose an aliased or pre-signal field instead of the public binding name. */
+internal fun PsiElement.inputDocumentation(
+    name: String,
+    local: TaigaLocalDocumentation,
+): TaigaLocalDocumentation {
+    val field =
+        text.trim().takeIf { it.length <= MAX_INPUT_FIELD_TEXT }
+            ?.let(INPUT_FIELD::matchEntire)
+            ?: return local
+    val originalName = field.groupValues[1]
+    val declaredType = field.groupValues[2].trim()
+    val type = SIGNAL_TYPE.matchEntire(declaredType)?.groupValues?.get(1)?.trim() ?: declaredType
+    return local.copy(
+        inputTypes = local.inputTypes + (name to type),
+        inputValues = local.inputValues + (name to localInputValues(type)),
+        defaults =
+            local.defaults +
+                local.defaults
+                    .filter { it.name == originalName && originalName != name }
+                    .map { it.copy(name = name) },
+        requiredInputs =
+            if (originalName in local.requiredInputs) local.requiredInputs + name else local.requiredInputs,
+    )
+}
+
 internal fun TaigaResolvedDocumentation.Member.localValues(): List<String> {
     if (kind != TaigaApiMemberKind.INPUT) return emptyList()
     val local = declaration?.localDocumentation?.takeIf { property.name in it.inputTypes } ?: subject.localDocumentation
@@ -48,3 +73,8 @@ private const val MAX_ALIAS_REFERENCES = 16
 private const val MAX_ALIAS_FILE_TEXT = 32_000
 private val TYPE_NAME = Regex("[A-Za-z_$][\\w$]*")
 private val STRING_VALUE = Regex("""(['"])([\w .@/-]+)\1""")
+
+private const val MAX_INPUT_FIELD_TEXT = 8_000
+private val INPUT_FIELD =
+    Regex("""(?:(?:public|protected|private|readonly|declare|override|abstract)\s+)*([\w$]+)[!?]?\s*:\s*([^;=]+);?""")
+private val SIGNAL_TYPE = Regex("""(?:[\w$]+\.)?InputSignal<([\s\S]+)>""")

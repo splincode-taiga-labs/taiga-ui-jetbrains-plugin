@@ -122,7 +122,7 @@ internal object TaigaDocumentationResolver {
                     val declaration =
                         (attribute.descriptor as? HtmlAttributeSymbolDescriptor)
                             ?.symbol
-                            ?.toLocalSubject(selector = null)
+                            ?.toLocalSubject(selector = null, memberName = binding.name)
                             ?.takeIf { it.packageName != null }
                     binding.copy(declaration = declaration)
                 }
@@ -145,7 +145,10 @@ internal object TaigaDocumentationResolver {
             declaration =
                 (descriptor as? HtmlAttributeSymbolDescriptor)
                     ?.symbol
-                    ?.toLocalSubject(selector = null),
+                    ?.toLocalSubject(
+                        selector = null,
+                        memberName = member.name.takeIf { member.kind == TaigaApiMemberKind.INPUT },
+                    ),
         )
     }
 
@@ -263,9 +266,24 @@ private fun XmlTag.memberUsage(
 private fun PolySymbol.toLocalSubject(
     selector: String?,
     requestedSymbol: String? = null,
+    memberName: String? = null,
 ): TaigaDocumentationSubject =
     localContexts()
-        .mapNotNull { context -> context.toLocalSubject(selector, requestedSymbol) }
+        .mapNotNull { context ->
+            val subject = context.toLocalSubject(selector, requestedSymbol) ?: return@mapNotNull null
+            val local = subject.localDocumentation
+            val input =
+                if (memberName == null) {
+                    local
+                } else {
+                    generateSequence(context) { it.parent }
+                        .take(MAX_INPUT_CONTEXT_DEPTH)
+                        .map { it.inputDocumentation(memberName, local) }
+                        .firstOrNull { it !== local }
+                        ?: local
+                }
+            subject.copy(localDocumentation = input)
+        }
         .firstOrNull()
         ?: TaigaDocumentationSubject(
             selector = selector,
@@ -354,3 +372,5 @@ private val MEMBER_BINDING_PATTERNS =
 private val PLAIN_INPUT_NAME = Regex("[A-Za-z_$][\\w$]*")
 
 private const val MAX_CAPTURED_BINDINGS = 32
+
+private const val MAX_INPUT_CONTEXT_DEPTH = 4
