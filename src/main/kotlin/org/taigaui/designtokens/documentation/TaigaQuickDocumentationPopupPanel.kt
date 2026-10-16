@@ -35,6 +35,9 @@ internal data class TaigaDocumentationPopupActions(
     val chooseIcon: ((TaigaDocumentationIcon) -> Unit)? = null,
     val openMember: ((TaigaResolvedDocumentation.Member) -> Unit)? = null,
     val showExample: (() -> Unit)? = null,
+    val togglePin: (() -> Unit)? = null,
+    val applyValue: ((String) -> String)? = null,
+    val currentValue: String? = null,
 )
 
 /** The same compact card structure serves every kind, with kind-specific content. */
@@ -44,6 +47,7 @@ internal class TaigaQuickDocumentationPopupPanel(
     private val actions: TaigaDocumentationPopupActions = TaigaDocumentationPopupActions(),
     private val previews: List<TaigaDocumentationIconPreview> = emptyList(),
     showExample: Boolean = false,
+    pinned: Boolean = false,
 ) : JPanel(BorderLayout(0, JBUI.scale(12))) {
     private val content = verticalPanel()
     private val previewContent = verticalPanel()
@@ -54,7 +58,7 @@ internal class TaigaQuickDocumentationPopupPanel(
         background = DESIGN_TOKEN_POPUP_BACKGROUND
         getAccessibleContext().accessibleName = "Taiga UI documentation for ${resolved.presentationName}"
 
-        content.add(header())
+        content.add(header(pinned))
         content.add(Box.createVerticalStrut(JBUI.scale(4)))
         content.add(meta())
         resolved.description?.takeIf(String::isNotBlank)?.let { description ->
@@ -99,7 +103,7 @@ internal class TaigaQuickDocumentationPopupPanel(
         repaint()
     }
 
-    private fun header(): JComponent =
+    private fun header(pinned: Boolean): JComponent =
         JPanel().apply {
             layout = BoxLayout(this, BoxLayout.X_AXIS)
             isOpaque = false
@@ -113,6 +117,10 @@ internal class TaigaQuickDocumentationPopupPanel(
             add(Box.createHorizontalStrut(JBUI.scale(10)))
             add(TaigaDocumentationBadge(resolved.badge))
             add(Box.createHorizontalGlue())
+            actions.togglePin?.let { toggle ->
+                add(JButton(if (pinned) "Unpin" else "Pin").apply { addActionListener { toggle() } })
+            }
+            add(JButton("Close").apply { addActionListener { onClose() } })
         }
 
     private fun meta(): JComponent =
@@ -163,11 +171,15 @@ internal class TaigaQuickDocumentationPopupPanel(
 
     private fun memberContent(member: TaigaResolvedDocumentation.Member): JComponent =
         verticalPanel().apply {
-            member.typeText?.let { add(detail("Type", it)) }
-            member.possibleValues().takeIf(List<String>::isNotEmpty)?.let { values ->
-                add(detail("Possible values", values.joinToString("  ·  ")))
+            member.typeText?.let { add(detail(if (member.kind == TaigaApiMemberKind.OUTPUT) "\$event type" else "Type", it)) }
+            add(TaigaDocumentationBindingPanel(member, actions.applyValue, actions.currentValue))
+            if (member.property.name in member.subject.localDocumentation.requiredInputs ||
+                member.property.name in member.declaration?.localDocumentation?.requiredInputs.orEmpty()
+            ) {
+                add(detail("Requirement", "Required input"))
             }
-            member.localDocumentation.defaults.firstOrNull { it.name == member.property.name }?.let {
+            (member.declaration?.localDocumentation?.defaults?.firstOrNull { it.name == member.property.name }
+                ?: member.localDocumentation.defaults.firstOrNull { it.name == member.property.name })?.let {
                 add(
                     defaultNote(it),
                 )
@@ -275,6 +287,7 @@ internal class TaigaQuickDocumentationPopupPanel(
                             null,
                             property,
                             kind,
+                            binding = entity.bindings.firstOrNull { it.name == name },
                         ),
                     )
                 }

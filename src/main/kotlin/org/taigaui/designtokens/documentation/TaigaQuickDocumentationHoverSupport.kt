@@ -7,6 +7,9 @@ import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.editor.Editor
+import com.intellij.openapi.editor.EditorFactory
+import com.intellij.openapi.editor.event.EditorFactoryEvent
+import com.intellij.openapi.editor.event.EditorFactoryListener
 import com.intellij.openapi.editor.event.EditorMouseEvent
 import com.intellij.openapi.editor.event.EditorMouseEventArea
 import com.intellij.openapi.editor.event.EditorMouseListener
@@ -90,7 +93,23 @@ internal class TaigaQuickDocumentationHoverController(
     private var pendingKey: TaigaQuickDocumentationHoverKey? = null
     private var currentRequest: TaigaQuickDocumentationHoverRequest? = null
 
+    private var pinned = false
+    private var bindingEditor: TaigaDocumentationBindingEditor? = null
+    private var bindingMember: TaigaResolvedDocumentation.Member? = null
+
+    init {
+        EditorFactory.getInstance().addEditorFactoryListener(
+            object : EditorFactoryListener {
+                override fun editorReleased(event: EditorFactoryEvent) {
+                    if (currentRequest?.editor === event.editor) dismissHover(force = true)
+                }
+            },
+            project,
+        )
+    }
+
     fun mouseMoved(event: EditorMouseEvent) {
+        if (pinned) return
         val candidate = event.toTaigaDocumentationHoverCandidate(project)
 
         if (candidate == null) {
@@ -131,7 +150,7 @@ internal class TaigaQuickDocumentationHoverController(
             val snapshot = request?.let { project.service<TaigaDocsService>().cachedSnapshotFor(it.sourceFile) }
             val resolved = request?.let { snapshot?.resolve(it.documentationRequest) }
             withContext(Dispatchers.EDT) {
-                if (pendingKey == candidate.key) {
+                if (!pinned && pendingKey == candidate.key) {
                     if (request == null) {
                         underline.clear()
                         if (popup?.isVisible == true) scheduleHide() else clearHover()
@@ -144,7 +163,8 @@ internal class TaigaQuickDocumentationHoverController(
             }
         }
 
-    fun dismissHover(editor: Editor? = null) {
+    fun dismissHover(editor: Editor? = null, force: Boolean = false) {
+        if (pinned && !force) return
         if (editor == null || editor.project == project) {
             cancelScheduledHide()
             clearHover()
@@ -152,6 +172,7 @@ internal class TaigaQuickDocumentationHoverController(
     }
 
     fun mouseExited(editor: Editor) {
+        if (pinned) return
         if (editor.project == project) {
             resolutionJob?.cancel()
             resolutionJob = null
@@ -241,14 +262,16 @@ internal class TaigaQuickDocumentationHoverController(
                 !request.editor.isDisposed
 
         if (canShow) {
-            nativeHoverSuppression.suppress(request.editor)
+            if (pinned) nativeHoverSuppression.restore() else nativeHoverSuppression.suppress(request.editor)
+            prepareBindingEditor(request, resolved)
 
             val panel =
                 TaigaQuickDocumentationPopupPanel(
                     resolved = resolved,
-                    onClose = { dismissHover(request.editor) },
+                    onClose = { dismissHover(request.editor, force = true) },
                     actions = popupActions(request, resolved),
                     showExample = showExample,
+                    pinned = pinned,
                 )
             val createdPopup =
                 JBPopupFactory
@@ -257,17 +280,19 @@ internal class TaigaQuickDocumentationHoverController(
                     .setProject(project)
                     .setRequestFocus(false)
                     .setFocusable(true)
-                    .setCancelOnClickOutside(true)
-                    .setCancelOnOtherWindowOpen(true)
-                    .setCancelOnWindowDeactivation(true)
-                    .setMovable(false)
-                    .setResizable(false)
+                    .setCancelOnClickOutside(!pinned)
+                    .setCancelOnOtherWindowOpen(!pinned)
+                    .setCancelOnWindowDeactivation(!pinned)
+                    .setMovable(pinned)
+                    .setResizable(pinned)
                     .createPopup()
 
             createdPopup.addListener(
                 object : JBPopupListener {
                     override fun onClosed(event: LightweightWindowEvent) {
                         if (popup === createdPopup) {
+                            pinned = false
+                            disposeBindingEditor()
                             popup = null
                             popupContent = null
                             activeKey = null
@@ -303,12 +328,29 @@ internal class TaigaQuickDocumentationHoverController(
             navigateToSource =
                 resolved.source?.let { source ->
                     {
-                        dismissHover(request.editor)
+                        dismissHover(request.editor, force = true)
                         LocalFileSystem.getInstance().findFileByNioFile(source.file)?.let { file ->
                             OpenFileDescriptor(project, file, source.offset).navigate(true)
                         }
                     }
                 },
+            togglePin = {
+                val location = popupContent?.takeIf { it.isShowing }?.locationOnScreen
+                pinned = !pinned
+                cancelScheduledHide()
+                resolutionJob?.cancel()
+                hoverJob?.cancel()
+                underline.clear()
+                if (!pinned && !request.isStillCurrent(project)) {
+                    dismissHover(request.editor, force = true)
+                } else {
+                    hidePopup(restoreNativeHover = false)
+                    showPopup(request, resolved)
+                    location?.let { popup?.setLocation(it) }
+                }
+            },
+            applyValue = bindingEditor?.let { editor -> { value -> editor.apply(value) } },
+            currentValue = bindingEditor?.currentValue,
             chooseIcon = { reference -> chooseIcon(request, reference) },
             openMember = { member ->
                 hidePopup(restoreNativeHover = false)
@@ -319,6 +361,29 @@ internal class TaigaQuickDocumentationHoverController(
                 showPopup(request, resolved, showExample = true)
             },
         )
+
+    @Suppress("ReturnCount")
+    private fun prepareBindingEditor(
+        request: TaigaQuickDocumentationHoverRequest,
+        resolved: TaigaResolvedDocumentation,
+    ) {
+        val member = resolved as? TaigaResolvedDocumentation.Member
+        if (member == bindingMember) return
+        disposeBindingEditor()
+        val binding = member?.binding ?: return
+        val values = member.localValues()
+        if (member.kind != TaigaApiMemberKind.INPUT || binding.literal == null || values.isEmpty() ||
+            !request.isStillCurrent(project)
+        ) return
+        bindingMember = member
+        bindingEditor = TaigaDocumentationBindingEditor(project, request.editor.document, binding, values)
+    }
+
+    private fun disposeBindingEditor() {
+        bindingEditor?.dispose()
+        bindingEditor = null
+        bindingMember = null
+    }
 
     private fun loadIconPreviews(
         request: TaigaQuickDocumentationHoverRequest,
@@ -353,7 +418,7 @@ internal class TaigaQuickDocumentationHoverController(
         request: TaigaQuickDocumentationHoverRequest,
         reference: TaigaDocumentationIcon,
     ) {
-        dismissHover(request.editor)
+        dismissHover(request.editor, force = true)
         coroutineScope.launch(Dispatchers.IO + CoroutineName("Taiga UI documentation icon chooser")) {
             val names = project.service<IconCompletionService>().loadNow(request.sourceFile)
             withContext(Dispatchers.EDT) {
@@ -394,6 +459,7 @@ internal class TaigaQuickDocumentationHoverController(
     }
 
     private fun scheduleHide() {
+        if (pinned) return
         if (popup?.isVisible == true) {
             hideJob?.cancel()
             hideJob =
@@ -416,6 +482,8 @@ internal class TaigaQuickDocumentationHoverController(
     }
 
     private fun clearHover() {
+        pinned = false
+        disposeBindingEditor()
         resolutionJob?.cancel()
         resolutionJob = null
         pendingKey = null
