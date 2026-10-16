@@ -95,7 +95,7 @@ internal object TaigaTemplateDocumentationResolver {
         requestedSymbol: String? = null,
     ): TaigaDocumentationSubject? {
         val symbols = unwrapMatchedSymbols()
-        val contexts = symbols.mapNotNull { symbol -> symbol.psiContext }
+        val contexts = symbols.mapNotNull { symbol -> symbol.psiContext }.toList()
 
         if (contexts.isNotEmpty()) {
             return contexts
