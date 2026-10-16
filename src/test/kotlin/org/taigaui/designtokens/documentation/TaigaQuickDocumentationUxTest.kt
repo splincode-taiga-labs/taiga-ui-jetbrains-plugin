@@ -158,7 +158,10 @@ class TaigaQuickDocumentationUxTest : TaigaDocumentationPopupTestCase() {
                 val copies =
                     descendants(panel).filterIsInstance<JButton>().filter { it.text.startsWith("Copy ") }.toList()
                 assertEquals(2, copies.size)
-                copies.forEach { assertEquals(type, it.toolTipText) }
+                copies.forEach {
+                    assertEquals("Copy type", it.text)
+                    assertEquals(type, it.toolTipText)
+                }
                 renderAndSave(panel, if (dark) "long-receivers-dark" else "long-receivers-light")
             }
         } finally {
