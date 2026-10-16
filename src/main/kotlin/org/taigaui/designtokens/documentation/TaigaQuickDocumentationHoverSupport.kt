@@ -274,7 +274,7 @@ internal class TaigaQuickDocumentationHoverController(
                 TaigaQuickDocumentationPopupPanel(
                     resolved = resolved,
                     onClose = { dismissHover(request.editor, force = true) },
-                    actions = popupActions(request, resolved),
+                    actions = popupActions(request, resolved, showExample),
                     showExample = showExample,
                     pinned = pinned,
                 )
@@ -328,6 +328,7 @@ internal class TaigaQuickDocumentationHoverController(
     private fun popupActions(
         request: TaigaQuickDocumentationHoverRequest,
         resolved: TaigaResolvedDocumentation,
+        exampleVisible: Boolean,
     ): TaigaDocumentationPopupActions =
         TaigaDocumentationPopupActions(
             navigateToSource =
@@ -350,7 +351,7 @@ internal class TaigaQuickDocumentationHoverController(
                     dismissHover(request.editor, force = true)
                 } else {
                     hidePopup(restoreNativeHover = false)
-                    showPopup(request, resolved)
+                    showPopup(request, resolved, showExample = exampleVisible)
                     location?.let { popup?.setLocation(it) }
                 }
             },

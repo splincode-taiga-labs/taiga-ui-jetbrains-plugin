@@ -17,12 +17,15 @@ internal data class TaigaDocumentationBinding(
     val valueEnd: Int,
     val literal: String?,
     val expression: Boolean,
+    val context: List<TaigaBindingContext> = emptyList(),
 ) {
     fun replacement(value: String): String {
         val htmlQuote = text[valueStart - 1]
         val literalQuote = if (htmlQuote == '"') "'" else "\""
         val quoted = if (expression) "$literalQuote$value$literalQuote" else value
-        val escaped = quoted.replace("&", "&amp;").replace(htmlQuote.toString(), if (htmlQuote == '"') "&quot;" else "&#39;")
+        val escaped =
+            quoted.replace("&", "&amp;")
+                .replace(htmlQuote.toString(), if (htmlQuote == '"') "&quot;" else "&#39;")
         return text.replaceRange(valueStart, valueEnd, escaped)
     }
 }
@@ -45,7 +48,28 @@ internal fun XmlAttribute.documentationBinding(): TaigaDocumentationBinding? {
         range.last + 1,
         literal,
         expression,
+        documentationBindingContext(),
     )
+}
+
+internal data class TaigaBindingContext(
+    val startOffset: Int,
+    val endOffset: Int,
+    val text: String,
+)
+
+private fun XmlAttribute.documentationBindingContext(): List<TaigaBindingContext> {
+    val tag = parent
+    val tagNameStart = tag.textRange.startOffset + 1
+    return buildList {
+        add(TaigaBindingContext(tagNameStart, tagNameStart + tag.name.length, tag.name))
+        tag.attributes.filter { it !== this@documentationBindingContext }.forEach { attribute ->
+            val name = attribute.bindingName()
+            if (name.removeSurrounding("[", "]").startsWith("tui")) {
+                add(TaigaBindingContext(attribute.textRange.startOffset, attribute.textRange.startOffset + name.length, name))
+            }
+        }
+    }
 }
 
 /** Tracks unrelated edits, but never replaces a binding edited since the card opened. */
@@ -56,6 +80,7 @@ internal class TaigaDocumentationBindingEditor(
     private val values: List<String>,
 ) : Disposable {
     private var marker = document.createRangeMarker(binding.startOffset, binding.endOffset)
+    private val context = binding.context.map { it to document.createRangeMarker(it.startOffset, it.endOffset) }
     private var expected = binding.text
     var currentValue: String? = binding.literal
         private set
@@ -65,24 +90,34 @@ internal class TaigaDocumentationBindingEditor(
         if (project.isDisposed || value !in values || binding.literal == null) return "Copy this value instead"
         if (!document.isWritable) return "File is read-only; copy this value instead"
         var result = "Binding changed; reopen its card before applying"
-        WriteCommandAction.writeCommandAction(project).withName("Change Taiga UI ${binding.name}").run<RuntimeException> {
-            if (marker.isValid && document.charsSequence.subSequence(marker.startOffset, marker.endOffset).toString() == expected) {
-                val start = marker.startOffset
-                val replacement = binding.replacement(value)
-                document.replaceString(start, marker.endOffset, replacement)
-                marker.dispose()
-                marker = document.createRangeMarker(start, start + replacement.length)
-                expected = replacement
-                currentValue = value
-                PsiDocumentManager.getInstance(project).commitDocument(document)
-                result = "Applied $value · Undo available"
+        WriteCommandAction.writeCommandAction(project)
+            .withName("Change Taiga UI ${binding.name}")
+            .run<RuntimeException> {
+                val unchangedContext =
+                    context.all { (original, range) ->
+                        range.isValid &&
+                            document.charsSequence.subSequence(range.startOffset, range.endOffset).toString() == original.text
+                    }
+                if (unchangedContext && marker.isValid &&
+                    document.charsSequence.subSequence(marker.startOffset, marker.endOffset).toString() == expected
+                ) {
+                    val start = marker.startOffset
+                    val replacement = binding.replacement(value)
+                    document.replaceString(start, marker.endOffset, replacement)
+                    marker.dispose()
+                    marker = document.createRangeMarker(start, start + replacement.length)
+                    expected = replacement
+                    currentValue = value
+                    PsiDocumentManager.getInstance(project).commitDocument(document)
+                    result = "Applied $value · Undo available"
+                }
             }
-        }
         return result
     }
 
     override fun dispose() {
         marker.dispose()
+        context.forEach { (_, range) -> range.dispose() }
     }
 }
 

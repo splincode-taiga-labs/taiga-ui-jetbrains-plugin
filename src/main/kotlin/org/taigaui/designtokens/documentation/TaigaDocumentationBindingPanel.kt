@@ -2,7 +2,8 @@ package org.taigaui.designtokens.documentation
 
 import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.ui.components.JBLabel
-import java.awt.FlowLayout
+import com.intellij.util.ui.JBUI
+import java.awt.GridLayout
 import java.awt.datatransfer.StringSelection
 import javax.swing.BoxLayout
 import javax.swing.JButton
@@ -22,22 +23,25 @@ internal class TaigaDocumentationBindingPanel(
         val canApply = applyValue != null && member.kind == TaigaApiMemberKind.INPUT && member.binding?.literal != null
         val current = JBLabel()
         member.binding?.let { binding ->
-            current.text = if (binding.literal != null) "Current value: ${currentValue ?: binding.literal}" else "Current value: dynamic expression"
+            current.text =
+                if (binding.literal != null) "Current value: ${currentValue ?: binding.literal}" else "Current value: dynamic expression"
             add(current)
         }
         if (values.isNotEmpty()) {
             add(JBLabel(if (canApply) "Choose a value to apply" else "Choose a literal to copy"))
             add(
-                JPanel(FlowLayout(FlowLayout.LEFT)).apply {
+                JPanel(GridLayout(0, VALUE_COLUMNS, JBUI.scale(6), JBUI.scale(4))).apply {
                     isOpaque = false
-                    values.forEach { value ->
+                    values.take(MAX_VISIBLE_VALUES).forEach { value ->
                         add(
                             JButton(value).apply {
                                 toolTipText = if (canApply) "Apply $value to the existing binding" else "Copy '$value'"
                                 addActionListener {
                                     if (canApply) {
                                         status.text = applyValue?.invoke(value)
-                                        if (status.text?.startsWith("Applied") == true) current.text = "Current value: $value"
+                                        if (status.text?.startsWith("Applied") == true) {
+                                            current.text = "Current value: $value"
+                                        }
                                     } else {
                                         CopyPasteManager.getInstance().setContents(StringSelection("'$value'"))
                                         status.text = "Copied '$value'"
@@ -48,7 +52,11 @@ internal class TaigaDocumentationBindingPanel(
                     }
                 },
             )
+            if (values.size > MAX_VISIBLE_VALUES) add(JBLabel("More values in source"))
             add(status)
         }
     }
 }
+
+private const val VALUE_COLUMNS = 3
+private const val MAX_VISIBLE_VALUES = 12

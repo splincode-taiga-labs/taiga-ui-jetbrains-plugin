@@ -83,8 +83,14 @@ class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
         val entity = directive()
         val member = TaigaResolvedDocumentation.Member(
             entity.entity,
-            entity.subject.copy(localDocumentation = TaigaLocalDocumentation(inputTypes = mapOf("size" to "'s' | 'm'"))),
-            0, 4, null, entity.entity.inputs.first(), TaigaApiMemberKind.INPUT,
+            entity.subject.copy(
+                localDocumentation = TaigaLocalDocumentation(inputTypes = mapOf("size" to "'s' | 'm'")),
+            ),
+            0,
+            4,
+            null,
+            entity.entity.inputs.first(),
+            TaigaApiMemberKind.INPUT,
             binding = TaigaDocumentationBinding("size", 0, 8, "size=\"s\"", 6, 7, "s", false),
         )
         var applied: String? = null
@@ -109,8 +115,13 @@ class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
     fun testDynamicAndDocumentationOnlyValuesAreCopyActions() {
         val entity = directive()
         val member = TaigaResolvedDocumentation.Member(
-            entity.entity, entity.subject, 0, 4, null,
-            TaigaApiProperty("size", "[size]", "'s' | 'm'", "Button size"), TaigaApiMemberKind.INPUT,
+            entity.entity,
+            entity.subject,
+            0,
+            4,
+            null,
+            TaigaApiProperty("size", "[size]", "'s' | 'm'", "Button size"),
+            TaigaApiMemberKind.INPUT,
         )
         val panel = TaigaQuickDocumentationPopupPanel(member)
         descendants(panel).filterIsInstance<JButton>().first { it.text == "m" }.doClick()
