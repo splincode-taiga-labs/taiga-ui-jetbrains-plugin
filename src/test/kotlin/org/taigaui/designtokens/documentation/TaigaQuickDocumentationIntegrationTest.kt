@@ -62,7 +62,7 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
     @Test
     fun `registered provider renders local Taiga element documentation`() {
         val file = configureTemplate("<tui-calendar></tui-calendar>")
-        warmDocumentation(file)
+        warmDocumentation()
         val offset = file.text.indexOf("tui-calendar") + 4
 
         var html: String? = null
@@ -97,7 +97,7 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
     @Test
     fun `provider stays fail open for local Taiga-looking symbol missing from docs`() {
         val file = configureTemplate("<div tuiUnknown></div>")
-        warmDocumentation(file)
+        warmDocumentation()
         val offset = file.text.indexOf("tuiUnknown") + 3
 
         val targets = TaigaQuickDocumentationTargetProvider().documentationTargets(file, offset)
