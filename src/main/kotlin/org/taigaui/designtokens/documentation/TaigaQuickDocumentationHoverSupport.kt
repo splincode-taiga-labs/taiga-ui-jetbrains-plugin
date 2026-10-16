@@ -89,6 +89,7 @@ internal class TaigaQuickDocumentationHoverController(
     private var hideJob: Job? = null
     private var popup: JBPopup? = null
     private var popupContent: TaigaQuickDocumentationPopupPanel? = null
+    private var popupHost: TaigaDocumentationPopupHost? = null
     private val resolutionStatus = TaigaDocumentationStatusPopup(project) { dismissHover(force = true) }
     private var pinnedSize: Dimension? = null
     private var pinnedLocation: Point? = null
@@ -428,8 +429,9 @@ internal class TaigaQuickDocumentationHoverController(
                     else -> {
                         hoverJob = null
                         if (switching) {
-                            // Commit the replacement only after resolution and the switching dwell.
-                            hidePopup(restoreNativeHover = false)
+                            // Keep the JBPopup visible; only its card content changes.
+                            previewJob?.cancel()
+                            previewJob = null
                             cardEditors.dispose()
                             history.clear()
                             currentView = null
@@ -481,18 +483,30 @@ internal class TaigaQuickDocumentationHoverController(
                     compactHover = compactHover,
                     hoverPointer = !request.explicit && !pinned,
                 )
+            val existingPopup = popup?.takeIf { it.isVisible && !pinned && !request.explicit }
+            val existingHost = popupHost
+            if (existingPopup != null && existingHost != null) {
+                popupContent = panel
+                existingHost.showCard(panel)
+                existingPopup.setSize(existingHost.preferredSize)
+                positionTaigaHoverCard(existingPopup, panel, request.documentationTargetScreenBounds())
+                panel.restoreScrollPosition(view.scrollPosition)
+                request.completePresentation(panel, refreshInProgress)
+                loadIconPreviews(request, resolved, panel)
+                return
+            }
+
+            val host = TaigaDocumentationPopupHost(panel)
             val createdPopup =
                 createTaigaDocumentationPopup(
                     project,
-                    panel,
+                    host,
+                    panel.preferredFocus,
                     requestFocus,
                     request.explicit,
                     pinned,
                 ) {
-                    request.editor.documentationTargetScreenBounds(
-                        request.documentationRequest.startOffset,
-                        request.documentationRequest.endOffset,
-                    )
+                    currentRequest?.documentationTargetScreenBounds() ?: request.documentationTargetScreenBounds()
                 }
 
             createdPopup.addListener(
@@ -509,6 +523,8 @@ internal class TaigaQuickDocumentationHoverController(
                             currentView = null
                             popup = null
                             popupContent = null
+                            popupHost?.stopTransition()
+                            popupHost = null
                             activeKey = null
                             pendingKey = null
                             currentRequest = null
@@ -527,6 +543,7 @@ internal class TaigaQuickDocumentationHoverController(
 
             popup = createdPopup
             popupContent = panel
+            popupHost = host
             createdPopup.showTaigaDocumentationPopup(
                 panel,
                 request.editor,
@@ -781,6 +798,8 @@ internal class TaigaQuickDocumentationHoverController(
 
         popup = null
         popupContent = null
+        popupHost?.stopTransition()
+        popupHost = null
         currentPopup?.cancel()
 
         if (restoreNativeHover) {
