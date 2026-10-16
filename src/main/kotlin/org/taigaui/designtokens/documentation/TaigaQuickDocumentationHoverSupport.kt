@@ -478,7 +478,7 @@ internal class TaigaQuickDocumentationHoverController(
                     .setShowBorder(request.explicit || pinned)
                     .setShowShadow(request.explicit || pinned)
                     .setCancelOnMouseOutCallback { event ->
-                        !pinned && !request.editor.documentationTargetScreenBounds(
+                        !pinned && !request.explicit && !request.editor.documentationTargetScreenBounds(
                             request.documentationRequest.startOffset,
                             request.documentationRequest.endOffset,
                         ).apply { grow(com.intellij.util.ui.JBUI.scale(20), com.intellij.util.ui.JBUI.scale(12)) }
