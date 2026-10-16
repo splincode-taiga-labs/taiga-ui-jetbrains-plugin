@@ -18,6 +18,7 @@ import java.awt.geom.AffineTransform
 import java.awt.geom.Ellipse2D
 import java.awt.geom.Path2D
 import java.awt.geom.RoundRectangle2D
+import javax.swing.Icon
 import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JPanel
@@ -97,8 +98,9 @@ internal class NavigateToDefinitionButton(
     }
 }
 
-private fun JButton.configurePopupIconButton(tooltip: String) {
+internal fun JButton.configurePopupIconButton(tooltip: String) {
     toolTipText = tooltip
+    getAccessibleContext().accessibleName = tooltip
     isOpaque = false
     isContentAreaFilled = false
     isBorderPainted = false
@@ -113,6 +115,16 @@ private fun JButton.configurePopupIconButton(tooltip: String) {
     maximumSize = preferredSize
     alignmentY = JComponent.CENTER_ALIGNMENT
 }
+
+internal fun popupIconButton(
+    title: String,
+    icon: Icon,
+    action: () -> Unit,
+): JButton =
+    JButton(icon).apply {
+        configurePopupIconButton(title)
+        addActionListener { action() }
+    }
 
 internal class TokenBadge : JComponent() {
     init {

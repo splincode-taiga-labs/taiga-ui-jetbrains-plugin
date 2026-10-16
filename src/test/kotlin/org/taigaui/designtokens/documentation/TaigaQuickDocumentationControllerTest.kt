@@ -148,7 +148,8 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
         val initialMember = view().resolved as TaigaResolvedDocumentation.Member
         assertEquals("newSize", initialMember.property.name)
         assertTrue(initialMember.typeText.orEmpty().contains("choice1"))
-        val size = Dimension(570, 330)
+        // A resized card must remain scrollable even when its summary becomes shorter.
+        val size = Dimension(570, panel().preferredSize.height - 80)
         val location = Point(180, 120)
         val popup = documentationField<JBPopup>(controller, "popup")
         setField(controller, "popup", documentationPopupWithGeometry(popup, size, location))
@@ -346,20 +347,22 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
         WriteCommandAction.runWriteCommandAction(project) {
             consumer.setText(consumer.text.replace("imports: [TuiButton,", "imports: ["))
         }
-        await("stale import context") { !button("Apply 'l'").isEnabled }
+        selectValue(panel(), "l")
+        await("stale import context") { !button("Apply").isEnabled }
         assertEquals(STALE_DOCUMENTATION_MESSAGE, apply("l"))
         assertTrue(
             myFixture.editor.document.text
                 .contains("size=\"m\""),
         )
-        assertTrue(button("Copy 'l'").isEnabled)
+        assertTrue(button("Copy").isEnabled)
     }
 
     fun testUndoRedoCannotReuseTheRefreshedBindingAction() {
         open("<button tuiButton size=\"m\">Save</button>", "size")
         button("Pin").doClick()
         val before = panel()
-        button("Apply 's'").doClick()
+        selectValue(panel(), "s")
+        button("Apply").doClick()
         await("value refresh") { panelOrNull()?.let { it !== before } == true }
         val apply = requireNotNull(actions().applyValue)
         val undo = UndoManager.getInstance(project)
@@ -524,8 +527,7 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
 
     private fun statusPanel(): TaigaDocumentationStatusPanel = documentationField(status(), "panel")
 
-    private fun button(text: String): JButton =
-        descendants(panel()).filterIsInstance<JButton>().first { it.text == text }
+    private fun button(text: String): JButton = button(panel(), text)
 
     private fun link(text: String): LinkLabel<*> =
         descendants(panel()).filterIsInstance<LinkLabel<*>>().first { it.text == text }
