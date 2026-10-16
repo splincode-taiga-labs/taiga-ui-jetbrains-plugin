@@ -57,6 +57,33 @@ internal class TaigaDocsService(
         }
     }
 
+    fun cachedSnapshotForResolvedPackage(
+        sourceFile: Path,
+        packageName: String?,
+    ): TaigaDocsSnapshot? {
+        val normalized = sourceFile.normalized()
+        val context =
+            projectContexts.values
+                .distinctBy(TaigaUiProjectContext::packageScopeIdentity)
+                .firstOrNull { candidate ->
+                    val roots =
+                        packageName
+                            ?.let(candidate.packageRoots::get)
+                            ?.let(::listOf)
+                            ?: candidate.packageRoots.values.toList()
+
+                    roots.any { root -> normalized.startsWith(root.toAbsolutePath().normalize()) }
+                }
+                ?: return null
+        val index =
+            TaigaDocsSources
+                .forMajor(context.majorVersion)
+                ?.let(indexStore::cached)
+                ?: return null
+
+        return TaigaDocsSnapshot(context, index)
+    }
+
     fun cachedIndexFor(majorVersion: Int): TaigaDocsIndex? =
         TaigaDocsSources.forMajor(majorVersion)?.let(indexStore::cached)
 
