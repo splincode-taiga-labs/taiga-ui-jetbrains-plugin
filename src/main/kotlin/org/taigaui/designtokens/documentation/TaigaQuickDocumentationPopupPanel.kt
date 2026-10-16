@@ -539,7 +539,7 @@ internal class TaigaQuickDocumentationPopupPanel(
                         BorderLayout.WEST,
                     )
                     add(
-                        wrappedLabel(preview.reference.name, CONTENT_WIDTH - 112).apply { font = codeFont() },
+                        wrappedLabel(preview.reference.name, CONTENT_WIDTH - 112).apply { font = taigaDocumentationCodeFont() },
                         BorderLayout.CENTER,
                     )
                 },
@@ -691,10 +691,10 @@ private fun table(
                 if (onSelect == null) {
                     JBLabel(name).apply {
                         foreground = CARD_FOREGROUND
-                        font = codeFont()
+                        font = taigaDocumentationCodeFont()
                     }
                 } else {
-                    link(name) { onSelect(name) }.apply { font = codeFont() }
+                    link(name) { onSelect(name) }.apply { font = taigaDocumentationCodeFont() }
                 }
             add(
                 member,
@@ -781,7 +781,7 @@ private fun detail(
                 if (copy) add(CopyValueButton(value, copyLabel).apply { toolTipText = value }, BorderLayout.EAST)
             },
         )
-        add(wrappedLabel(value).apply { font = codeFont() })
+        add(wrappedLabel(value).apply { font = taigaDocumentationCodeFont() })
         add(Box.createVerticalStrut(JBUI.scale(8)))
     }
 
@@ -794,7 +794,7 @@ private fun codeRow(
         layout = BorderLayout()
         border = JBUI.Borders.empty(10, 12)
         alignmentX = JComponent.LEFT_ALIGNMENT
-        add(wrappedLabel(code, CONTENT_WIDTH - 36).apply { font = codeFont() }, BorderLayout.CENTER)
+        add(wrappedLabel(code, CONTENT_WIDTH - 36).apply { font = taigaDocumentationCodeFont() }, BorderLayout.CENTER)
         add(copyAction(copyLabel, completeCode), BorderLayout.SOUTH)
     }
 
@@ -866,7 +866,6 @@ internal fun wrappedLabel(
         toolTipText = text
     }
 
-private fun codeFont(): Font = Font(Font.MONOSPACED, Font.PLAIN, UIUtil.getLabelFont().size)
 
 private val COMPONENT_COLOR = JBColor(Color(123, 62, 174), Color(190, 139, 245))
 private val DIRECTIVE_COLOR = JBColor(Color(0, 115, 120), Color(97, 215, 208))

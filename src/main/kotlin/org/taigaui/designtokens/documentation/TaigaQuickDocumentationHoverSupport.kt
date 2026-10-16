@@ -40,8 +40,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.awt.Dimension
-import java.awt.KeyboardFocusManager
-import java.awt.MouseInfo
 import java.awt.Point
 import java.nio.file.Path
 import javax.swing.JComponent
@@ -786,21 +784,6 @@ private fun TaigaDocumentationCardEditors.prepareForView(
         )
     }
 }
-
-private fun JComponent.hasKeyboardFocus(): Boolean =
-    KeyboardFocusManager
-        .getCurrentKeyboardFocusManager()
-        .focusOwner
-        ?.let { SwingUtilities.isDescendingFrom(it, this) } == true
-
-private fun JComponent.containsPointer(): Boolean =
-    isShowing &&
-        MouseInfo
-            .getPointerInfo()
-            ?.location
-            ?.let(::Point)
-            ?.also { SwingUtilities.convertPointFromScreen(it, this) }
-            ?.let(::contains) ?: false
 
 @Suppress("ReturnCount")
 private fun EditorMouseEvent.toTaigaDocumentationHoverCandidate(project: Project): TaigaDocumentationHoverCandidate? {
