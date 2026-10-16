@@ -10,6 +10,7 @@ internal data class TaigaUiProjectContext(
     val versionSourcePackage: String,
     val installedPackages: Set<String>,
     val packageScopeIdentity: String,
+    val packageRoots: Map<String, Path> = emptyMap(),
 )
 
 internal class TaigaUiVersionDetector(
@@ -41,6 +42,7 @@ internal class TaigaUiVersionDetector(
                             versionSourcePackage = located.name,
                             installedPackages = requireNotNull(scope).packages.keys.toSortedSet(),
                             packageScopeIdentity = scope.identity,
+                            packageRoots = scope.packages.mapValues { (_, located) -> located.root },
                         )
                     }
                 }
