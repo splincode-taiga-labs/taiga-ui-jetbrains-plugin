@@ -145,8 +145,9 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
                 (list.model.getElementAt(it) as TaigaDocumentationApiRow).key == "INPUT:newSize"
             }
         activate(list, "ENTER")
-        assertEquals("newSize", (view().resolved as TaigaResolvedDocumentation.Member).property.name)
-        assertTrue(view().resolved.typeText.orEmpty().contains("choice1"))
+        val initialMember = view().resolved as TaigaResolvedDocumentation.Member
+        assertEquals("newSize", initialMember.property.name)
+        assertTrue(initialMember.typeText.orEmpty().contains("choice1"))
         val size = Dimension(570, 330)
         val location = Point(180, 120)
         val popup = documentationField<JBPopup>(controller, "popup")

@@ -65,7 +65,8 @@ internal object TaigaDocumentationResolver {
         }
 
         val symbol = (element.`object` as? Pointer<*>)?.dereference() as? PolySymbol
-        val contexts = listOfNotNull(PolySymbolCodeCompletionItem.getPsiElement(element)) + symbol?.localContexts().orEmpty()
+        val linked = PolySymbolCodeCompletionItem.getPsiElement(element)
+        val contexts = listOfNotNull(linked) + symbol?.localContexts().orEmpty()
         return contexts.distinct().firstNotNullOfOrNull { context ->
             val angular = context.angularDocumentationSubject()?.takeIf { it.packageName != null }
             angular?.copy(selector = selector ?: angular.selector)
