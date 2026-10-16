@@ -161,6 +161,10 @@ internal object TaigaTemplateSelectorAtOffset {
 
     private fun Char.isNamePart(): Boolean = isLetterOrDigit() || this in charArrayOf('_', ':', '-', '.')
 
+    internal fun isTaigaDocumentationKey(value: String): Boolean =
+        value.isTaigaSelector() ||
+            (value.startsWith("Tui") && value.length > 3 && value[3].isUpperCase())
+
     private fun String.isTaigaSelector(): Boolean =
         startsWith("tui-") ||
             (startsWith("tui") && length > 3 && (this[3].isUpperCase() || this[3].isDigit()))
