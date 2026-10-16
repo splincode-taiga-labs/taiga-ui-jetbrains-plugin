@@ -106,6 +106,17 @@ internal object TaigaQuickDocumentationRenderer {
     }
 
     private fun StringBuilder.appendMemberSections(resolved: TaigaResolvedDocumentation.Member) {
+        resolved.receivers.forEach { receiver ->
+            addSection("${receiver.ownerName} accepts:", receiver.typeText.orEmpty().html())
+            receiver.declaration?.publicSymbol?.let { addSection("Declared by:", it.html()) }
+        }
+        resolved.localMember?.let { member ->
+            member.expandedType?.let { addSection("Expanded type:", it.html()) }
+            member.valueType?.let { addSection("Stored value type:", it.html()) }
+            member.transform?.let { addSection("Input transform:", it.html()) }
+            member.deprecated?.let { addSection("Deprecated:", it.html()) }
+            if (member.required) addSection("Requirement:", "Required input")
+        }
         resolved.typeText?.takeIf(String::isNotBlank)?.let { type ->
             addSection("Type:", "<code>${type.html()}</code>")
         }
