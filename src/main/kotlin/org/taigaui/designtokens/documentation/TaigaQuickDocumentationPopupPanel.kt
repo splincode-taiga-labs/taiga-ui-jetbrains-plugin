@@ -641,23 +641,12 @@ internal class TaigaQuickDocumentationPopupPanel(
 
 private fun compactDocumentationFooter(actions: TaigaDocumentationPopupActions): JComponent =
     verticalPanel().apply {
-        add(Box.createVerticalStrut(JBUI.scale(10)))
-        add(documentationSeparator())
-        add(Box.createVerticalStrut(JBUI.scale(8)))
-        val links =
-            JPanel().apply {
-                layout = BoxLayout(this, BoxLayout.X_AXIS)
-                isOpaque = false
-                alignmentX = JComponent.LEFT_ALIGNMENT
-            }
         actions.openFullCard?.let { open ->
-            links.add(link("Quick Documentation →", open))
+            add(Box.createVerticalStrut(JBUI.scale(10)))
+            add(documentationSeparator())
+            add(Box.createVerticalStrut(JBUI.scale(8)))
+            add(link("Open full card →", open))
         }
-        actions.navigateToSource?.let { navigate ->
-            if (links.componentCount > 0) links.add(Box.createHorizontalStrut(JBUI.scale(14)))
-            links.add(link("Go to source ↗", navigate))
-        }
-        add(links)
     }
 
 private fun table(
