@@ -46,7 +46,7 @@ private fun PsiReference.resolutionCandidates(): Sequence<PsiElement> =
                 .asSequence()
                 .mapNotNull { result -> result.element }
 
-        else -> sequenceOfNotNull(resolve())
+        else -> listOfNotNull(resolve()).asSequence()
     }
 
 internal fun PsiFile.taigaImportPackage(symbol: String): String? =
