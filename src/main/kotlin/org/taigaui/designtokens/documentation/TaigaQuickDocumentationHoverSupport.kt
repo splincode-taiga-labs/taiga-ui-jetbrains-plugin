@@ -521,13 +521,16 @@ internal class TaigaQuickDocumentationHoverController(
         request: TaigaQuickDocumentationHoverRequest,
         panel: TaigaQuickDocumentationPopupPanel,
     ): Boolean {
-        val existingPopup = popup?.takeIf { it.isVisible && !pinned && !request.explicit } ?: return false
-        val host = popupHost ?: return false
-        popupContent = panel
-        host.showCard(panel)
-        existingPopup.setSize(host.preferredSize)
-        positionTaigaHoverCard(existingPopup, panel, request.documentationTargetScreenBounds())
-        return true
+        val existingPopup = popup?.takeIf { it.isVisible && !pinned && !request.explicit }
+        val host = popupHost
+        if (existingPopup != null && host != null) {
+            popupContent = panel
+            host.showCard(panel)
+            existingPopup.setSize(host.preferredSize)
+            positionTaigaHoverCard(existingPopup, panel, request.documentationTargetScreenBounds())
+            return true
+        }
+        return false
     }
 
     private fun registerPopupCleanup(createdPopup: JBPopup) {
