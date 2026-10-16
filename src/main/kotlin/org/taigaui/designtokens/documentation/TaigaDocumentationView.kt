@@ -27,28 +27,8 @@ internal data class TaigaDocumentationView(
                     it.packageName == resolved.subject.packageName &&
                     it.presentationName == resolved.subject.presentationName
             } ?: return null
-        val bindings =
-            when (target) {
-                is TaigaResolvedDocumentation.Entity -> target.bindings
-                is TaigaResolvedDocumentation.Member -> target.bindings
-            }
-        val owner =
-            resolveDocumentation(
-                TaigaDocumentationRequest.Entity(
-                    subjects = listOf(subject),
-                    startOffset = target.startOffset,
-                    endOffset = target.endOffset,
-                    bindings = bindings,
-                    element = target.templateElement,
-                    contextSubjects = subjects,
-                    icons =
-                        when (target) {
-                            is TaigaResolvedDocumentation.Entity -> target.icons
-                            is TaigaResolvedDocumentation.Member -> target.icons
-                        },
-                ),
-                snapshot,
-            ) as? TaigaResolvedDocumentation.Entity ?: return null
+        val resolvedOwner = resolveDocumentation(target.ownerRequest(subject, subjects), snapshot)
+        val owner = resolvedOwner as? TaigaResolvedDocumentation.Entity ?: return null
         val refreshed =
             when (val previous = resolved) {
                 is TaigaResolvedDocumentation.Entity -> owner
@@ -62,3 +42,25 @@ internal data class TaigaDocumentationView(
         return copy(resolved = refreshed)
     }
 }
+
+private fun TaigaResolvedDocumentation.ownerRequest(
+    subject: TaigaDocumentationSubject,
+    context: List<TaigaDocumentationSubject>,
+): TaigaDocumentationRequest.Entity =
+    TaigaDocumentationRequest.Entity(
+        subjects = listOf(subject),
+        startOffset = startOffset,
+        endOffset = endOffset,
+        bindings =
+            when (this) {
+                is TaigaResolvedDocumentation.Entity -> bindings
+                is TaigaResolvedDocumentation.Member -> bindings
+            },
+        element = templateElement,
+        contextSubjects = context,
+        icons =
+            when (this) {
+                is TaigaResolvedDocumentation.Entity -> icons
+                is TaigaResolvedDocumentation.Member -> icons
+            },
+    )

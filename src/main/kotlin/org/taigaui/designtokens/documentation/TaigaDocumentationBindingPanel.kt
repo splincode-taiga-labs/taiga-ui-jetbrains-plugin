@@ -76,6 +76,7 @@ internal class TaigaDocumentationBindingPanel(
                     isOpaque = false
                     alignmentX = LEFT_ALIGNMENT
                 }
+
             fun showValues(visible: List<String>) {
                 applyButtons.clear()
                 choices.removeAll()
@@ -126,13 +127,14 @@ internal class TaigaDocumentationBindingPanel(
             showValues(values.take(MAX_VISIBLE_VALUES))
             add(choices)
             if (values.size > MAX_VISIBLE_VALUES) {
-                val search = JBTextField().apply {
-                    emptyText.text = "Search all ${values.size} values"
-                    getAccessibleContext().accessibleName = "Search allowed input values"
-                    isVisible = false
-                    alignmentX = LEFT_ALIGNMENT
-                    maximumSize = Dimension(Int.MAX_VALUE, preferredSize.height)
-                }
+                val search =
+                    JBTextField().apply {
+                        emptyText.text = "Search all ${values.size} values"
+                        getAccessibleContext().accessibleName = "Search allowed input values"
+                        isVisible = false
+                        alignmentX = LEFT_ALIGNMENT
+                        maximumSize = Dimension(Int.MAX_VALUE, preferredSize.height)
+                    }
                 search.document.addDocumentListener(
                     object : DocumentListener {
                         private fun filter() {

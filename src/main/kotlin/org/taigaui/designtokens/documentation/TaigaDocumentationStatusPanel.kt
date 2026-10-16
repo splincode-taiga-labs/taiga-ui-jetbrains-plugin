@@ -13,15 +13,17 @@ internal class TaigaDocumentationStatusPanel(
     showQuickFixes: () -> Unit,
 ) : JPanel(BorderLayout(0, JBUI.scale(12))) {
     private val status = JBLabel(message)
-    private val quickFixes = JButton("Angular quick fixes").apply {
-        isVisible = false
-        addActionListener { showQuickFixes() }
-        bind("ENTER", "show-angular-quick-fixes") { doClick() }
-    }
-    val closeButton = JButton("Close").apply {
-        addActionListener { onClose() }
-        bind("ENTER", "close-documentation-status") { doClick() }
-    }
+    private val quickFixes =
+        JButton("Angular quick fixes").apply {
+            isVisible = false
+            addActionListener { showQuickFixes() }
+            bind("ENTER", "show-angular-quick-fixes") { doClick() }
+        }
+    val closeButton =
+        JButton("Close").apply {
+            addActionListener { onClose() }
+            bind("ENTER", "close-documentation-status") { doClick() }
+        }
 
     init {
         background = DESIGN_TOKEN_POPUP_BACKGROUND

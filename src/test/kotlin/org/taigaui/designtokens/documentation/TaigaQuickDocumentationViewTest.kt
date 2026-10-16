@@ -46,7 +46,8 @@ class TaigaQuickDocumentationViewTest : TestCase() {
         assertEquals("appearance", refreshed.query)
         assertEquals("INPUT:appearance", refreshed.selectedMember)
         assertEquals(Point(0, 80), refreshed.scrollPosition)
-        assertEquals("'danger'", refreshed.resolved.entity.inputs.last().documentedType)
+        val inputs = refreshed.resolved.entity.inputs
+        assertEquals("'danger'", inputs.last().documentedType)
     }
 
     fun testRemovedMembersAndReceiversCannotReturnAnOldEditableSnapshot() {

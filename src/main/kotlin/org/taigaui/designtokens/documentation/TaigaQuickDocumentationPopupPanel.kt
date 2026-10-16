@@ -1,7 +1,6 @@
 package org.taigaui.designtokens.documentation
 
 import com.intellij.ide.BrowserUtil
-import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
@@ -19,7 +18,6 @@ import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
 import java.awt.Point
 import java.awt.RenderingHints
-import java.awt.datatransfer.StringSelection
 import javax.swing.Box
 import javax.swing.BoxLayout
 import javax.swing.Icon
@@ -29,7 +27,6 @@ import javax.swing.JPanel
 import javax.swing.JSeparator
 import javax.swing.LayoutFocusTraversalPolicy
 import javax.swing.SwingUtilities
-import javax.swing.Timer
 
 internal data class TaigaDocumentationIconPreview(
     val reference: TaigaDocumentationIcon,
@@ -574,17 +571,18 @@ internal class TaigaQuickDocumentationPopupPanel(
             val statement = resolved.canonicalImport()
             if (statement != null || actions.showImportFixes != null) {
                 add(Box.createVerticalStrut(JBUI.scale(8)))
-                add(
-                    JPanel().apply {
-                        layout = BoxLayout(this, BoxLayout.X_AXIS)
-                        isOpaque = false
-                        alignmentX = LEFT_ALIGNMENT
-                        statement?.let { add(copyAction("Copy import", it)) }
-                        add(Box.createHorizontalGlue())
-                        actions.showImportFixes?.let { show -> add(link("Angular quick fixes →", show)) }
-                    },
-                )
+                add(importActions(statement))
             }
+        }
+
+    private fun importActions(statement: String?): JComponent =
+        JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.X_AXIS)
+            isOpaque = false
+            alignmentX = LEFT_ALIGNMENT
+            statement?.let { add(copyAction("Copy import", it)) }
+            add(Box.createHorizontalGlue())
+            actions.showImportFixes?.let { show -> add(link("Angular quick fixes →", show)) }
         }
 }
 
@@ -698,23 +696,6 @@ private fun codeRow(
         alignmentX = JComponent.LEFT_ALIGNMENT
         add(wrappedLabel(code, CONTENT_WIDTH - 36).apply { font = codeFont() }, BorderLayout.CENTER)
         add(copyAction(copyLabel, completeCode), BorderLayout.SOUTH)
-    }
-
-private fun copyAction(
-    title: String,
-    value: String,
-): JButton =
-    JButton(title).apply {
-        alignmentX = JComponent.LEFT_ALIGNMENT
-        toolTipText = value
-        getAccessibleContext().accessibleName = title
-        val feedback = Timer(2_000) { text = title }.apply { isRepeats = false }
-        addActionListener {
-            CopyPasteManager.getInstance().setContents(StringSelection(value))
-            text = "Copied"
-            feedback.restart()
-        }
-        bind("ENTER", "copy-documentation-text") { doClick() }
     }
 
 private fun sectionTitle(title: String): JComponent =

@@ -93,11 +93,9 @@ internal class TaigaQuickDocumentationHoverController(
     private var hideJob: Job? = null
     private var popup: JBPopup? = null
     private var popupContent: TaigaQuickDocumentationPopupPanel? = null
-    private var statusPopup: JBPopup? = null
-    private var statusPanel: TaigaDocumentationStatusPanel? = null
+    private val resolutionStatus = TaigaDocumentationStatusPopup(project) { dismissHover(force = true) }
     private var pinnedSize: Dimension? = null
     private var pinnedLocation: Point? = null
-    private var statusEditor: Editor? = null
     private var refreshInProgress = false
     private var previewJob: Job? = null
     private val icons = TaigaDocumentationIcons(project, coroutineScope)
@@ -118,7 +116,7 @@ internal class TaigaQuickDocumentationHoverController(
         EditorFactory.getInstance().addEditorFactoryListener(
             object : EditorFactoryListener {
                 override fun editorReleased(event: EditorFactoryEvent) {
-                    if (currentRequest?.editor === event.editor || statusEditor === event.editor) {
+                    if (currentRequest?.editor === event.editor || resolutionStatus.editor === event.editor) {
                         dismissHover(force = true)
                     }
                 }
@@ -159,7 +157,7 @@ internal class TaigaQuickDocumentationHoverController(
     fun showFromCaret(editor: Editor) {
         val file = PsiDocumentManager.getInstance(project).getPsiFile(editor.document) ?: return
         dismissHover(force = true)
-        showResolutionStatus(editor)
+        resolutionStatus.show(editor)
         val offset = editor.caretModel.offset
         val candidate =
             TaigaDocumentationHoverCandidate(
@@ -204,50 +202,12 @@ internal class TaigaQuickDocumentationHoverController(
         resolutionJob = resolveCandidate(candidate, refreshing = true, focusEditor = focusEditor)
     }
 
-    private fun showResolutionStatus(editor: Editor) {
-        val panel =
-            TaigaDocumentationStatusPanel(
-                if (DumbService.isDumb(project)) "Waiting for indexing…" else "Loading Taiga UI API…",
-                onClose = { dismissHover(force = true) },
-                showQuickFixes = {
-                    dismissHover(force = true)
-                    showTaigaAngularQuickFixes(project, editor)
-                },
-            )
-        val created =
-            JBPopupFactory.getInstance()
-                .createComponentPopupBuilder(panel, panel.closeButton)
-                .setProject(project)
-                .setFocusable(true)
-                .setRequestFocus(true)
-                .createPopup()
-        statusPopup = created
-        statusPanel = panel
-        statusEditor = editor
-        created.addListener(
-            object : JBPopupListener {
-                override fun onClosed(event: LightweightWindowEvent) {
-                    if (statusPopup === created) dismissHover(force = true)
-                }
-            },
-        )
-        created.showInBestPositionFor(editor)
-    }
-
-    private fun hideResolutionStatus() {
-        val previous = statusPopup
-        statusPopup = null
-        statusPanel = null
-        statusEditor = null
-        previous?.cancel()
-    }
-
     override fun dispose() {
         clearHover()
     }
 
     fun mouseMoved(event: EditorMouseEvent) {
-        if (pinned || refreshInProgress || statusPopup?.isVisible == true || popupContent?.hasKeyboardFocus() == true) {
+        if (pinned || refreshInProgress || hasInteractiveCard()) {
             return
         }
         val candidate = event.toTaigaDocumentationHoverCandidate(project)
@@ -298,7 +258,7 @@ internal class TaigaQuickDocumentationHoverController(
                     .executeSynchronously()
             withContext(Dispatchers.EDT) {
                 if (pendingKey == candidate.key) {
-                    if (refreshing) popupContent?.showRefreshProgress(false) else statusPanel?.showLoading()
+                    if (refreshing) popupContent?.showRefreshProgress(false) else resolutionStatus.showLoading()
                 }
             }
             val snapshot =
@@ -309,7 +269,13 @@ internal class TaigaQuickDocumentationHoverController(
             val resolved = request?.let { resolveDocumentation(it.documentationRequest, snapshot) }
             if (request != null && snapshot == null) project.service<TaigaDocsService>().warmUp(request.sourceFile)
             withContext(Dispatchers.EDT) {
-                publishResolution(candidate, request, resolved, snapshot, refreshing, focusEditor)
+                if (candidate.explicit) {
+                    if (pendingKey == candidate.key) {
+                        publishExplicitResolution(request, resolved, snapshot, refreshing, focusEditor)
+                    }
+                } else {
+                    publishResolution(candidate, request, resolved, snapshot)
+                }
             }
         }
 
@@ -318,14 +284,8 @@ internal class TaigaQuickDocumentationHoverController(
         request: TaigaQuickDocumentationHoverRequest?,
         resolved: TaigaResolvedDocumentation?,
         snapshot: TaigaDocsSnapshot?,
-        refreshing: Boolean,
-        focusEditor: Boolean,
     ) {
-        if (pendingKey != candidate.key || (pinned && !candidate.explicit)) return
-        if (candidate.explicit) {
-            publishExplicitResolution(request, resolved, snapshot, refreshing, focusEditor)
-            return
-        }
+        if (pendingKey != candidate.key || pinned) return
         when {
             request == null -> {
                 underline.clear()
@@ -345,13 +305,12 @@ internal class TaigaQuickDocumentationHoverController(
     ) {
         refreshInProgress = false
         if (request != null && resolved != null && request.isStillCurrent(project)) {
-            hideResolutionStatus()
+            resolutionStatus.hide()
             showExplicit(request, resolved, snapshot, refreshing, focusEditor)
         } else if (refreshing) {
             popupContent?.showRefreshFailure()
         } else {
-            statusPanel?.showUnavailable()
-            statusPopup?.pack(true, true)
+            resolutionStatus.showUnavailable()
         }
     }
 
@@ -364,7 +323,7 @@ internal class TaigaQuickDocumentationHoverController(
     ) {
         val view = captureCurrentView().takeIf { refreshing }?.refreshed(resolved, snapshot)
         val previous = if (refreshing) history.mapNotNull { it.refreshed(resolved, snapshot) } else emptyList()
-        val location = popupContent?.takeIf { it.isShowing }?.locationOnScreen
+        val location = popup?.takeIf { it.isVisible }?.locationOnScreen
         hidePopup(restoreNativeHover = false)
         disposeBindingEditor()
         disposeTemplateEditor()
@@ -395,7 +354,7 @@ internal class TaigaQuickDocumentationHoverController(
     }
 
     fun mouseExited(editor: Editor) {
-        if (pinned || refreshInProgress || statusPopup?.isVisible == true || popupContent?.hasKeyboardFocus() == true) {
+        if (pinned || refreshInProgress || hasInteractiveCard()) {
             return
         }
         if (editor.project == project) {
@@ -413,6 +372,9 @@ internal class TaigaQuickDocumentationHoverController(
             }
         }
     }
+
+    private fun hasInteractiveCard(): Boolean =
+        resolutionStatus.isVisible || popupContent?.hasKeyboardFocus() == true
 
     private fun handleRequest(
         request: TaigaQuickDocumentationHoverRequest,
@@ -619,26 +581,25 @@ internal class TaigaQuickDocumentationHoverController(
                     OpenFileDescriptor(project, file, source.offset).navigate(true)
                 }
             },
-            applyTemplateEdit =
-                templateEditor?.let { adapter ->
-                    { edit ->
-                        applyCardChange(request, focusEditor = edit.kind == TaigaTemplateEditKind.ADD_REQUIRED) {
-                            val result =
-                                if (edit in
-                                    resolved.templateEdits()
-                                ) {
-                                    adapter.apply(edit)
-                                } else {
-                                    "Reopen the card before applying"
-                                }
-                            if (result.startsWith("Replaced")) edit.replacement?.let { refreshTarget?.name = it }
-                            result
-                        }
-                    }
-                },
+            applyTemplateEdit = templateEditAction(request, resolved),
             refresh = { refreshCard() },
             resize = ::resizePopup,
         )
+
+    private fun templateEditAction(
+        request: TaigaQuickDocumentationHoverRequest,
+        resolved: TaigaResolvedDocumentation,
+    ): ((TaigaDocumentationTemplateEdit) -> String)? =
+        templateEditor?.let { adapter ->
+            { edit ->
+                applyCardChange(request, focusEditor = edit.kind == TaigaTemplateEditKind.ADD_REQUIRED) {
+                    val result =
+                        if (edit in resolved.templateEdits()) adapter.apply(edit) else "Reopen the card before applying"
+                    if (result.startsWith("Replaced")) edit.replacement?.let { refreshTarget?.name = it }
+                    result
+                }
+            }
+        }
 
     private fun resizePopup() {
         popupContent?.let { panel ->
@@ -670,7 +631,7 @@ internal class TaigaQuickDocumentationHoverController(
         resolved: TaigaResolvedDocumentation,
         exampleVisible: Boolean,
     ) {
-        val location = popupContent?.takeIf { it.isShowing }?.locationOnScreen
+        val location = popup?.takeIf { it.isVisible }?.locationOnScreen
         val view = captureCurrentView() ?: TaigaDocumentationView(resolved, exampleVisible)
         pinned = !pinned
         cancelScheduledHide()
@@ -825,7 +786,7 @@ internal class TaigaQuickDocumentationHoverController(
         pinnedSize = null
         pinnedLocation = null
         refreshInProgress = false
-        hideResolutionStatus()
+        resolutionStatus.hide()
         refreshTarget?.dispose()
         refreshTarget = null
         disposeBindingEditor()
@@ -849,7 +810,7 @@ internal class TaigaQuickDocumentationHoverController(
         val currentPopup = popup
         if (pinned && currentPopup?.isVisible == true) {
             pinnedSize = Dimension(currentPopup.size)
-            pinnedLocation = popupContent?.takeIf { it.isShowing }?.locationOnScreen?.let(::Point)
+            pinnedLocation = Point(currentPopup.locationOnScreen)
         }
 
         popup = null
