@@ -337,7 +337,9 @@ class TaigaQuickDocumentationIntegrationTest : CodeInsightFixtureTestCase<EmptyM
         val file = myFixture.file
         val element = requireNotNull(file.findElementAt(file.text.indexOf("TuiBinding")))
         val local = element.localDocumentation("TuiBinding")
-        assertEquals(listOf("s", "m", "l"), local.inputValues["size"])
+        val contexts = generateSequence(element) { it.parent }.take(6)
+            .joinToString { "${it.javaClass.simpleName}:${it.textRange}:${it.text.take(80)}" }
+        assertEquals("Types: ${local.inputTypes}; contexts: $contexts", listOf("s", "m", "l"), local.inputValues["size"])
         assertTrue(local.inputValues["cycle"].orEmpty().isEmpty())
     }
 
