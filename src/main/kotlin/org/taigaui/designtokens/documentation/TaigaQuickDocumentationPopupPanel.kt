@@ -89,6 +89,7 @@ internal class TaigaQuickDocumentationPopupPanel(
         border = if (compactHover) JBUI.Borders.empty(12, 14) else JBUI.Borders.empty(16, 18)
         pointerBorder?.let { border = javax.swing.BorderFactory.createCompoundBorder(it, border) }
         background = DESIGN_TOKEN_POPUP_BACKGROUND
+        if (pointerBorder != null) isOpaque = false
         getAccessibleContext().accessibleName = "Taiga UI documentation for ${resolved.presentationName}"
         isFocusCycleRoot = true
         focusTraversalPolicy = LayoutFocusTraversalPolicy()
@@ -156,12 +157,29 @@ internal class TaigaQuickDocumentationPopupPanel(
 
     fun alignHoverPointer(
         offset: Int,
-        visible: Boolean = true,
+        side: TaigaHoverPointerSide = TaigaHoverPointerSide.LEFT,
     ) {
         pointerBorder?.let {
-            it.pointerX = offset
-            it.pointerVisible = visible
+            it.pointerY = offset
+            it.pointerSide = side
+            revalidate()
             repaint()
+        }
+    }
+
+    override fun paintComponent(graphics: Graphics) {
+        super.paintComponent(graphics)
+        val pointer = pointerBorder ?: return
+        val inset = JBUI.scale(10)
+        val x = if (pointer.pointerSide == TaigaHoverPointerSide.LEFT) inset else 0
+        val bodyWidth = width - if (pointer.pointerSide == TaigaHoverPointerSide.NONE) 0 else inset
+        val copy = graphics.create() as Graphics2D
+        try {
+            copy.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+            copy.color = DESIGN_TOKEN_POPUP_BACKGROUND
+            copy.fillRoundRect(x, 0, bodyWidth, height, inset, inset)
+        } finally {
+            copy.dispose()
         }
     }
 

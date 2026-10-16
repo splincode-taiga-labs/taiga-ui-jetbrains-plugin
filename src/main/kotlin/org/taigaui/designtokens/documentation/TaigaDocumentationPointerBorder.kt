@@ -1,73 +1,52 @@
 package org.taigaui.designtokens.documentation
 
-import com.intellij.openapi.editor.Editor
 import com.intellij.util.ui.JBUI
 import java.awt.Component
 import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.Insets
-import java.awt.Point
 import java.awt.Polygon
 import java.awt.RenderingHints
 import javax.swing.border.AbstractBorder
 
-/** A small anchor marker, using the card's own colors and scaled coordinates. */
-@Suppress("LongParameterList")
+/** A side-facing pointer connected to the hovered source, drawn without an opaque background strip. */
 internal class TaigaDocumentationPointerBorder : AbstractBorder() {
-    var pointerX: Int = JBUI.scale(32)
-    var pointerVisible: Boolean = true
+    var pointerY: Int = JBUI.scale(32)
+    var pointerSide: TaigaHoverPointerSide = TaigaHoverPointerSide.LEFT
 
-    override fun getBorderInsets(component: Component): Insets = JBUI.insets(10, 0, 0, 0)
-
-    override fun getBorderInsets(
-        component: Component,
-        insets: Insets,
-    ): Insets = insets.apply { set(JBUI.scale(10), 0, 0, 0) }
-
-    override fun paintBorder(
-        component: Component,
-        graphics: Graphics,
-        x: Int,
-        y: Int,
-        width: Int,
-        height: Int,
-    ) {
-        val copy = graphics.create() as Graphics2D
-        val half = JBUI.scale(8)
-        val top = JBUI.scale(10)
-        val center = pointerX.coerceIn(half + 1, (width - half - 1).coerceAtLeast(half + 1))
-        val pointer =
-            Polygon(
-                intArrayOf(x + center - half, x + center, x + center + half),
-                intArrayOf(
-                    y + top,
-                    y + 1,
-                    y + top,
-                ),
-                3,
-            )
-        copy.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-        copy.color = CARD_MUTED_FOREGROUND
-        copy.drawRoundRect(x, y + top, width - 1, height - top - 1, JBUI.scale(10), JBUI.scale(10))
-        if (!pointerVisible) {
-            copy.dispose()
-            return
+    override fun getBorderInsets(component: Component): Insets =
+        when (pointerSide) {
+            TaigaHoverPointerSide.LEFT -> JBUI.insets(0, 10, 0, 0)
+            TaigaHoverPointerSide.RIGHT -> JBUI.insets(0, 0, 0, 10)
+            TaigaHoverPointerSide.NONE -> JBUI.insets(0)
         }
-        copy.color = DESIGN_TOKEN_POPUP_BACKGROUND
-        copy.fillPolygon(pointer)
-        copy.color = CARD_MUTED_FOREGROUND
-        copy.drawLine(x + center - half, y + top, x + center, y + 1)
-        copy.drawLine(x + center, y + 1, x + center + half, y + top)
-        copy.dispose()
-    }
-}
 
-internal fun Editor.documentationAnchor(
-    startOffset: Int,
-    endOffset: Int,
-): Point {
-    val start = offsetToXY(startOffset)
-    val end = offsetToXY(endOffset)
-    if (start.y == end.y) start.x = (start.x + end.x) / 2
-    return start
+    override fun getBorderInsets(component: Component, insets: Insets): Insets =
+        getBorderInsets(component).let { insets.apply { set(it.top, it.left, it.bottom, it.right) } }
+
+    override fun paintBorder(component: Component, graphics: Graphics, x: Int, y: Int, width: Int, height: Int) {
+        val copy = graphics.create() as Graphics2D
+        try {
+            val inset = JBUI.scale(10)
+            val left = x + if (pointerSide == TaigaHoverPointerSide.LEFT) inset else 0
+            val bodyWidth = width - if (pointerSide == TaigaHoverPointerSide.NONE) 0 else inset
+            val half = JBUI.scale(8)
+            val middle = pointerY.coerceIn(half + 2, (height - half - 2).coerceAtLeast(half + 2))
+            copy.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+            copy.color = CARD_MUTED_FOREGROUND
+            copy.drawRoundRect(left, y, bodyWidth - 1, height - 1, inset, inset)
+            if (pointerSide == TaigaHoverPointerSide.NONE) return
+
+            val edge = if (pointerSide == TaigaHoverPointerSide.LEFT) left else left + bodyWidth - 1
+            val tip = if (pointerSide == TaigaHoverPointerSide.LEFT) x + 1 else x + width - 2
+            val triangle = Polygon(intArrayOf(edge, tip, edge), intArrayOf(middle - half, middle, middle + half), 3)
+            copy.color = DESIGN_TOKEN_POPUP_BACKGROUND
+            copy.fillPolygon(triangle)
+            copy.color = CARD_MUTED_FOREGROUND
+            copy.drawLine(edge, middle - half, tip, middle)
+            copy.drawLine(tip, middle, edge, middle + half)
+        } finally {
+            copy.dispose()
+        }
+    }
 }
