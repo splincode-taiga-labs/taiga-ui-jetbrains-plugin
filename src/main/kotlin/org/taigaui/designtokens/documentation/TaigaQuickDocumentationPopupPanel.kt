@@ -112,7 +112,10 @@ internal class TaigaQuickDocumentationPopupPanel(
             if (resolved.documentationIcons.isNotEmpty()) content.add(previewContent)
         } else {
             content.add(meta())
-            resolved.description?.takeIf(String::isNotBlank)?.takeUnless { it == resolved.typeText }?.let { description ->
+            resolved.description
+                ?.takeIf(String::isNotBlank)
+                ?.takeUnless { it == resolved.typeText }
+                ?.let { description ->
                 content.add(Box.createVerticalStrut(JBUI.scale(12)))
                 content.add(descriptionSection(description))
             }
@@ -597,11 +600,12 @@ internal class TaigaQuickDocumentationPopupPanel(
             add(Box.createVerticalStrut(JBUI.scale(10)))
             add(JSeparator())
             add(Box.createVerticalStrut(JBUI.scale(8)))
-            val links = JPanel().apply {
-                layout = BoxLayout(this, BoxLayout.X_AXIS)
-                isOpaque = false
-                alignmentX = LEFT_ALIGNMENT
-            }
+            val links =
+                JPanel().apply {
+                    layout = BoxLayout(this, BoxLayout.X_AXIS)
+                    isOpaque = false
+                    alignmentX = LEFT_ALIGNMENT
+                }
             actions.openFullCard?.let { open ->
                 links.add(link("Quick Documentation →", open))
             }
