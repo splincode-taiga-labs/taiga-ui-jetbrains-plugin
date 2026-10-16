@@ -33,7 +33,15 @@ class TaigaQuickDocumentationRendererTest {
                 documentationUri = source.documentationUri("components/button"),
             )
 
-        val html = TaigaQuickDocumentationRenderer.render(entity)
+        val html =
+            TaigaQuickDocumentationRenderer.render(
+                entity,
+                TaigaDocumentationSubject(
+                    selector = "tuiButton",
+                    publicSymbol = "TuiButton",
+                    packageName = "@taiga-ui/core",
+                ),
+            )
 
         assertTrue(html.contains("TuiButton"))
         assertTrue(html.contains("@taiga-ui/core"))
@@ -63,7 +71,15 @@ class TaigaQuickDocumentationRendererTest {
                 documentationUri = source.documentationUri("components/calendar"),
             )
 
-        val html = TaigaQuickDocumentationRenderer.render(entity)
+        val html =
+            TaigaQuickDocumentationRenderer.render(
+                entity,
+                TaigaDocumentationSubject(
+                    selector = "tui-calendar",
+                    publicSymbol = "TuiCalendar",
+                    packageName = "@taiga-ui/core",
+                ),
+            )
 
         assertTrue(html.contains("TuiCalendar"))
         assertTrue(html.contains("tui-calendar"))
