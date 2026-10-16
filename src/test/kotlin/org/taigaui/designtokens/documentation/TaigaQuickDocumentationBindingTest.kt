@@ -48,7 +48,10 @@ class TaigaQuickDocumentationBindingTest : BasePlatformTestCase() {
                     .replaceString(binding.startOffset, binding.endOffset, "size=\"custom\"")
             }
             assertTrue(editor.apply("m").startsWith("Binding changed"))
-            assertTrue(myFixture.editor.document.text.contains("custom"))
+            assertTrue(
+                myFixture.editor.document.text
+                    .contains("custom"),
+            )
         } finally {
             editor.dispose()
         }
