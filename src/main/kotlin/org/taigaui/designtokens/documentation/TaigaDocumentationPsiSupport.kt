@@ -2,6 +2,7 @@ package org.taigaui.designtokens.documentation
 
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
+import com.intellij.psi.PsiPolyVariantReference
 import com.intellij.psi.PsiReference
 
 internal fun PsiElement.candidateReferences(
@@ -22,7 +23,9 @@ internal fun PsiElement.resolveTaigaDeclaration(
 ): PsiElement? {
     val resolved =
         candidateReferences(file, offset)
-            .mapNotNull(PsiReference::resolve)
+            .asSequence()
+            .flatMap(PsiReference::resolutionCandidates)
+            .toList()
 
     return resolved
         .asSequence()
@@ -35,6 +38,16 @@ internal fun PsiElement.resolveTaigaDeclaration(
         }.distinct()
         .firstOrNull { element -> element.taigaPackageName() != null }
 }
+
+private fun PsiReference.resolutionCandidates(): Sequence<PsiElement> =
+    when (this) {
+        is PsiPolyVariantReference ->
+            multiResolve(false)
+                .asSequence()
+                .mapNotNull { result -> result.element }
+
+        else -> sequenceOfNotNull(resolve())
+    }
 
 internal fun PsiFile.taigaImportPackage(symbol: String): String? =
     TAIGA_IMPORT
