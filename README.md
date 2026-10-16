@@ -1,4 +1,4 @@
-# Splincode Companion
+# Taiga Community
 
 [![codecov](https://codecov.io/gh/splincode-taiga-labs/taiga-ui-jetbrains-plugin/branch/main/graph/badge.svg)](https://codecov.io/gh/splincode-taiga-labs/taiga-ui-jetbrains-plugin)
 
@@ -6,7 +6,7 @@
 
 ## About the project
 
-Splincode Companion is developed in the open by **splincode-taiga-labs**, an independent community initiative focused on improving developer experience in JetBrains IDEs. The current integration works with Taiga UI projects; the plugin branding and governance are independent.
+Taiga Community is a third-party plugin developed in the open by **splincode-taiga-labs**, an independent community initiative focused on improving developer experience in JetBrains IDEs. The current integration works with Taiga UI projects; the plugin branding and governance are independent.
 
 The project aims to make the information that already exists in a Taiga UI codebase — design tokens, icons, event-plugin modifiers, local overrides, and CSS units — discoverable directly in the editor, without maintaining a separate hard-coded catalog.
 
