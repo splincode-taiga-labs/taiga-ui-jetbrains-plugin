@@ -1,7 +1,6 @@
 package org.taigaui.designtokens.documentation
 
 import com.intellij.codeInsight.lookup.LookupElement
-import com.intellij.lang.html.HtmlCompatibleFile
 import com.intellij.polySymbols.PolySymbol
 import com.intellij.polySymbols.completion.PolySymbolCodeCompletionItem
 import com.intellij.polySymbols.html.attributes.HtmlAttributeSymbolDescriptor
@@ -28,7 +27,7 @@ internal object TaigaDocumentationResolver {
         file: PsiFile,
         offset: Int,
     ): TaigaDocumentationRequest? =
-        if (file.isHtmlLike()) {
+        if (file.isTaigaTemplateFile()) {
             findTemplateRequest(file, offset)
         } else {
             findCodeRequest(file, offset)
@@ -39,7 +38,7 @@ internal object TaigaDocumentationResolver {
         file: PsiFile,
         element: LookupElement,
     ): TaigaDocumentationSubject? {
-        if (!file.isHtmlLike()) {
+        if (!file.isTaigaTemplateFile()) {
             return null
         }
 
@@ -243,17 +242,6 @@ private fun PsiFile.elementAt(offset: Int): PsiElement? =
 
 private fun String.toMemberBinding(): MemberBinding? =
     MEMBER_BINDING_PATTERNS.firstNotNullOfOrNull { pattern -> pattern.parse(this) }
-
-private fun PsiFile.isHtmlLike(): Boolean =
-    this is HtmlCompatibleFile ||
-        viewProvider.allFiles.any { candidate -> candidate is HtmlCompatibleFile }
-
-private fun String.fallbackSubject(): TaigaDocumentationSubject =
-    TaigaDocumentationSubject(
-        selector = this,
-        publicSymbol = null,
-        packageName = null,
-    )
 
 private fun isTaigaPublicSymbol(value: String): Boolean =
     value.startsWith("Tui") &&
