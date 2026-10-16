@@ -51,6 +51,7 @@ internal data class TaigaDocumentationPopupActions(
     val resize: (() -> Unit)? = null,
     val selectionChanged: ((String) -> Unit)? = null,
     val showImportFixes: (() -> Unit)? = null,
+    val openFullCard: (() -> Unit)? = null,
 )
 
 /** The same compact card structure serves every kind, with kind-specific content. */
@@ -64,6 +65,7 @@ internal class TaigaQuickDocumentationPopupPanel(
     pinned: Boolean = false,
     private val apiQuery: String? = null,
     private val selectedMember: String? = null,
+    private val compactHover: Boolean = false,
 ) : JPanel(BorderLayout(0, JBUI.scale(12))) {
     private val content = verticalPanel()
     private val secondaryContent = verticalPanel()
@@ -81,7 +83,7 @@ internal class TaigaQuickDocumentationPopupPanel(
     val preferredFocus: JComponent get() = apiBrowser?.preferredFocus ?: backButton ?: firstFocusable(this) ?: this
 
     init {
-        border = JBUI.Borders.empty(16, 18)
+        border = if (compactHover) JBUI.Borders.empty(12, 14) else JBUI.Borders.empty(16, 18)
         background = DESIGN_TOKEN_POPUP_BACKGROUND
         getAccessibleContext().accessibleName = "Taiga UI documentation for ${resolved.presentationName}"
         isFocusCycleRoot = true
@@ -92,28 +94,44 @@ internal class TaigaQuickDocumentationPopupPanel(
 
         content.add(header(pinned))
         content.add(Box.createVerticalStrut(JBUI.scale(4)))
-        content.add(meta())
         contextStatus.isVisible = false
         content.add(contextStatus)
-        resolved.description?.takeIf(String::isNotBlank)?.takeUnless { it == resolved.typeText }?.let { description ->
-            content.add(Box.createVerticalStrut(JBUI.scale(12)))
-            content.add(descriptionSection(description))
-        }
-        content.add(Box.createVerticalStrut(JBUI.scale(14)))
-
-        when (val documentation = resolved) {
-            is TaigaResolvedDocumentation.Entity -> content.add(entityContent(documentation))
-            is TaigaResolvedDocumentation.Member -> content.add(memberContent(documentation))
-        }
-        if (showExample) {
-            resolved.entity.example?.let { example ->
-                content.add(sectionTitle("Example"))
-                content.add(codeRow(example.code.take(MAX_EXAMPLE_LENGTH), example.code, "Copy example"))
+        if (compactHover) {
+            resolved.description?.takeIf(String::isNotBlank)?.let { description ->
+                content.add(Box.createVerticalStrut(JBUI.scale(8)))
+                content.add(wrappedLabel(description.take(MAX_HOVER_DESCRIPTION_LENGTH), COMPACT_CONTENT_WIDTH - 24))
             }
+            if (resolved is TaigaResolvedDocumentation.Member) {
+                resolved.typeText?.takeIf(String::isNotBlank)?.let { type ->
+                    content.add(Box.createVerticalStrut(JBUI.scale(8)))
+                    content.add(wrappedLabel(type.take(MAX_HOVER_TYPE_LENGTH), COMPACT_CONTENT_WIDTH - 24))
+                }
+            }
+            content.add(Box.createVerticalStrut(JBUI.scale(10)))
+            content.add(meta())
+            if (resolved.documentationIcons.isNotEmpty()) content.add(previewContent)
+        } else {
+        content.add(meta())
+            resolved.description?.takeIf(String::isNotBlank)?.takeUnless { it == resolved.typeText }?.let { description ->
+                content.add(Box.createVerticalStrut(JBUI.scale(12)))
+                content.add(descriptionSection(description))
+            }
+            content.add(Box.createVerticalStrut(JBUI.scale(14)))
+    
+            when (val documentation = resolved) {
+                is TaigaResolvedDocumentation.Entity -> content.add(entityContent(documentation))
+                is TaigaResolvedDocumentation.Member -> content.add(memberContent(documentation))
+            }
+            if (showExample) {
+                resolved.entity.example?.let { example ->
+                    content.add(sectionTitle("Example"))
+                    content.add(codeRow(example.code.take(MAX_EXAMPLE_LENGTH), example.code, "Copy example"))
+                }
+            }
+            addSecondaryActions(showExample)
+            if (secondaryContent.componentCount > 0) content.add(detailsSection())
+    
         }
-        addSecondaryActions(showExample)
-        if (secondaryContent.componentCount > 0) content.add(detailsSection())
-
         scroll =
             JBScrollPane(content).apply {
                 border = JBUI.Borders.empty()
@@ -122,12 +140,14 @@ internal class TaigaQuickDocumentationPopupPanel(
                 horizontalScrollBarPolicy = JBScrollPane.HORIZONTAL_SCROLLBAR_NEVER
                 preferredSize =
                     Dimension(
-                        JBUI.scale(CONTENT_WIDTH),
-                        content.preferredSize.height.coerceAtMost(JBUI.scale(MAX_BODY_HEIGHT)),
+                        JBUI.scale(if (compactHover) COMPACT_CONTENT_WIDTH else CONTENT_WIDTH),
+                        content.preferredSize.height.coerceAtMost(
+                            JBUI.scale(if (compactHover) MAX_HOVER_HEIGHT else MAX_BODY_HEIGHT),
+                        ),
                     )
             }
         add(scroll, BorderLayout.CENTER)
-        add(footer(), BorderLayout.SOUTH)
+        add(if (compactHover) compactFooter() else footer(), BorderLayout.SOUTH)
         keyboardButtons(this)
     }
 
@@ -176,7 +196,12 @@ internal class TaigaQuickDocumentationPopupPanel(
     private fun updateContentSize() {
         invalidateContentLayout(content)
         scroll.preferredSize =
-            Dimension(JBUI.scale(CONTENT_WIDTH), content.preferredSize.height.coerceAtMost(JBUI.scale(MAX_BODY_HEIGHT)))
+            Dimension(
+                JBUI.scale(if (compactHover) COMPACT_CONTENT_WIDTH else CONTENT_WIDTH),
+                content.preferredSize.height.coerceAtMost(
+                    JBUI.scale(if (compactHover) MAX_HOVER_HEIGHT else MAX_BODY_HEIGHT),
+                ),
+            )
         revalidate()
         repaint()
         actions.resize?.invoke()
@@ -256,10 +281,12 @@ internal class TaigaQuickDocumentationPopupPanel(
             add(Box.createHorizontalStrut(JBUI.scale(10)))
             add(TaigaDocumentationBadge(resolved.badge))
             add(Box.createHorizontalGlue())
-            actions.togglePin?.let { toggle ->
-                add(popupIconButton(if (pinned) "Unpin" else "Pin", AllIcons.Actions.PinTab, toggle))
+            if (!compactHover) {
+                actions.togglePin?.let { toggle ->
+                    add(popupIconButton(if (pinned) "Unpin" else "Pin", AllIcons.Actions.PinTab, toggle))
+                }
+                add(popupIconButton("Close", AllIcons.Actions.Close, onClose))
             }
-            add(popupIconButton("Close", AllIcons.Actions.Close, onClose))
         }
 
     private fun meta(): JComponent =
@@ -567,6 +594,26 @@ internal class TaigaQuickDocumentationPopupPanel(
         content.add(Box.createVerticalStrut(JBUI.scale(12)))
     }
 
+    private fun compactFooter(): JComponent =
+        verticalPanel().apply {
+            add(Box.createVerticalStrut(JBUI.scale(10)))
+            add(JSeparator())
+            add(Box.createVerticalStrut(JBUI.scale(8)))
+            val links = JPanel().apply {
+                layout = BoxLayout(this, BoxLayout.X_AXIS)
+                isOpaque = false
+                alignmentX = LEFT_ALIGNMENT
+            }
+            actions.openFullCard?.let { open ->
+                links.add(link("Quick Documentation →", open))
+            }
+            actions.navigateToSource?.let { navigate ->
+                if (links.componentCount > 0) links.add(Box.createHorizontalStrut(JBUI.scale(14)))
+                links.add(link("Go to source ↗", navigate))
+            }
+            add(links)
+        }
+
     private fun footer(): JComponent =
         verticalPanel().apply {
             add(JSeparator())
@@ -837,6 +884,10 @@ private val PIPE_COLOR = JBColor(Color(31, 105, 183), Color(102, 172, 247))
 private val DEFAULT_COLOR = JBColor(Color(136, 91, 0), Color(234, 180, 68))
 private val CARD_FOREGROUND = JBColor(Color(35, 38, 42), Color(225, 227, 233))
 internal val CARD_MUTED_FOREGROUND = JBColor(Color(91, 96, 105), Color(151, 158, 170))
+private const val COMPACT_CONTENT_WIDTH = 340
+private const val MAX_HOVER_HEIGHT = 200
+private const val MAX_HOVER_DESCRIPTION_LENGTH = 170
+private const val MAX_HOVER_TYPE_LENGTH = 110
 private const val CONTENT_WIDTH = 508
 private const val PROPERTY_TEXT_WIDTH = 310
 private const val MAX_BODY_HEIGHT = 520

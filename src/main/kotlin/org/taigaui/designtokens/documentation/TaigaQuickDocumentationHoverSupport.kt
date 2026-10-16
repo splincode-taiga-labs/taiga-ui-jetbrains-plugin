@@ -445,7 +445,7 @@ internal class TaigaQuickDocumentationHoverController(
     private fun showView(
         request: TaigaQuickDocumentationHoverRequest,
         view: TaigaDocumentationView,
-        requestFocus: Boolean = request.explicit || view.fullApi || history.isNotEmpty(),
+        requestFocus: Boolean = request.explicit || view.fullApi || view.expanded || history.isNotEmpty(),
     ) {
         val resolved = view.resolved
         val canShow =
@@ -455,7 +455,12 @@ internal class TaigaQuickDocumentationHoverController(
 
         if (canShow) {
             if (pinned) nativeHoverSuppression.restore() else nativeHoverSuppression.suppress(request.editor)
-            cardEditors.prepare(request.editor, resolved, request.actionContext, request.isStillCurrent(project))
+            val compactHover = !request.explicit && !view.expanded && !view.fullApi && !view.showExample
+            if (compactHover) {
+                cardEditors.dispose()
+            } else {
+                cardEditors.prepare(request.editor, resolved, request.actionContext, request.isStillCurrent(project))
+            }
             currentView = view
 
             val panel =
@@ -467,6 +472,7 @@ internal class TaigaQuickDocumentationHoverController(
                     pinned = pinned,
                     apiQuery = view.query.takeIf { view.fullApi },
                     selectedMember = view.selectedMember,
+                    compactHover = compactHover,
                 )
             val createdPopup =
                 JBPopupFactory
@@ -547,6 +553,11 @@ internal class TaigaQuickDocumentationHoverController(
                     }
                 },
             togglePin = { togglePin(request, resolved, exampleVisible) },
+            openFullCard = {
+                val expanded = (captureCurrentView() ?: TaigaDocumentationView(resolved)).copy(expanded = true)
+                hidePopup(restoreNativeHover = false)
+                showView(request, expanded, requestFocus = true)
+            },
             applyValue =
                 cardEditors.binding?.let { editor ->
                     { value: String ->

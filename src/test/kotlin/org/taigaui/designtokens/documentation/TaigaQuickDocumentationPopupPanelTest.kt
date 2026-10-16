@@ -10,6 +10,7 @@ import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBTextField
 import com.intellij.ui.components.labels.LinkLabel
+import com.intellij.util.ui.JBUI
 import java.awt.event.ActionEvent
 import javax.swing.JButton
 import javax.swing.JComponent
@@ -19,6 +20,28 @@ import javax.swing.KeyStroke
 import javax.swing.SwingUtilities
 
 class TaigaQuickDocumentationPopupPanelTest : TaigaDocumentationPopupTestCase() {
+    fun testPassiveHoverShowsSummaryInsteadOfFullApi() {
+        var detailsOpened = false
+        val panel =
+            TaigaQuickDocumentationPopupPanel(
+                directive(),
+                actions = TaigaDocumentationPopupActions(openFullCard = { detailsOpened = true }),
+                compactHover = true,
+            )
+
+        val visible = labelText(panel)
+        assertFalse(visible.contains("Parameters"))
+        assertFalse(visible.contains("Elements"))
+        assertFalse(visible.contains("Browse API"))
+        assertTrue(panel.preferredSize.width <= JBUI.scale(400))
+        assertTrue(panel.preferredSize.height <= JBUI.scale(300))
+        assertFalse(descendants(panel).any { it is JBTextField || it is JBList<*> })
+        descendants(panel).filterIsInstance<LinkLabel<*>>()
+            .first { it.text == "Quick Documentation →" }
+            .doClick()
+        assertTrue(detailsOpened)
+    }
+
     fun testDirectiveCardShowsParametersImmediatelyWithoutDuplicateMarkup() {
         val declaration =
             TaigaDocumentationSubject(
