@@ -372,14 +372,30 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
             "### API - Inputs",
             "| Property | Type | Description |",
             "| --- | --- | --- |",
-            "| " + tick("[iconEnd]") + " | " + tick("TuiIcon") + " | Icon displayed at the end of the button content. |",
-            "| " + tick("[size]") + " | " + tick("'xs' \\| 's' \\| 'm' \\| 'l' \\| 'xl'") + " | Controls the button size. |",
-            "| " + tick("[appearance]") + " | " + tick("TuiAppearance") + " | Visual style of the button. |",
+            "| " +
+                tick("[iconEnd]") +
+                " | " +
+                tick("TuiIcon") +
+                " | Icon displayed at the end of the button content. |",
+            "| " +
+                tick("[size]") +
+                " | " +
+                tick("'xs' \\| 's' \\| 'm' \\| 'l' \\| 'xl'") +
+                " | Controls the button size. |",
+            "| " +
+                tick("[appearance]") +
+                " | " +
+                tick("TuiAppearance") +
+                " | Visual style of the button. |",
             "",
             "### API - Outputs",
             "| Event | Type | Description |",
             "| --- | --- | --- |",
-            "| " + tick("(valueChange)") + " | " + tick("MouseEvent") + " | Emitted when the button value changes. |",
+            "| " +
+                tick("(valueChange)") +
+                " | " +
+                tick("MouseEvent") +
+                " | Emitted when the button value changes. |",
             "",
             "### Example",
             FENCE + "html",
