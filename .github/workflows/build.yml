@@ -77,15 +77,29 @@ jobs:
 
             - name: Verify contextual documentation
               id: documentation-regressions
+              timeout-minutes: 5
               env:
                   JAVA_TOOL_OPTIONS: -Djava.io.tmpdir=${{ runner.temp }}
-              run: >-
-                  ./gradlew
-                  test
-                  --tests 'org.taigaui.designtokens.documentation.TaigaQuickDocumentation*'
-                  --tests 'org.taigaui.designtokens.documentation.TaigaLocalDocumentationTest'
-                  -Djava.net.useSystemProxies=false
-                  --stacktrace
+              run: |
+                  mkdir -p build/reports/quick-documentation
+                  (
+                      sleep 120
+                      jps -l | while read -r documentation_pid documentation_main; do
+                          if [[ "$documentation_main" == *GradleWorkerMain ]]; then
+                              jcmd "$documentation_pid" Thread.print > "build/reports/quick-documentation/thread-$documentation_pid.txt"
+                          fi
+                      done
+                  ) >/dev/null 2>&1 &
+                  documentation_watchdog=$!
+                  set +e
+                  ./gradlew test \
+                      --tests 'org.taigaui.designtokens.documentation.TaigaQuickDocumentation*' \
+                      --tests 'org.taigaui.designtokens.documentation.TaigaLocalDocumentationTest' \
+                      -Djava.net.useSystemProxies=false --stacktrace
+                  documentation_status=$?
+                  kill "$documentation_watchdog" 2>/dev/null || true
+                  wait "$documentation_watchdog" 2>/dev/null || true
+                  exit "$documentation_status"
 
             - name: Check and build plugin
               id: plugin-build
@@ -288,6 +302,7 @@ jobs:
                   path: |
                       build/distributions/*.zip
                       build/reports/quick-documentation/*.png
+                      build/reports/quick-documentation/*.txt
                       build/test-results/test/TEST-*Documentation*.xml
                       build/reports/jacoco/test/jacocoTestReport.xml
 
