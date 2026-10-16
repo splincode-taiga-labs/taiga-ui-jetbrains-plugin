@@ -1,7 +1,9 @@
 package org.taigaui.designtokens.documentation
 
+import com.intellij.codeInsight.lookup.LookupElement
 import com.intellij.lang.html.HtmlCompatibleFile
 import com.intellij.polySymbols.PolySymbol
+import com.intellij.polySymbols.completion.PolySymbolCodeCompletionItem
 import com.intellij.polySymbols.html.attributes.HtmlAttributeSymbolDescriptor
 import com.intellij.polySymbols.html.elements.HtmlElementSymbolDescriptor
 import com.intellij.polySymbols.utils.unwrapMatchedSymbols
@@ -83,20 +85,46 @@ internal object TaigaTemplateDocumentationResolver {
         return symbol.toLocalSubject(selector, requestedSymbol)
     }
 
+    @Suppress("ReturnCount")
+    fun find(
+        file: PsiFile,
+        element: LookupElement,
+    ): TaigaDocumentationSubject? {
+        if (file !is HtmlCompatibleFile) {
+            return null
+        }
+
+        val lookupString = element.lookupString
+        val selector = lookupString.takeIf(::isTaigaSelector)
+        val requestedSymbol = lookupString.takeIf(::isTaigaPublicSymbol)
+
+        if (selector == null && requestedSymbol == null) {
+            return null
+        }
+
+        return PolySymbolCodeCompletionItem
+            .getPsiElement(element)
+            ?.toLocalSubject(selector, requestedSymbol)
+    }
+
+    fun sourcePath(symbol: PolySymbol): java.nio.file.Path? =
+        symbol
+            .localContexts()
+            .firstNotNullOfOrNull { context -> context.containingFile?.sourcePath() }
+
     private fun PolySymbol.toLocalSubject(
         selector: String?,
         requestedSymbol: String? = null,
-    ): TaigaDocumentationSubject? {
-        val contexts =
-            unwrapMatchedSymbols()
-                .mapNotNull { symbol -> symbol.psiContext }
-                .toList()
-                .ifEmpty { listOfNotNull(psiContext) }
-
-        return contexts
+    ): TaigaDocumentationSubject? =
+        localContexts()
             .mapNotNull { context -> context.toLocalSubject(selector, requestedSymbol) }
             .firstOrNull()
-    }
+
+    private fun PolySymbol.localContexts(): List<PsiElement> =
+        unwrapMatchedSymbols()
+            .mapNotNull { symbol -> symbol.psiContext }
+            .toList()
+            .ifEmpty { listOfNotNull(psiContext) }
 
     private fun PsiElement.toLocalSubject(
         selector: String?,
