@@ -658,26 +658,6 @@ internal class TaigaQuickDocumentationPopupPanel(
         }
 }
 
-private fun JPanel.addCompactHoverContent(
-    resolved: TaigaResolvedDocumentation,
-    metadata: JComponent,
-    previews: JPanel,
-) {
-    resolved.description?.takeIf(String::isNotBlank)?.let { description ->
-        add(Box.createVerticalStrut(JBUI.scale(8)))
-        add(wrappedLabel(description.take(MAX_HOVER_DESCRIPTION_LENGTH), COMPACT_CONTENT_WIDTH - 24))
-    }
-    if (resolved is TaigaResolvedDocumentation.Member) {
-        resolved.typeText?.takeIf(String::isNotBlank)?.let { type ->
-            add(Box.createVerticalStrut(JBUI.scale(8)))
-            add(wrappedLabel(type.take(MAX_HOVER_TYPE_LENGTH), COMPACT_CONTENT_WIDTH - 24))
-        }
-    }
-    add(Box.createVerticalStrut(JBUI.scale(10)))
-    add(metadata)
-    if (resolved.documentationIcons.isNotEmpty()) add(previews)
-}
-
 private fun compactDocumentationFooter(actions: TaigaDocumentationPopupActions): JComponent =
     verticalPanel().apply {
         add(Box.createVerticalStrut(JBUI.scale(10)))
@@ -873,7 +853,7 @@ private fun link(
         bind("ENTER", "activate-taiga-link", action)
     }
 
-private fun wrappedLabel(
+internal fun wrappedLabel(
     text: String,
     width: Int = CONTENT_WIDTH,
 ): JBLabel =
@@ -894,10 +874,10 @@ private val PIPE_COLOR = JBColor(Color(31, 105, 183), Color(102, 172, 247))
 private val DEFAULT_COLOR = JBColor(Color(136, 91, 0), Color(234, 180, 68))
 private val CARD_FOREGROUND = JBColor(Color(35, 38, 42), Color(225, 227, 233))
 internal val CARD_MUTED_FOREGROUND = JBColor(Color(91, 96, 105), Color(151, 158, 170))
-private const val COMPACT_CONTENT_WIDTH = 340
+internal const val COMPACT_CONTENT_WIDTH = 340
 private const val MAX_HOVER_HEIGHT = 200
-private const val MAX_HOVER_DESCRIPTION_LENGTH = 170
-private const val MAX_HOVER_TYPE_LENGTH = 110
+internal const val MAX_HOVER_DESCRIPTION_LENGTH = 170
+internal const val MAX_HOVER_TYPE_LENGTH = 110
 private const val CONTENT_WIDTH = 508
 private const val PROPERTY_TEXT_WIDTH = 310
 private const val MAX_BODY_HEIGHT = 520
