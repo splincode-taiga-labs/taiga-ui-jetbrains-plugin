@@ -14,7 +14,7 @@ class PluginSmokeTest {
         val descriptor = descriptorUrl!!.readText()
 
         assertTrue(descriptor.contains("<id>org.taigaui.designtokens</id>"))
-        assertTrue(descriptor.contains("<name>Splincode Companion</name>"))
+        assertTrue(descriptor.contains("<name>Taiga Community</name>"))
         assertTrue(descriptor.contains("Taiga UI integration"))
     }
 }
