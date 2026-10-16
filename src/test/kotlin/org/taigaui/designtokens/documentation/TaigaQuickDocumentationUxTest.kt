@@ -154,27 +154,35 @@ class TaigaQuickDocumentationUxTest : TaigaDocumentationPopupTestCase() {
                 JBUIScale.setUserScaleFactorForTest(scale)
                 assertEquals(scale, JBUIScale.scale(1f))
                 listOf(false, true).forEach { dark ->
-                    JBColor.setDark(dark)
-                    val panel =
-                        TaigaQuickDocumentationPopupPanel(
-                            shared,
-                            actions = TaigaDocumentationPopupActions(showImportFixes = {}),
-                        )
-                    assertTrue("Long types must fit the card", panel.preferredSize.width <= JBUI.scale(580))
-                    val copies =
-                        descendants(panel).filterIsInstance<JButton>().filter { it.text.startsWith("Copy ") }.toList()
-                    assertEquals(2, copies.size)
-                    copies.forEach {
-                        assertEquals("Copy type", it.text)
-                        assertEquals(type, it.toolTipText)
-                    }
-                    val theme = if (dark) "dark" else "light"
-                    renderAndSave(panel, "long-receivers-$theme-${(scale * 100).toInt()}")
+                    renderLongSharedBindingCard(shared, type, scale, dark)
                 }
             }
         } finally {
             JBUIScale.setUserScaleFactorForTest(previousScale)
             JBColor.setDark(!previousBright)
         }
+    }
+
+    private fun renderLongSharedBindingCard(
+        shared: TaigaResolvedDocumentation.Member,
+        type: String,
+        scale: Float,
+        dark: Boolean,
+    ) {
+        JBColor.setDark(dark)
+        val panel =
+            TaigaQuickDocumentationPopupPanel(
+                shared,
+                actions = TaigaDocumentationPopupActions(showImportFixes = {}),
+            )
+        assertTrue("Long types must fit the card", panel.preferredSize.width <= JBUI.scale(580))
+        val copies = descendants(panel).filterIsInstance<JButton>().filter { it.text.startsWith("Copy ") }.toList()
+        assertEquals(2, copies.size)
+        copies.forEach {
+            assertEquals("Copy type", it.text)
+            assertEquals(type, it.toolTipText)
+        }
+        val theme = if (dark) "dark" else "light"
+        renderAndSave(panel, "long-receivers-$theme-${(scale * 100).toInt()}")
     }
 }
