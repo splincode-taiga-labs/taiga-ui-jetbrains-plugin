@@ -4,13 +4,15 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.util.ui.JBUI
+import javax.swing.JComponent
 import java.awt.Rectangle
 
 /** Use the standard JetBrains popup lifecycle, with a side anchor only for passive hover. */
 @Suppress("LongParameterList")
 internal fun createTaigaDocumentationPopup(
     project: Project,
-    panel: TaigaQuickDocumentationPopupPanel,
+    content: JComponent,
+    preferredFocus: JComponent,
     requestFocus: Boolean,
     explicit: Boolean,
     pinned: Boolean,
@@ -19,7 +21,7 @@ internal fun createTaigaDocumentationPopup(
     val builder =
         JBPopupFactory
             .getInstance()
-            .createComponentPopupBuilder(panel, panel.preferredFocus)
+            .createComponentPopupBuilder(content, preferredFocus)
             .setProject(project)
             .setRequestFocus(requestFocus)
             .setFocusable(true)

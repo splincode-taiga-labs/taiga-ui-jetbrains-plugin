@@ -133,6 +133,24 @@ class TaigaQuickDocumentationPresentationRegressionTest : TaigaDocumentationPopu
         assertTrue(shouldRepositionTaigaHoverCard(java.awt.Point(100, 100), java.awt.Point(116, 100)))
     }
 
+    fun testHoverCardHostKeepsItsContainerAndReplacesOnlyTheContent() {
+        val first = TaigaQuickDocumentationPopupPanel(directive())
+        val host = TaigaDocumentationPopupHost(first)
+        val next = TaigaQuickDocumentationPopupPanel(component())
+        assertSame(first, host.card)
+        assertSame(host, first.parent)
+
+        host.showCard(next)
+        assertSame(next, host.card)
+        assertSame(host, next.parent)
+        assertNull(first.parent)
+        assertEquals(1, host.componentCount)
+
+        host.showCard(next)
+        assertEquals(1, host.componentCount)
+        host.stopTransition()
+    }
+
     fun testHoverPlacementPrefersRightWithoutCoveringTheAttribute() {
         val target = java.awt.Rectangle(220, 160, 75, 20)
         val size = java.awt.Dimension(360, 240)
