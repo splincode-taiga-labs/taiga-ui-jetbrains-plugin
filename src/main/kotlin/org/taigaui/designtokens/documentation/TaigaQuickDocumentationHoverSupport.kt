@@ -476,6 +476,7 @@ internal class TaigaQuickDocumentationHoverController(
                     .setRequestFocus(requestFocus)
                     .setFocusable(true)
                     .setShowBorder(request.explicit || pinned)
+                    .setShowShadow(request.explicit || pinned)
                     .setCancelOnClickOutside(!pinned)
                     .setCancelOnOtherWindowOpen(!pinned)
                     .setCancelOnWindowDeactivation(!pinned)
