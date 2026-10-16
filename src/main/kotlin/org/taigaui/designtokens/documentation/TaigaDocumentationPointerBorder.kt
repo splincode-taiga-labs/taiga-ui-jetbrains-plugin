@@ -21,10 +21,20 @@ internal class TaigaDocumentationPointerBorder : AbstractBorder() {
             TaigaHoverPointerSide.NONE -> JBUI.insets(0)
         }
 
-    override fun getBorderInsets(component: Component, insets: Insets): Insets =
+    override fun getBorderInsets(
+        component: Component,
+        insets: Insets,
+    ): Insets =
         getBorderInsets(component).let { insets.apply { set(it.top, it.left, it.bottom, it.right) } }
 
-    override fun paintBorder(component: Component, graphics: Graphics, x: Int, y: Int, width: Int, height: Int) {
+    override fun paintBorder(
+        component: Component,
+        graphics: Graphics,
+        x: Int,
+        y: Int,
+        width: Int,
+        height: Int,
+    ) {
         val copy = graphics.create() as Graphics2D
         try {
             val inset = JBUI.scale(10)

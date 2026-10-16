@@ -1,8 +1,13 @@
 package org.taigaui.designtokens.documentation
 
+import com.intellij.openapi.editor.Editor
+import com.intellij.openapi.ui.popup.JBPopup
+import com.intellij.ui.ScreenUtil
+import com.intellij.util.ui.JBUI
 import java.awt.Dimension
 import java.awt.Point
 import java.awt.Rectangle
+import javax.swing.SwingUtilities
 
 internal enum class TaigaHoverPointerSide {
     LEFT,
@@ -16,6 +21,7 @@ internal data class TaigaHoverPopupPlacement(
 )
 
 /** Prefer a free side of the source token; never overlay it when a side does not fit. */
+@Suppress("ReturnCount")
 internal fun calculateTaigaHoverPopupPlacement(
     target: Rectangle,
     popup: Dimension,
@@ -43,5 +49,40 @@ internal fun calculateTaigaHoverPopupPlacement(
     return TaigaHoverPopupPlacement(
         Point(fallbackX, fallbackY.coerceIn(screen.y, verticalMax)),
         TaigaHoverPointerSide.NONE,
+    )
+}
+
+internal fun Editor.documentationTargetScreenBounds(
+    startOffset: Int,
+    endOffset: Int,
+): Rectangle {
+    val start = offsetToXY(startOffset)
+    val end = offsetToXY(endOffset)
+    val width = if (start.y == end.y) (end.x - start.x).coerceAtLeast(1) else lineHeight
+    SwingUtilities.convertPointToScreen(start, contentComponent)
+    return Rectangle(start.x, start.y, width, lineHeight)
+}
+
+internal fun taigaHoverPopupPlacementForScreen(
+    target: Rectangle,
+    size: Dimension,
+): TaigaHoverPopupPlacement {
+    val center = Point(target.x + target.width / 2, target.y + target.height / 2)
+    val screen = ScreenUtil.getScreenRectangle(center)
+    return calculateTaigaHoverPopupPlacement(target, size, screen, JBUI.scale(12))
+}
+
+internal fun positionTaigaHoverCard(
+    popup: JBPopup,
+    panel: TaigaQuickDocumentationPopupPanel,
+    target: Rectangle,
+) {
+    if (!popup.isVisible) return
+    val placement = taigaHoverPopupPlacementForScreen(target, popup.size)
+    popup.setLocation(placement.location)
+    popup.moveToFitScreen()
+    panel.alignHoverPointer(
+        target.y + target.height / 2 - popup.locationOnScreen.y,
+        placement.pointerSide,
     )
 }
