@@ -1,11 +1,38 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40" fill="none" role="img" aria-label="Taiga Community">
+<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40" fill="none" role="img" aria-label="Taiga UI Companion pine icon">
   <defs>
-    <linearGradient id="companion-bg" x1="4" y1="3" x2="36" y2="38" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#293276"/>
-      <stop offset="1" stop-color="#087D9B"/>
+    <linearGradient id="tile" x1="5" y1="3" x2="37" y2="38" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#180C35"/>
+      <stop offset="0.54" stop-color="#111543"/>
+      <stop offset="1" stop-color="#062943"/>
+    </linearGradient>
+    <linearGradient id="outline" x1="4" y1="4" x2="36" y2="38" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF46C4"/>
+      <stop offset="0.5" stop-color="#7E46FF"/>
+      <stop offset="1" stop-color="#12DDF1"/>
+    </linearGradient>
+    <linearGradient id="left" x1="11" y1="9" x2="20" y2="32" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFA4B4"/>
+      <stop offset="0.32" stop-color="#FF4BC3"/>
+      <stop offset="0.67" stop-color="#D32DFF"/>
+      <stop offset="1" stop-color="#FFB15F"/>
+    </linearGradient>
+    <linearGradient id="right" x1="20" y1="7" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D67AFF"/>
+      <stop offset="0.38" stop-color="#1889FF"/>
+      <stop offset="1" stop-color="#14EEE2"/>
+    </linearGradient>
+    <linearGradient id="trunk" x1="18" y1="29" x2="23" y2="36" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E84BFF"/>
+      <stop offset="1" stop-color="#08DCF4"/>
     </linearGradient>
   </defs>
-  <rect x="2" y="2" width="36" height="36" rx="10" fill="url(#companion-bg)"/>
-  <path d="M29 12C24 7 15 7 11 13C7.5 18.5 13 21.5 20 23.5C28 26 27 31 21 33C16 34 11 32 8 28" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="31" cy="30" r="2" fill="#B8F1FA"/>
+  <rect x="1" y="1" width="38" height="38" rx="10.5" fill="url(#tile)"/>
+  <rect x="1.55" y="1.55" width="36.9" height="36.9" rx="9.95" stroke="url(#outline)" stroke-opacity="0.7" stroke-width="0.8"/>
+  <path d="M18.35 28.4H21.65V35H18.35Z" fill="url(#trunk)"/>
+  <path d="M20 5.2L10.6 15.45L20 12.75Z" fill="url(#left)"/>
+  <path d="M20 5.2L29.4 15.45L20 12.75Z" fill="url(#right)"/>
+  <path d="M20 13.3L8.55 24.85L20 21.45Z" fill="url(#left)"/>
+  <path d="M20 13.3L31.45 24.85L20 21.45Z" fill="url(#right)"/>
+  <path d="M20 21.8L6.8 32.2L20 28.8Z" fill="url(#left)"/>
+  <path d="M20 21.8L33.2 32.2L20 28.8Z" fill="url(#right)"/>
 </svg>
