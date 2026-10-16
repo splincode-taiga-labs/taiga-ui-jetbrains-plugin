@@ -22,13 +22,15 @@ internal fun showTaigaAngularQuickFixes(
         return
     }
     val manager = ActionManager.getInstance()
-    val action = manager.getAction("ShowIntentionActions") ?: return
-    editor.caretModel.moveToOffset(offset.coerceIn(0, editor.document.textLength))
-    editor.scrollingModel.scrollToCaret(ScrollType.MAKE_VISIBLE)
-    focusTaigaDocumentationEditor(project, editor)
-    SwingUtilities.invokeLater {
-        if (!project.isDisposed && !editor.isDisposed) {
-            manager.tryToExecute(action, null, editor.contentComponent, ActionPlaces.EDITOR_POPUP, true)
+    val action = manager.getAction("ShowIntentionActions")
+    if (action != null) {
+        editor.caretModel.moveToOffset(offset.coerceIn(0, editor.document.textLength))
+        editor.scrollingModel.scrollToCaret(ScrollType.MAKE_VISIBLE)
+        focusTaigaDocumentationEditor(project, editor)
+        SwingUtilities.invokeLater {
+            if (!project.isDisposed && !editor.isDisposed) {
+                manager.tryToExecute(action, null, editor.contentComponent, ActionPlaces.EDITOR_POPUP, true)
+            }
         }
     }
 }
