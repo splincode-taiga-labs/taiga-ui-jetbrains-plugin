@@ -93,7 +93,8 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
         val refreshedPopup = shown.last() as AbstractPopup
         assertFalse("Automatic refresh must not request popup focus", refreshedPopup.shouldRequestFocus())
         assertEquals("<button tuiButton [size]=\"\">Save</button>", myFixture.editor.document.text)
-        UndoManager.getInstance(project)
+        UndoManager
+            .getInstance(project)
             .undo(TextEditorProvider.getInstance().getTextEditor(myFixture.editor))
         assertEquals("<button tuiButton>Save</button>", myFixture.editor.document.text)
     }
@@ -176,7 +177,11 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
                 .single()
                 .selectedValue as TaigaDocumentationApiRow
         assertEquals("INPUT:newSize", selected.key)
-        assertTrue(selected.property.documentedType.orEmpty().contains("changed60"))
+        assertTrue(
+            selected.property.documentedType
+                .orEmpty()
+                .contains("changed60"),
+        )
         activate(panel(), "alt LEFT")
         assertFalse(view().fullApi)
         assertTrue((view().resolved as TaigaResolvedDocumentation.Entity).entity.inputs.any { it.name == "newSize" })
