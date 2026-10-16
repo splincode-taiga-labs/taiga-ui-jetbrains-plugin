@@ -669,7 +669,7 @@ private fun compactDocumentationFooter(actions: TaigaDocumentationPopupActions):
             JPanel().apply {
                 layout = BoxLayout(this, BoxLayout.X_AXIS)
                 isOpaque = false
-                alignmentX = LEFT_ALIGNMENT
+                alignmentX = JComponent.LEFT_ALIGNMENT
             }
         actions.openFullCard?.let { open ->
             links.add(link("Quick Documentation →", open))
