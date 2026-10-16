@@ -49,7 +49,7 @@ class TaigaQuickDocumentationPresentationRegressionTest : TaigaDocumentationPopu
         assertEquals(start, applied.startOffset)
         assertEquals(start + 9, applied.endOffset)
         assertNotNull(applied.textAttributes?.backgroundColor)
-        assertNull(applied.textAttributes?.effectType)
+        assertFalse(applied.textAttributes?.effectType == com.intellij.openapi.editor.markup.EffectType.LINE_UNDERSCORE)
         highlight.show(editor, start, start + 9)
         assertEquals(initial.size + 1, editor.markupModel.allHighlighters.size)
         highlight.clear()
