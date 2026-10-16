@@ -7,10 +7,10 @@ import com.intellij.util.ui.JBUI
 import java.awt.Dimension
 import java.awt.Point
 import java.awt.Rectangle
+import javax.swing.SwingUtilities
 import kotlin.math.abs
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
-import javax.swing.SwingUtilities
 
 internal fun taigaDocumentationHoverDelay(switching: Boolean): Duration =
     if (switching) 200.milliseconds else 850.milliseconds

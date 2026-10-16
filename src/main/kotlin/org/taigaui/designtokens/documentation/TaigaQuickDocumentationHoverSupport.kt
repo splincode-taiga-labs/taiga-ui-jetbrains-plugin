@@ -77,7 +77,7 @@ private fun EditorMouseEvent.dismissTaigaQuickDocumentationHover() {
 }
 
 @Service(Service.Level.PROJECT)
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "LargeClass")
 internal class TaigaQuickDocumentationHoverController(
     private val project: Project,
     private val coroutineScope: CoroutineScope,
@@ -241,12 +241,8 @@ internal class TaigaQuickDocumentationHoverController(
                     .expireWhen { !isActive || candidate.editor.isDisposed }
                     .executeSynchronously()
             withContext(Dispatchers.EDT) {
-                if (pendingKey == candidate.key) {
-                    if (refreshing) {
-                        popupContent?.showRefreshProgress(false)
-                    } else if (popup?.isVisible != true) {
-                        resolutionStatus.showLoading()
-                    }
+                if (refreshing && pendingKey == candidate.key) {
+                    popupContent?.showRefreshProgress(false)
                 }
             }
             val snapshot =
