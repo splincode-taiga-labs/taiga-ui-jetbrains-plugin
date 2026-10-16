@@ -51,35 +51,18 @@ internal class TaigaTemplateInlayHintsProvider : InlayHintsProvider {
         }
 }
 
+@Suppress("ReturnCount")
 private fun XmlAttribute.addTaigaHint(
     sink: InlayTreeSink,
     mapOffset: (Int) -> Int,
 ) {
-    val attributeName = name
-    if (attributeName != "tuiButton" && attributeName != "size") return
-    val nameRange = nameElement?.textRange ?: return
-    val request = TaigaDocumentationResolver.findRequest(containingFile, nameRange.startOffset) ?: return
+    if (name != "tuiButton" && name != "size") return
+    val range = nameElement?.textRange ?: return
+    val request = TaigaDocumentationResolver.findRequest(containingFile, range.startOffset) ?: return
     val documentation = resolveDocumentation(request) ?: return
     if (documentation.packageName?.startsWith("@taiga-ui/") != true) return
+    val hint = resolvedTaigaHint(documentation, range.endOffset) ?: return
 
-    val hint =
-        when {
-            attributeName == "tuiButton" &&
-                documentation is TaigaResolvedDocumentation.Entity &&
-                documentation.badge == "Directive" ->
-                "Taiga UI directive" to nameRange.endOffset
-
-            attributeName == "size" &&
-                documentation is TaigaResolvedDocumentation.Member &&
-                documentation.kind == TaigaApiMemberKind.INPUT -> {
-                val literal = value ?: return
-                val label = taigaSizeDescription(literal) ?: return
-                if (literal !in documentation.localValues()) return
-                label to textRange.endOffset
-            }
-
-            else -> return
-        }
     sink.addPresentation(
         position = InlineInlayPosition(mapOffset(hint.second), true),
         hintFormat = TAIGA_INLINE_FORMAT,
@@ -88,6 +71,29 @@ private fun XmlAttribute.addTaigaHint(
         text(" ${hint.first}")
     }
 }
+
+private fun XmlAttribute.resolvedTaigaHint(
+    documentation: TaigaResolvedDocumentation,
+    nameEnd: Int,
+): Pair<String, Int>? =
+    when (documentation) {
+        is TaigaResolvedDocumentation.Entity ->
+            if (name == "tuiButton" && documentation.badge == "Directive") {
+                "Taiga UI directive" to nameEnd
+            } else {
+                null
+            }
+
+        is TaigaResolvedDocumentation.Member ->
+            if (name == "size" && documentation.kind == TaigaApiMemberKind.INPUT) {
+                value
+                    ?.takeIf { it in documentation.localValues() }
+                    ?.let(::taigaSizeDescription)
+                    ?.let { it to textRange.endOffset }
+            } else {
+                null
+            }
+    }
 
 internal fun taigaSizeDescription(value: String): String? =
     when (value) {
