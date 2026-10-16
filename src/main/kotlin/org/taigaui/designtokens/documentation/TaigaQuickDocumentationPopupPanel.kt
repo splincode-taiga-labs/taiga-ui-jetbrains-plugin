@@ -60,9 +60,10 @@ internal class TaigaQuickDocumentationPopupPanel(
     private val previewContent = verticalPanel()
     private val scroll: JBScrollPane
     private var apiBrowser: TaigaDocumentationApiBrowser? = null
+    private var backButton: JButton? = null
     private val fullApi: Boolean get() = apiQuery != null
 
-    val preferredFocus: JComponent get() = apiBrowser?.preferredFocus ?: this
+    val preferredFocus: JComponent get() = apiBrowser?.preferredFocus ?: backButton ?: this
 
     init {
         border = JBUI.Borders.empty(16, 18)
@@ -121,7 +122,9 @@ internal class TaigaQuickDocumentationPopupPanel(
             isOpaque = false
             alignmentX = LEFT_ALIGNMENT
             actions.goBack?.let { back ->
-                add(JButton("Back").apply { addActionListener { back() } })
+                val button = JButton("Back").apply { addActionListener { back() } }
+                backButton = button
+                add(button)
                 add(Box.createHorizontalStrut(JBUI.scale(8)))
             }
             add(
@@ -433,7 +436,7 @@ internal class TaigaQuickDocumentationPopupPanel(
                     }
                     if (resolved.packageName != null) {
                         add(
-                            link(if (resolved.badge == "Directive") "Full API ↗" else "Documentation ↗") {
+                            link("Documentation ↗") {
                                 BrowserUtil.browse(resolved.documentationUri.toString())
                                 onClose()
                             },

@@ -36,6 +36,7 @@ import kotlinx.coroutines.withContext
 import org.taigaui.designtokens.icons.ICON_PREVIEW_LOGICAL_SIZE
 import org.taigaui.designtokens.icons.IconCompletionService
 import org.taigaui.designtokens.icons.IconSvgPreviewRenderer
+import java.awt.KeyboardFocusManager
 import java.awt.MouseInfo
 import java.awt.Point
 import java.nio.file.Path
@@ -118,7 +119,7 @@ internal class TaigaQuickDocumentationHoverController(
     }
 
     fun mouseMoved(event: EditorMouseEvent) {
-        if (pinned) return
+        if (pinned || popupContent?.hasKeyboardFocus() == true) return
         val candidate = event.toTaigaDocumentationHoverCandidate(project)
 
         if (candidate == null) {
@@ -185,7 +186,7 @@ internal class TaigaQuickDocumentationHoverController(
     }
 
     fun mouseExited(editor: Editor) {
-        if (pinned) return
+        if (pinned || popupContent?.hasKeyboardFocus() == true) return
         if (editor.project == project) {
             resolutionJob?.cancel()
             resolutionJob = null
@@ -300,7 +301,7 @@ internal class TaigaQuickDocumentationHoverController(
                     .getInstance()
                     .createComponentPopupBuilder(panel, panel.preferredFocus)
                     .setProject(project)
-                    .setRequestFocus(fullApi)
+                    .setRequestFocus(fullApi || history.isNotEmpty())
                     .setFocusable(true)
                     .setCancelOnClickOutside(!pinned)
                     .setCancelOnOtherWindowOpen(!pinned)
@@ -488,7 +489,7 @@ internal class TaigaQuickDocumentationHoverController(
         resolved: TaigaResolvedDocumentation,
         panel: TaigaQuickDocumentationPopupPanel,
     ) {
-        val references = resolved.documentationIcons.take(2)
+        val references = resolved.documentationIcons.filter { it.name.isNotEmpty() }.take(2)
         if (references.isEmpty()) return
 
         previewJob =
@@ -569,7 +570,7 @@ internal class TaigaQuickDocumentationHoverController(
                     delay(HOVER_HIDE_GRACE_PERIOD)
                     hideJob = null
 
-                    if (popupContent?.containsPointer() != true) {
+                    if (popupContent?.containsPointer() != true && popupContent?.hasKeyboardFocus() != true) {
                         clearHover()
                     }
                 }
@@ -614,6 +615,12 @@ internal class TaigaQuickDocumentationHoverController(
         }
     }
 }
+
+private fun JComponent.hasKeyboardFocus(): Boolean =
+    KeyboardFocusManager
+        .getCurrentKeyboardFocusManager()
+        .focusOwner
+        ?.let { SwingUtilities.isDescendingFrom(it, this) } == true
 
 private fun JComponent.containsPointer(): Boolean =
     isShowing &&

@@ -214,7 +214,7 @@ The full-API browser searches immutable inputs/outputs by name, type and descrip
 
 The documentation UI may consume the existing icon catalog and renderer through an editor-level adapter. It introduces no independent icon discovery or source precedence. SVG loading/rendering runs separately on IO workers, so documentation can appear before a preview is ready. Late results are applied only to the still-current card and document.
 
-The icon chooser replaces only an already-present, complete static `@tui.*` literal, in one undoable write command. It checks the document generation and original literal before writing. Dynamic bindings are never evaluated or overwritten by the chooser.
+The icon chooser replaces only an already-present, complete static `@tui.*` literal or an empty string literal, in one undoable write command. It checks the document generation and original literal before writing, including zero-length ranges inside empty quotes. Empty values offer choosing without an invented preview. Dynamic bindings are never evaluated or overwritten by the chooser.
 
 ## CSS unit helpers
 
