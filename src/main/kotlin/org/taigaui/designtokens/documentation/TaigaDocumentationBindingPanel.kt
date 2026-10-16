@@ -7,6 +7,7 @@ import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
 import java.awt.Dimension
+import java.awt.FlowLayout
 import java.awt.Font
 import java.awt.datatransfer.StringSelection
 import javax.swing.Box
@@ -23,6 +24,13 @@ internal class TaigaDocumentationBindingPanel(
     currentValue: String? = null,
     private val resize: () -> Unit = {},
 ) : JPanel() {
+    val editorContent =
+        JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            isOpaque = false
+            alignmentX = LEFT_ALIGNMENT
+        }
+
     private val canApply =
         applyValue != null && member.kind == TaigaApiMemberKind.INPUT && member.binding?.literal != null
     private val values =
@@ -50,18 +58,31 @@ internal class TaigaDocumentationBindingPanel(
         isOpaque = false
         alignmentX = LEFT_ALIGNMENT
         updateCurrentValue()
-        if (member.binding != null) add(current)
+        if (member.binding != null) editorContent.add(current)
         if (values.isNotEmpty()) {
-            add(Box.createVerticalStrut(JBUI.scale(6)))
+            add(
+                documentationRow(
+                    "Possible values",
+                    JPanel(FlowLayout(FlowLayout.LEFT, JBUI.scale(4), 0)).apply {
+                        isOpaque = false
+                        val visible = values.take(if (values.take(5).sumOf { it.length } > 30) 3 else 5)
+                        visible.forEach { value ->
+                            add(TaigaDocumentationLiteralButton(value) { copyLiteral(value) })
+                        }
+                        if (visible.size < values.size) add(JBLabel("+${values.size - visible.size}"))
+                    },
+                ),
+            )
+            editorContent.add(Box.createVerticalStrut(JBUI.scale(6)))
             choices.apply {
                 getAccessibleContext().accessibleName = "Allowed input values"
                 preferredSize = Dimension(JBUI.scale(220), preferredSize.height)
                 this@TaigaDocumentationBindingPanel.currentValue?.takeIf { it in values }?.let { selectedItem = it }
                 addActionListener { updateActions() }
             }
-            if (values.size > SEARCHABLE_VALUES_THRESHOLD) add(valueSearch())
-            add(valueActions())
-            if (!canApply) showStatus(member.valueActionUnavailableReason())
+            if (values.size > SEARCHABLE_VALUES_THRESHOLD) editorContent.add(valueSearch())
+            editorContent.add(valueActions())
+            if (!canApply) editorContent.add(JBLabel(member.valueActionUnavailableReason()))
             add(status)
             updateActions()
         }
@@ -71,6 +92,11 @@ internal class TaigaDocumentationBindingPanel(
         contextCurrent = false
         showStatus("Refresh to apply. Copy remains available.")
         updateActions()
+    }
+
+    private fun copyLiteral(value: String) {
+        CopyPasteManager.getInstance().setContents(StringSelection("'$value'"))
+        showStatus("Copied '$value'")
     }
 
     private fun updateActions() {
@@ -123,8 +149,7 @@ internal class TaigaDocumentationBindingPanel(
             }
             copy.addActionListener {
                 val value = choices.selectedItem as? String ?: return@addActionListener
-                CopyPasteManager.getInstance().setContents(StringSelection("'$value'"))
-                showStatus("Copied '$value'")
+                copyLiteral(value)
             }
             apply.bind("ENTER", "apply-input-value") { if (apply.isEnabled) apply.doClick() }
             copy.bind("ENTER", "copy-input-value") { if (copy.isEnabled) copy.doClick() }

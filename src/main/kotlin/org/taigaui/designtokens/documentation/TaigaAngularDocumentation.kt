@@ -114,6 +114,11 @@ private fun Angular2DirectiveProperty.documentationMember(kind: TaigaApiMemberKi
         description = metadata.description,
         deprecated = metadata.deprecated,
         replacement = metadata.replacement,
+        declaredAcceptedType =
+            presentation?.writeType?.takeIf {
+                kind == TaigaApiMemberKind.INPUT &&
+                    transformType == null
+            },
     )
 }
 

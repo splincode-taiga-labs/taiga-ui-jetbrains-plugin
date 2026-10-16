@@ -12,7 +12,8 @@ internal data class TaigaDocumentationView(
     val selectedMember: String? = null,
     val expanded: Boolean = false,
 ) {
-    fun isCompactHover(explicit: Boolean): Boolean = !explicit && !expanded && !fullApi && !showExample
+    fun isCompactHover(explicit: Boolean): Boolean =
+        resolved.badge == "Pipe" && !explicit && !expanded && !fullApi && !showExample
 
     @Suppress("ReturnCount")
     fun refreshed(
@@ -34,7 +35,10 @@ internal data class TaigaDocumentationView(
         val owner = resolvedOwner as? TaigaResolvedDocumentation.Entity ?: return null
         val refreshed =
             when (val previous = resolved) {
-                is TaigaResolvedDocumentation.Entity -> owner
+                is TaigaResolvedDocumentation.Entity -> {
+                    owner
+                }
+
                 is TaigaResolvedDocumentation.Member -> {
                     val properties =
                         if (previous.kind == TaigaApiMemberKind.INPUT) owner.entity.inputs else owner.entity.outputs

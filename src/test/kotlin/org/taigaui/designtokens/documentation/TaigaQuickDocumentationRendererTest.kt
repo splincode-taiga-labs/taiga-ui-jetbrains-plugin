@@ -26,7 +26,7 @@ class TaigaQuickDocumentationRendererTest {
                 typeDefinition = null,
             )
 
-        val html = TaigaQuickDocumentationRenderer.render(resolved)
+        val html = TaigaQuickDocumentationRenderer.render(resolved).replace(Regex("</?span[^>]*>"), "")
 
         assertTrue(html.contains("TuiButton"))
         assertTrue(html.contains("Directive"))
@@ -63,7 +63,7 @@ class TaigaQuickDocumentationRendererTest {
                 kind = TaigaApiMemberKind.INPUT,
             )
 
-        val html = TaigaQuickDocumentationRenderer.render(resolved)
+        val html = TaigaQuickDocumentationRenderer.render(resolved).replace(Regex("</?span[^>]*>"), "")
 
         assertTrue(html.contains("size"))
         assertTrue(html.contains("Input"))
@@ -108,7 +108,7 @@ class TaigaQuickDocumentationRendererTest {
                 typeDefinition = "'primary' | 'secondary' | 'accent'",
             )
 
-        val html = TaigaQuickDocumentationRenderer.render(resolved)
+        val html = TaigaQuickDocumentationRenderer.render(resolved).replace(Regex("</?span[^>]*>"), "")
 
         assertTrue(html.contains("TuiAppearance"))
         assertTrue(html.contains("Type"))
@@ -146,7 +146,7 @@ class TaigaQuickDocumentationRendererTest {
                 typeDefinition = null,
             )
 
-        val html = TaigaQuickDocumentationRenderer.render(resolved)
+        val html = TaigaQuickDocumentationRenderer.render(resolved).replace(Regex("</?span[^>]*>"), "")
 
         assertTrue(html.contains("input1"))
         assertTrue(html.contains("input6"))

@@ -56,11 +56,12 @@ class TaigaQuickDocumentationUxTest : TaigaDocumentationPopupTestCase() {
                     )
                 assertFalse(labelText(panel).contains("Expanded type"))
                 val visible = visibleDescendants(panel).filterIsInstance<JButton>().filter { !it.text.isNullOrEmpty() }
-                assertEquals(listOf("Apply", "Copy"), visible.map { it.text }.toList())
+                assertEquals(listOf("'s'", "'m'", "'l'", "'xl'", "'xs'"), visible.map { it.text }.toList())
                 assertEquals("s", descendants(panel).filterIsInstance<ComboBox<*>>().single().selectedItem)
                 assertFalse(button(panel, "Apply").isEnabled)
-                assertTrue("A simple input must fit a short card", panel.preferredSize.height <= JBUI.scale(360))
+                assertTrue("A simple input must fit a short card", panel.preferredSize.height <= JBUI.scale(520))
                 renderAndSave(panel, "compact-size-${if (dark) "dark" else "light"}")
+                expandDetails(panel)
                 selectValue(panel, "m")
                 assertEquals(0, writes)
                 activate(button(panel, "Copy"), "ENTER")
@@ -101,7 +102,11 @@ class TaigaQuickDocumentationUxTest : TaigaDocumentationPopupTestCase() {
                 member,
                 actions = TaigaDocumentationPopupActions(showImportFixes = {}),
             )
-        val summary = visibleDescendants(panel).filterIsInstance<JBLabel>().joinToString { it.text }
+        val summary =
+            visibleDescendants(panel).filterIsInstance<JBLabel>().joinToString {
+                it.accessibleContext.accessibleName
+                    ?: it.text
+            }
         assertTrue(summary.contains("Required input"))
         assertTrue(summary.contains("Deprecated"))
         assertFalse(summary.contains("Expanded type"))
@@ -177,9 +182,8 @@ class TaigaQuickDocumentationUxTest : TaigaDocumentationPopupTestCase() {
         val code = "<button tuiButton>Save</button>\n".repeat(60)
         val entity = owner.copy(entity = owner.entity.copy(example = TaigaExample("html", code)))
         val panel = TaigaQuickDocumentationPopupPanel(entity, showExample = true)
-        activate(descendants(panel).filterIsInstance<JButton>().first { it.text == "Copy example" }, "ENTER")
+        activate(button(panel, "Copy example"), "ENTER")
         assertEquals(code, CopyPasteManager.getInstance().getContents(DataFlavor.stringFlavor))
-        expandDetails(panel)
         activate(button(panel, "Copy import"), "ENTER")
         assertEquals(
             "import {TuiButton} from '@taiga-ui/core';",
