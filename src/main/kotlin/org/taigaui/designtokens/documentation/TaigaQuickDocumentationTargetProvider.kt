@@ -94,5 +94,7 @@ private fun TaigaDocsSnapshot.find(subject: TaigaDocumentationSubject): TaigaEnt
         }
     }.distinctBy(TaigaEntityDoc::sectionId)
         .firstOrNull { entity ->
-            entity.packageNames.isEmpty() || subject.packageName in entity.packageNames
+            subject.packageName == null ||
+                entity.packageNames.isEmpty() ||
+                subject.packageName in entity.packageNames
         }
