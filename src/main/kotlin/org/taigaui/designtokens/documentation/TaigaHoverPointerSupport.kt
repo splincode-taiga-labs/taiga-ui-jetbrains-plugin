@@ -6,13 +6,13 @@ import java.awt.Point
 import javax.swing.JComponent
 import javax.swing.SwingUtilities
 
-internal fun JComponent.hasTaigaHoverKeyboardFocus(): Boolean =
+internal fun JComponent.hasTaigaFocus(): Boolean =
     KeyboardFocusManager
         .getCurrentKeyboardFocusManager()
         .focusOwner
         ?.let { SwingUtilities.isDescendingFrom(it, this) } == true
 
-internal fun JComponent.containsTaigaHoverPointer(): Boolean =
+internal fun JComponent.containsTaigaPointer(): Boolean =
     isShowing &&
         MouseInfo
             .getPointerInfo()
