@@ -56,6 +56,11 @@ internal object TaigaTemplateDocumentationResolver {
                 ?: return null
 
         return symbol.toLocalSubject(selector = name)
+            ?: TaigaDocumentationSubject(
+                selector = name,
+                publicSymbol = null,
+                packageName = null,
+            )
     }
 
     @Suppress("ReturnCount")
@@ -78,6 +83,11 @@ internal object TaigaTemplateDocumentationResolver {
         return PolySymbolCodeCompletionItem
             .getPsiElement(element)
             ?.toLocalSubject(selector, requestedSymbol)
+            ?: TaigaDocumentationSubject(
+                selector = selector,
+                publicSymbol = requestedSymbol,
+                packageName = null,
+            )
     }
 
     private fun PolySymbol.toLocalSubject(
