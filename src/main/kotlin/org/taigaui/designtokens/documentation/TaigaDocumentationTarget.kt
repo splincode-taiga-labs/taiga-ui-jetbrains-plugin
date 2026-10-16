@@ -71,7 +71,13 @@ internal fun TaigaDocsSnapshot.resolve(request: TaigaDocumentationRequest): Taig
                         endOffset = request.endOffset,
                         usage = request.usage,
                         typeDefinition = request.typeDefinition,
-                        icons = request.icons.filter { icon -> entity.inputs.any { property -> property.name == icon.attribute } },
+                        icons =
+                            request.icons.filter { icon ->
+                                entity.inputs.any { property ->
+                                    property.name ==
+                                        icon.attribute
+                                }
+                            },
                     )
                 }
             }

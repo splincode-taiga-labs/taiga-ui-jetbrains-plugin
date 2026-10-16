@@ -30,9 +30,7 @@ internal object TaigaDocumentationResolver {
         offset: Int,
     ): TaigaDocumentationRequest? {
         val element = file.elementAt(offset) ?: return null
-        findPipeRequest(file, element, offset)?.let { return it }
-
-        return if (file.isTaigaTemplateFile()) {
+        return findPipeRequest(file, element, offset) ?: if (file.isTaigaTemplateFile()) {
             findTemplateRequest(file, offset)
         } else {
             findCodeRequest(file, offset)
@@ -134,6 +132,7 @@ internal object TaigaDocumentationResolver {
         )
     }
 
+    @Suppress("ReturnCount")
     private fun findPipeRequest(
         file: PsiFile,
         element: PsiElement,
@@ -150,7 +149,8 @@ internal object TaigaDocumentationResolver {
         val pipe = subject.localDocumentation.pipe ?: return null
         val range =
             if (candidateFile == file) {
-                com.intellij.openapi.util.TextRange(reference.startOffset, reference.endOffset)
+                com.intellij.openapi.util
+                    .TextRange(reference.startOffset, reference.endOffset)
             } else {
                 manager.injectedToHost(candidate, candidate.textRange)
             }

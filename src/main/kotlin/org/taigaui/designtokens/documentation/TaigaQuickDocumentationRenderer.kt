@@ -52,24 +52,7 @@ internal object TaigaQuickDocumentationRenderer {
         resolved.localDocumentation.selector?.let { selector ->
             addSection("Selector:", "<code>${selector.html()}</code>")
         }
-        resolved.localDocumentation.pipe?.let { pipe ->
-            pipe.invocation?.let { addSection("What it calls:", it.asCodeBlock()) }
-            pipe.parameters.takeIf(List<TaigaPipeParameter>::isNotEmpty)?.let { parameters ->
-                addSection(
-                    "Parameters:",
-                    parameters.joinToString("<br>") { parameter ->
-                        "<code>${parameter.name.html()}</code>&nbsp;&nbsp;${parameter.type.orEmpty().html()}&nbsp;&nbsp;${parameter.description.orEmpty().html()}"
-                    },
-                )
-            }
-            pipe.resultType?.let { addSection("Result:", "<code>${it.html()}</code>") }
-            pipe.pure?.let { pure ->
-                addSection(
-                    if (pure) "Pure pipe:" else "Impure pipe:",
-                    if (pure) "Recomputed when the value or arguments change. Object mutations alone do not trigger this pipe." else "Angular invokes this pipe during change detection.",
-                )
-            }
-        }
+        resolved.localDocumentation.pipe?.let { appendPipeSections(it) }
         resolved.typeText?.takeIf(String::isNotBlank)?.let { type ->
             addSection("Type:", "<code>${type.html()}</code>")
         }
@@ -87,8 +70,37 @@ internal object TaigaQuickDocumentationRenderer {
         resolved.localDocumentation.defaults.forEach { default ->
             addSection(
                 "If ${default.name} is omitted:",
-                default.provider?.let { "Read from <code>${it.html()}</code>. Project providers may change this value." }
+                default.provider?.let {
+                    "Read from <code>${it.html()}</code>. Project providers may change this value."
+                }
                     ?: "Library default: <code>${default.value.orEmpty().html()}</code>",
+            )
+        }
+    }
+
+    private fun StringBuilder.appendPipeSections(pipe: TaigaPipeDocumentation) {
+        pipe.invocation?.let { addSection("What it calls:", it.asCodeBlock()) }
+        pipe.parameters.takeIf(List<TaigaPipeParameter>::isNotEmpty)?.let { parameters ->
+            addSection(
+                "Parameters:",
+                parameters.joinToString("<br>") { parameter ->
+                    listOf(
+                        "<code>${parameter.name.html()}</code>",
+                        parameter.type.orEmpty().html(),
+                        parameter.description.orEmpty().html(),
+                    ).joinToString("&nbsp;&nbsp;")
+                },
+            )
+        }
+        pipe.resultType?.let { addSection("Result:", "<code>${it.html()}</code>") }
+        pipe.pure?.let { pure ->
+            addSection(
+                if (pure) "Pure pipe:" else "Impure pipe:",
+                if (pure) {
+                    "Recomputed when the value or arguments change. Object mutations alone do not trigger this pipe."
+                } else {
+                    "Angular invokes this pipe during change detection."
+                },
             )
         }
     }
