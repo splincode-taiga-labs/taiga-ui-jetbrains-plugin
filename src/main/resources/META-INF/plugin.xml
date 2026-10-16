@@ -86,6 +86,9 @@
         <platform.backend.documentation.targetProvider
             implementation="org.taigaui.designtokens.documentation.TaigaQuickDocumentationTargetProvider"
         />
+        <platform.backend.documentation.lookupElementTargetProvider
+            implementation="org.taigaui.designtokens.documentation.TaigaQuickDocumentationTargetProvider"
+        />
         <psi.referenceContributor
             language="CSS"
             implementation="org.taigaui.designtokens.navigation.DesignTokenReferenceContributor"
