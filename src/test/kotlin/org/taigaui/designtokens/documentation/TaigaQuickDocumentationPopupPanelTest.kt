@@ -5,6 +5,7 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.openapi.editor.ex.EditorSettingsExternalizable
+import com.intellij.openapi.ui.ComboBox
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBList
@@ -34,7 +35,12 @@ class TaigaQuickDocumentationPopupPanelTest : TaigaDocumentationPopupTestCase() 
         val panel =
             TaigaQuickDocumentationPopupPanel(
                 directive(),
-                actions = TaigaDocumentationPopupActions(openFullCard = { detailsOpened = true }),
+                actions =
+                    TaigaDocumentationPopupActions(
+                        openFullCard = { detailsOpened = true },
+                        navigateToSource = {},
+                        showImportFixes = {},
+                    ),
                 compactHover = true,
             )
 
@@ -45,11 +51,56 @@ class TaigaQuickDocumentationPopupPanelTest : TaigaDocumentationPopupTestCase() 
         assertTrue(panel.preferredSize.width <= JBUI.scale(400))
         assertTrue(panel.preferredSize.height <= JBUI.scale(300))
         assertFalse(descendants(panel).any { it is JBTextField || it is JBList<*> })
+        assertFalse(descendants(panel).filterIsInstance<LinkLabel<*>>().any { it.text.contains("Source") })
+        assertFalse(descendants(panel).filterIsInstance<LinkLabel<*>>().any { it.text.contains("quick fixes") })
         descendants(panel)
             .filterIsInstance<LinkLabel<*>>()
-            .first { it.text == "Quick Documentation →" }
+            .first { it.text == "Open full card →" }
             .doClick()
         assertTrue(detailsOpened)
+    }
+
+    fun testPassiveBindingHoverKeepsCurrentValueButMovesEditingToFullCard() {
+        val owner = directive()
+        val member =
+            TaigaResolvedDocumentation.Member(
+                owner.entity,
+                owner.subject.copy(
+                    localDocumentation = TaigaLocalDocumentation(inputTypes = mapOf("size" to "'s' | 'm'")),
+                ),
+                0,
+                4,
+                null,
+                owner.entity.inputs.first(),
+                TaigaApiMemberKind.INPUT,
+                binding = TaigaDocumentationBinding("size", 0, 8, "size=\\"m\\"", 6, 7, "m", false),
+            )
+        val otherReceiver = member.copy(subject = member.subject.copy(publicSymbol = "TuiButtonLoading"))
+        val shared = member.copy(receivers = listOf(member, otherReceiver))
+        var expanded = false
+        val actions =
+            TaigaDocumentationPopupActions(
+                applyValue = { "Applied $it" },
+                navigateToSource = {},
+                showImportFixes = {},
+                openFullCard = { expanded = true },
+            )
+        val hover = TaigaQuickDocumentationPopupPanel(shared, actions = actions, compactHover = true)
+
+        assertTrue(labelText(hover).contains("Current value: m"))
+        assertTrue(labelText(hover).contains("TuiButton · TuiButtonLoading"))
+        assertFalse(descendants(hover).any { it is ComboBox<*> })
+        assertFalse(descendants(hover).filterIsInstance<JButton>().any { it.text == "Apply" })
+        assertFalse(descendants(hover).filterIsInstance<LinkLabel<*>>().any { it.text.contains("Source") })
+        assertFalse(descendants(hover).filterIsInstance<LinkLabel<*>>().any { it.text.contains("quick fixes") })
+        descendants(hover).filterIsInstance<LinkLabel<*>>().single { it.text == "Open full card →" }.doClick()
+        assertTrue(expanded)
+
+        val full = TaigaQuickDocumentationPopupPanel(shared, actions = actions)
+        assertTrue(descendants(full).any { it is ComboBox<*> })
+        assertTrue(descendants(full).filterIsInstance<JButton>().any { it.text == "Apply" })
+        assertTrue(descendants(full).filterIsInstance<LinkLabel<*>>().any { it.text == "Source ↗" })
+        assertTrue(descendants(full).filterIsInstance<LinkLabel<*>>().any { it.text == "Angular quick fixes →" })
     }
 
     fun testDirectiveCardShowsParametersImmediatelyWithoutDuplicateMarkup() {
