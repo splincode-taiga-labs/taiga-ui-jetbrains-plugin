@@ -18,6 +18,7 @@ import java.awt.geom.AffineTransform
 import java.awt.geom.Ellipse2D
 import java.awt.geom.Path2D
 import java.awt.geom.RoundRectangle2D
+import javax.swing.Icon
 import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JPanel
@@ -66,17 +67,18 @@ internal class WrappedTextPane(
 
 internal class CopyValueButton(
     value: String,
+    private val copyTooltip: String = "Copy value",
 ) : JButton(AllIcons.Actions.Copy) {
     private val resetTimer =
         Timer(COPY_FEEDBACK_DURATION_MS) {
             icon = AllIcons.Actions.Copy
-            toolTipText = "Copy value"
+            toolTipText = copyTooltip
         }.apply {
             isRepeats = false
         }
 
     init {
-        configurePopupIconButton("Copy value")
+        configurePopupIconButton(copyTooltip)
 
         addActionListener {
             CopyPasteManager.getInstance().setContents(StringSelection(value))
@@ -96,8 +98,9 @@ internal class NavigateToDefinitionButton(
     }
 }
 
-private fun JButton.configurePopupIconButton(tooltip: String) {
+internal fun JButton.configurePopupIconButton(tooltip: String) {
     toolTipText = tooltip
+    getAccessibleContext().accessibleName = tooltip
     isOpaque = false
     isContentAreaFilled = false
     isBorderPainted = false
@@ -112,6 +115,16 @@ private fun JButton.configurePopupIconButton(tooltip: String) {
     maximumSize = preferredSize
     alignmentY = JComponent.CENTER_ALIGNMENT
 }
+
+internal fun popupIconButton(
+    title: String,
+    icon: Icon,
+    action: () -> Unit,
+): JButton =
+    JButton(icon).apply {
+        configurePopupIconButton(title)
+        addActionListener { action() }
+    }
 
 internal class TokenBadge : JComponent() {
     init {

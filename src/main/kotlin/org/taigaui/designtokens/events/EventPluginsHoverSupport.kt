@@ -1,8 +1,8 @@
 package org.taigaui.designtokens.events
 
 import com.intellij.codeInsight.lookup.LookupManager
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.EDT
-import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.editor.Editor
@@ -16,6 +16,7 @@ import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.ui.popup.JBPopupListener
 import com.intellij.openapi.ui.popup.LightweightWindowEvent
+import com.intellij.openapi.util.Computable
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiFile
@@ -216,15 +217,17 @@ private fun EditorMouseEvent.eventPluginBindingUnderPointer(): EventPluginBindin
     val reference =
         textReference
             ?: editor.project?.let { project ->
-                ReadAction.compute<EventPluginBindingAtOffset?, RuntimeException> {
-                    val file = PsiDocumentManager.getInstance(project).getPsiFile(editor.document)
+                ApplicationManager.getApplication().runReadAction(
+                    Computable {
+                        val file = PsiDocumentManager.getInstance(project).getPsiFile(editor.document)
 
-                    EventPluginBindingAtOffsetFinder.find(
-                        file = file,
-                        text = text,
-                        offset = offset,
-                    )
-                }
+                        EventPluginBindingAtOffsetFinder.find(
+                            file = file,
+                            text = text,
+                            offset = offset,
+                        )
+                    },
+                )
             }
 
     return reference?.takeIf { candidate -> editor.isPointerOver(candidate, mouseEvent.point) }

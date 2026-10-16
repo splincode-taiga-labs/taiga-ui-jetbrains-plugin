@@ -16,6 +16,22 @@ This is an **independent community project**, not affiliated with or endorsed by
 
 The plugin reads the Taiga UI packages installed in the current project, so completion and previews match the version the project actually uses.
 
+## Contextual documentation
+
+Hover a Taiga UI component, directive, pipe, or input/output to see its purpose and relevant API directly in the editor. Input cards show every directive that receives the binding, including inherited declarations and exposed `hostDirectives` aliases, using Angular's selector matching and component import scope. Installed declarations provide cards even when online documentation is unavailable or omits the input. Component and directive cards show parameters immediately; clicking a parameter opens its focused description. Inputs and outputs use vertically stacked rows with compact types, descriptions and known defaults. Empty API tabs are hidden. Pipe cards show their arguments, result, and recalculation behavior when that information is available.
+
+Use **Pin** to keep a card open while editing; **Unpin**, **Close**, or Escape dismiss it when appropriate. Binding cards distinguish the current value from a library default and show required inputs, expanded type aliases, and accepted transform types when available. Literal choices can update an existing static input when its finite string type is confirmed by every receiver of that binding. The edit supports Undo and refuses to overwrite a binding that changed after opening the card. Larger editable sets have value search. Dynamic expressions and documentation-only choices remain informational.
+
+Hovering `iconEnd`, `iconStart`, or another icon input with a static `@tui.*` value shows its SVG preview and a **Choose icon** action directly in the input card. The chooser also fills an existing empty string input, searches the project's existing icon catalog, and replaces the selected literal with undo support. Element cards also offer icon previews. Dynamic expressions remain untouched.
+
+Cards can add a missing required input with an empty expression ready to fill in, or rename a deprecated binding when the installed declaration explicitly identifies a compatible replacement. Both actions support Undo and check that the element has not changed. Adding a required input keeps keyboard focus in the editor so its expression can be entered immediately. Cards link to locally resolved source definitions and official documentation; examples are opened on demand.
+
+Use the Inputs, Outputs and Examples tabs to inspect the installed API. A parameter opens its focused card; Back returns to the previous view. The header links to the official documentation. Code examples use the editor color scheme and flattened single-element examples receive readable indentation. Cards have no Details disclosure or clipboard buttons. Angular quick fixes opens the IDE's context actions at the tracked source target, including available import fixes. Standard Quick Documentation and completion documentation remain available.
+
+Use **Show Taiga UI Card** from Find Action or the editor context menu, or press **Alt+Shift+Q**, to open the same interactive card at the caret without mouse hover. Use **Tab/Shift+Tab** to reach its actions, **Enter/Space** to activate buttons and links, **Escape** to close it. The explicit action works even when mouse-hover documentation is disabled in IDE settings. Loading and indexing show progress; an unavailable caret target offers Angular quick fixes.
+
+Code changes invalidate the card's source-changing actions, including changes to component imports and installed declarations. A stale card keeps navigation available and offers **Refresh** / **F5** to resolve the current API. Refresh preserves the browsed member, Back navigation, scroll position, and a pinned card's position and size. Successful value and template edits refresh the card automatically; Undo/Redo require refreshing before another edit. If its source target was deleted or renamed outside the card, reopen the card at the caret.
+
 ## Design tokens
 
 ### Completion
