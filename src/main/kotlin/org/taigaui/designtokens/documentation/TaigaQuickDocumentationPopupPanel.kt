@@ -699,7 +699,6 @@ private fun compactDocumentationFooter(actions: TaigaDocumentationPopupActions):
         add(links)
     }
 
-
 private fun table(
     rows: List<Pair<String, String>>,
     onSelect: ((String) -> Unit)? = null,
