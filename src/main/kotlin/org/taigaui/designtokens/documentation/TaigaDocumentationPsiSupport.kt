@@ -16,6 +16,36 @@ internal fun PsiElement.candidateReferences(
         addAll(parent?.references.orEmpty())
     }.filterNotNull()
 
+internal fun PsiElement.resolveTaigaDeclaration(
+    file: PsiFile,
+    offset: Int,
+): PsiElement? {
+    val resolved =
+        candidateReferences(file, offset)
+            .mapNotNull(PsiReference::resolve)
+
+    return resolved
+        .asSequence()
+        .flatMap { element ->
+            sequenceOf(
+                element,
+                element.navigationElement,
+                element.originalElement,
+            )
+        }.distinct()
+        .firstOrNull { element -> element.taigaPackageName() != null }
+}
+
+internal fun PsiFile.taigaImportPackage(symbol: String): String? =
+    TAIGA_IMPORT
+        .findAll(text)
+        .firstOrNull { match ->
+            match.groupValues[1]
+                .split(',')
+                .any { imported -> imported.substringBefore(" as ").trim() == symbol }
+        }?.groupValues
+        ?.getOrNull(2)
+
 internal fun PsiElement.taigaPackageName(): String? =
     containingFile
         ?.originalFile
@@ -53,6 +83,8 @@ private fun PsiElement.ancestors(limit: Int): Sequence<PsiElement> =
         }
     }
 
+private val TAIGA_IMPORT =
+    Regex("""import\s*\{([^}]*)}\s*from\s*['"](@taiga-ui/[^'"]+)['"]""")
 private val TAIGA_PACKAGE_PATH = Regex("""(?:^|/)node_modules/@taiga-ui/([^/]+)(?:/|$)""")
 private val WHITESPACE = Regex("\\s+")
 private const val TYPE_DEFINITION_PARENT_LIMIT = 6
