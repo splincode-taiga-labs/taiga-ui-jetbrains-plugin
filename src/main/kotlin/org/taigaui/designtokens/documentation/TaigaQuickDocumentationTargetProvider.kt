@@ -98,3 +98,9 @@ private fun TaigaDocsSnapshot.find(subject: TaigaDocumentationSubject): TaigaEnt
                 entity.packageNames.isEmpty() ||
                 subject.packageName in entity.packageNames
         }
+
+private fun TaigaDocumentationSubject.completedFrom(entity: TaigaEntityDoc): TaigaDocumentationSubject =
+    copy(
+        publicSymbol = publicSymbol ?: entity.publicSymbols.singleOrNull(),
+        packageName = packageName ?: entity.packageNames.singleOrNull(),
+    )
