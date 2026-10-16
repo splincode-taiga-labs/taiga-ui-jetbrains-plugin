@@ -110,6 +110,12 @@ class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
         assertTrue(labelText(panel).contains("Current value: m"))
         assertTrue(labelText(panel).contains("Undo available"))
         renderAndSave(panel, "binding")
+        val changingLabels =
+            descendants(panel).filterIsInstance<JBLabel>()
+                .filter { it.text == "Current value: m" || it.text.startsWith("Applied m") }
+        changingLabels.forEach {
+            assertTrue("Feedback must fit: ${it.text}", it.width >= it.getFontMetrics(it.font).stringWidth(it.text))
+        }
     }
 
     fun testDynamicAndDocumentationOnlyValuesAreCopyActions() {
