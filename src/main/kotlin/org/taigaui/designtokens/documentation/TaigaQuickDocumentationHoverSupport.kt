@@ -221,7 +221,7 @@ internal class TaigaQuickDocumentationHoverController(
             }
         } else if (candidate.key == pendingKey) {
             cancelScheduledHide()
-            currentRequest?.takeIf { it.documentationRequest.shouldUnderline }?.let { request ->
+            currentRequest?.takeIf { it.documentationRequest.shouldHighlight }?.let { request ->
                 underline.show(
                     request.editor,
                     request.documentationRequest.startOffset,
@@ -380,7 +380,7 @@ internal class TaigaQuickDocumentationHoverController(
         currentRequest = request
         cancelScheduledHide()
 
-        if (request.documentationRequest.shouldUnderline) {
+        if (request.documentationRequest.shouldHighlight) {
             underline.show(
                 request.editor,
                 request.documentationRequest.startOffset,
@@ -425,7 +425,7 @@ internal class TaigaQuickDocumentationHoverController(
                     }
                 } else {
                     hoverJob = null
-                    if (request.documentationRequest.shouldUnderline) {
+                    if (request.documentationRequest.shouldHighlight) {
                         underline.show(
                             request.editor,
                             request.documentationRequest.startOffset,
@@ -466,6 +466,7 @@ internal class TaigaQuickDocumentationHoverController(
                     apiQuery = view.query.takeIf { view.fullApi },
                     selectedMember = view.selectedMember,
                     compactHover = compactHover,
+                    hoverPointer = !request.explicit && !pinned,
                 )
             val createdPopup =
                 JBPopupFactory
@@ -474,6 +475,7 @@ internal class TaigaQuickDocumentationHoverController(
                     .setProject(project)
                     .setRequestFocus(requestFocus)
                     .setFocusable(true)
+                    .setShowBorder(request.explicit || pinned)
                     .setCancelOnClickOutside(!pinned)
                     .setCancelOnOtherWindowOpen(!pinned)
                     .setCancelOnWindowDeactivation(!pinned)
@@ -520,6 +522,14 @@ internal class TaigaQuickDocumentationHoverController(
             )
             if (pinned) pinnedLocation?.let(createdPopup::setLocation)
             createdPopup.moveToFitScreen()
+            if (!request.explicit && !pinned && createdPopup.isVisible) {
+                val target = request.targetAnchor()
+                SwingUtilities.convertPointToScreen(target, request.editor.contentComponent)
+                panel.alignHoverPointer(
+                    target.x - createdPopup.locationOnScreen.x,
+                    createdPopup.locationOnScreen.y >= target.y + request.editor.lineHeight,
+                )
+            }
             panel.restoreScrollPosition(view.scrollPosition)
             if (refreshInProgress) {
                 panel.showRefreshProgress(DumbService.isDumb(project))
@@ -886,12 +896,22 @@ private fun TaigaQuickDocumentationHoverRequest.isStillCurrent(project: Project)
 }
 
 private fun TaigaQuickDocumentationHoverRequest.popupLocation(): Point {
-    val point = Point(anchor)
+    val point = targetAnchor()
 
+    point.x -=
+        com.intellij.util.ui.JBUI
+            .scale(32)
     point.y += editor.lineHeight
     SwingUtilities.convertPointToScreen(point, editor.contentComponent)
 
     return point
+}
+
+private fun TaigaQuickDocumentationHoverRequest.targetAnchor(): Point {
+    val start = editor.offsetToXY(documentationRequest.startOffset)
+    val end = editor.offsetToXY(documentationRequest.endOffset)
+    if (start.y == end.y) start.x = (start.x + end.x) / 2
+    return start
 }
 
 private val TaigaQuickDocumentationHoverRequest.key: TaigaQuickDocumentationHoverKey
@@ -920,9 +940,9 @@ private data class TaigaQuickDocumentationHoverKey(
     val modificationStamp: Long,
 )
 
-private val TaigaDocumentationRequest.shouldUnderline: Boolean
+private val TaigaDocumentationRequest.shouldHighlight: Boolean
     get() =
-        this is TaigaDocumentationRequest.Entity &&
-            subjects.any { subject -> subject.selector != null }
+        this is TaigaDocumentationRequest.Member ||
+            (this is TaigaDocumentationRequest.Entity && subjects.any { subject -> subject.selector != null })
 
 private val HOVER_HIDE_GRACE_PERIOD = 250.milliseconds

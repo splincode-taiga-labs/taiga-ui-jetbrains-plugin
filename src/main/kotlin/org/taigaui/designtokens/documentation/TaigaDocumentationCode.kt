@@ -26,7 +26,6 @@ internal fun documentationCodeLabel(
     return JBLabel("<html><div width='$width'>$html</div></html>").apply {
         font = taigaDocumentationCodeFont()
         alignmentX = JComponent.LEFT_ALIGNMENT
-        toolTipText = code
         getAccessibleContext().accessibleName = code
     }
 }
@@ -69,21 +68,13 @@ internal fun documentationCodeHtml(code: String): String {
 
 internal fun documentationCodeBlock(
     code: String,
-    completeCode: String = code,
-    copyLabel: String = "Copy code",
+    width: Int = 340,
 ): JComponent =
     RoundedRowPanel().apply {
         layout = BorderLayout(JBUI.scale(8), 0)
         border = JBUI.Borders.empty(9, 10)
         alignmentX = JComponent.LEFT_ALIGNMENT
-        add(documentationCodeLabel(code, 340), BorderLayout.CENTER)
-        add(
-            JPanel(BorderLayout()).apply {
-                isOpaque = false
-                add(CopyValueButton(completeCode, copyLabel), BorderLayout.NORTH)
-            },
-            BorderLayout.EAST,
-        )
+        add(documentationCodeLabel(formattedDocumentationExample(code), width), BorderLayout.CENTER)
     }
 
 internal fun documentationTypePresentation(type: String): JComponent =
@@ -122,7 +113,6 @@ internal fun documentationAcceptedType(
                 isOpaque = false
                 alignmentX = JComponent.LEFT_ALIGNMENT
                 add(documentationTypePresentation(declared), BorderLayout.CENTER)
-                add(CopyValueButton(declared, "Copy type").apply { toolTipText = declared }, BorderLayout.EAST)
             },
         )
         val expanded = expandedType?.takeIf { sameDocumentationType(declared, accepted) } ?: accepted

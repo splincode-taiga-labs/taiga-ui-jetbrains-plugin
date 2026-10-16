@@ -26,17 +26,18 @@ In the sandbox project, move the pointer over a Taiga UI token name inside `var(
 
 For a keyboard check, place the caret on `tuiButton`, `tui-calendar`, or an input and invoke **Show Taiga UI Card** through Find Action or **Alt+Shift+Q**. Check Tab/Shift+Tab, Enter/Space, API search, Back and Escape. The explicit action also works when mouse-hover documentation is disabled. **View | Quick Documentation** / `Ctrl+Q` (`F1` on the default macOS keymap) separately tests the informational native documentation provider.
 
-Pin an input card, then add another receiving directive, change its component imports, or edit an installed input declaration. Verify that source-changing actions stop working until **Refresh** / **F5**, while copying remains available. Repeat after Undo/Redo. Check that value/template actions refresh their current value and API, that a renamed binding remains refreshable, and that deleting the original tag cannot redirect an old action to another element.
+Pin an input card, then add another receiving directive, change its component imports, or edit an installed input declaration. Verify that source-changing actions stop working until **Refresh** / **F5**, while navigation remains available. Repeat after Undo/Redo. Check that value/template actions refresh their current value and API, that a renamed binding remains refreshable, and that deleting the original tag cannot redirect an old action to another element.
 
 For card UX regression checks:
 
 Use the pinned real-package fixture and record results in [documentation-acceptance.md](documentation-acceptance.md). It includes inline/external templates, shared inputs, host directives and a missing-import component for native Angular quick fixes.
 
 - Add a missing required input and immediately type an expression without clicking the editor. Verify the caret and focus stay inside the new binding through automatic Refresh, and one Undo removes the insertion.
-- Resize and move a pinned card, browse an owner API, search and select another member, then change a related declaration and press F5. Verify the member, Back history, API query/selection, scroll position and popup geometry survive with fresh types.
+- Resize and move a pinned card, select a parameter from the vertical Inputs list, then change a related declaration and press F5. Verify the member, Back history, scroll position and popup geometry survive with fresh types.
 - Invoke Show Taiga UI Card while indexing and on an unimported selector. Verify progress and the unavailable-target message, then use Angular quick fixes and check the native import intentions offered by WebStorm.
-- Open an input with more than 12 finite values, use Show all and search, then invalidate the card. Apply must remain disabled after filtering; Copy must still work.
-- Copy a long type, import and an example longer than the preview. Verify the clipboard contains the complete source text.
+- Open an input with more than 12 finite values, use value search, then invalidate the card. Apply must remain disabled after filtering.
+- Verify that the card has no Details disclosure, Browse API footer, View API link or clipboard buttons. Check the code indentation in the Examples tab.
+- Hover a binding name: verify its background highlight and the popup pointer, then close the popup and verify the highlight is removed. Repeat at the screen edges and after pinning.
 - Check long descriptions/types and multiple receivers in light and dark themes at 100%, 125% and 200% display scaling. All actions must remain reachable with Tab and the card must fit the screen.
 
 After changing plugin code, stop the running sandbox IDE and start `runIde` again. Hot reload is not used for plugin classes or `plugin.xml` extension registrations.

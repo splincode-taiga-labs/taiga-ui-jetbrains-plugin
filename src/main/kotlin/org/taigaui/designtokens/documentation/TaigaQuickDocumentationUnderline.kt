@@ -2,7 +2,6 @@ package org.taigaui.designtokens.documentation
 
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.colors.EditorColors
-import com.intellij.openapi.editor.markup.EffectType
 import com.intellij.openapi.editor.markup.HighlighterLayer
 import com.intellij.openapi.editor.markup.HighlighterTargetArea
 import com.intellij.openapi.editor.markup.RangeHighlighter
@@ -31,9 +30,9 @@ internal class TaigaQuickDocumentationUnderline {
         val attributes =
             TextAttributes(
                 null,
+                java.awt.Color(effectColor.red, effectColor.green, effectColor.blue, 45),
                 null,
-                effectColor,
-                EffectType.LINE_UNDERSCORE,
+                null,
                 Font.PLAIN,
             )
         val highlighter =

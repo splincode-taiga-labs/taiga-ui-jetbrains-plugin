@@ -204,14 +204,8 @@ internal class TaigaDocsParser {
             .takeWhile { !it.startsWith("### ") }
             .map(String::trim)
             .filter { it.startsWith('|') && it.endsWith('|') }
-            .map { line ->
-                line
-                    .removePrefix("|")
-                    .removeSuffix("|")
-                    .replace("\\|", ESCAPED_PIPE)
-                    .split('|')
-                    .map { it.trim().replace(ESCAPED_PIPE, "|") }
-            }.filter { it.size >= 3 }
+            .map(::documentationTableCells)
+            .filter { it.size >= 3 }
             .filterNot { cells ->
                 val first = cells[0].removeMarkdownCode()
                 first.equals("Property", true) ||
@@ -230,7 +224,7 @@ internal class TaigaDocsParser {
                         name = name,
                         signature = signature,
                         documentedType = cells[1].removeMarkdownCode().takeUnless(::isEmptyTableValue),
-                        description = cells[2].removeMarkdownCode().takeUnless(::isEmptyTableValue),
+                        description = cells[2].removeMarkdownCode().takeIf { it.any(Char::isLetterOrDigit) },
                     )
                 }
             }
@@ -328,7 +322,6 @@ internal class TaigaDocsParser {
         const val EXAMPLE_HEADING = "### Example"
         const val API_INPUTS_HEADING = "### API - Inputs"
         const val API_OUTPUTS_HEADING = "### API - Outputs"
-        const val ESCAPED_PIPE = "\u0000"
         const val BACKTICK = '\u0060'
         const val CODE_FENCE = "\u0060\u0060\u0060"
         val ENTITY_HEADING = Regex("^# ([A-Za-z][A-Za-z0-9-]*)/(.+?)\\s*$")

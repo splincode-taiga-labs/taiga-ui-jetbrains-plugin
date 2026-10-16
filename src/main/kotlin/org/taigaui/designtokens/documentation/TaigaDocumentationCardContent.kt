@@ -5,74 +5,71 @@ import com.intellij.ui.components.labels.LinkLabel
 import com.intellij.util.ui.JBUI
 import java.awt.FlowLayout
 import java.awt.Font
-import java.awt.GridBagConstraints
-import java.awt.GridBagLayout
+import javax.swing.Box
+import javax.swing.BoxLayout
 import javax.swing.JComponent
 import javax.swing.JPanel
 
-internal fun documentationApiTable(
+internal fun documentationApiList(
     entity: TaigaResolvedDocumentation.Entity,
     properties: List<TaigaApiProperty>,
     kind: TaigaApiMemberKind,
     actions: TaigaDocumentationPopupActions,
 ): JComponent =
-    JPanel(GridBagLayout()).apply {
+    JPanel().apply {
+        layout = BoxLayout(this, BoxLayout.Y_AXIS)
         isOpaque = false
-        listOf("Name", "Type", "Default", "Description").forEachIndexed { column, text ->
-            addApiCell(JBLabel(text).apply { foreground = CARD_MUTED_FOREGROUND }, column, 0)
-        }
-        properties.take(MAX_CARD_API_PROPERTIES).forEachIndexed { index, property ->
+        alignmentX = JComponent.LEFT_ALIGNMENT
+        properties.forEachIndexed { index, property ->
+            if (index > 0) add(documentationSeparator())
             val member = entity.focusedMember(property, kind)
             val default =
-                entity.localDocumentation.defaults.firstOrNull { it.name == property.name }
-            addApiCell(
-                cardContentLink(property.name) { actions.openMember?.invoke(member) }.apply {
-                    font =
-                        taigaDocumentationCodeFont()
-                },
-                0,
-                index + 1,
-            )
-            addApiCell(
-                documentationCodeLabel(member.localMember?.declaredAcceptedType ?: member.typeText.orEmpty(), 100),
-                1,
-                index + 1,
-            )
-            addApiCell(documentationCodeLabel(default?.value ?: default?.provider ?: "—", 100), 2, index + 1)
-            addApiCell(
-                wrappedLabel(property.description.orEmpty().take(MAX_CARD_DESCRIPTION_LENGTH), 150),
-                3,
-                index + 1,
-            )
-        }
-        if (properties.size > MAX_CARD_API_PROPERTIES) {
-            addApiCell(
-                cardContentLink(
-                    "Show all ${properties.size} ${kind.name.lowercase()}s →",
-                ) { actions.openOwner?.invoke(entity) },
-                0,
-                MAX_CARD_API_PROPERTIES + 1,
-            )
+                member.declaration
+                    ?.localDocumentation
+                    ?.defaults
+                    ?.firstOrNull { it.name == property.name }
+                    ?: entity.localDocumentation.defaults.firstOrNull { it.name == property.name }
+            add(documentationApiEntry(member, default, actions))
         }
     }
 
-private fun JPanel.addApiCell(
-    component: JComponent,
-    column: Int,
-    row: Int,
-) {
-    add(
-        component,
-        GridBagConstraints().apply {
-            gridx = column
-            gridy = row
-            weightx = if (column == 3) 1.0 else 0.0
-            fill = GridBagConstraints.HORIZONTAL
-            anchor = GridBagConstraints.NORTHWEST
-            insets = JBUI.insets(7, 4)
-        },
-    )
-}
+private fun documentationApiEntry(
+    member: TaigaResolvedDocumentation.Member,
+    default: TaigaInputDefault?,
+    actions: TaigaDocumentationPopupActions,
+): JComponent =
+    JPanel().apply {
+        layout = BoxLayout(this, BoxLayout.Y_AXIS)
+        isOpaque = false
+        alignmentX = JComponent.LEFT_ALIGNMENT
+        border = JBUI.Borders.empty(10, 0)
+        add(
+            cardContentLink(member.property.name) { actions.openMember?.invoke(member) }.apply {
+                font = taigaDocumentationCodeFont().deriveFont(Font.BOLD)
+            },
+        )
+        val type = member.localMember?.declaredAcceptedType ?: member.typeText.orEmpty()
+        if (type.isNotBlank()) {
+            add(Box.createVerticalStrut(JBUI.scale(4)))
+            add(documentationCodeLabel(compactDocumentationType(type), 470))
+        }
+        member.property.description?.takeIf(String::isNotBlank)?.let { description ->
+            add(Box.createVerticalStrut(JBUI.scale(5)))
+            add(wrappedLabel(description.take(MAX_CARD_DESCRIPTION_LENGTH), 470))
+        }
+        val facts =
+            listOfNotNull(
+                default?.value?.let { "Default: $it" } ?: default?.provider?.let { "Default from $it" },
+                "Required".takeIf { member.localMember?.required == true },
+            )
+        if (facts.isNotEmpty()) {
+            add(Box.createVerticalStrut(JBUI.scale(5)))
+            add(JBLabel(facts.joinToString(" · ")).apply { foreground = CARD_MUTED_FOREGROUND })
+        }
+    }
+
+internal fun compactDocumentationType(type: String): String =
+    if (type.length <= 65) type else type.take(62).substringBeforeLast(" | ", type.take(62)) + " …"
 
 @Suppress("ReturnCount")
 internal fun documentationSummaryUsage(documentation: TaigaResolvedDocumentation): String? {
@@ -148,7 +145,6 @@ private fun cardContentLink(
         bind("ENTER", "activate-taiga-link", action)
     }
 
-private const val MAX_CARD_API_PROPERTIES = 5
 private const val MAX_CARD_DESCRIPTION_LENGTH = 240
 private const val MAX_CARD_EXAMPLE_LENGTH = 1_200
 
