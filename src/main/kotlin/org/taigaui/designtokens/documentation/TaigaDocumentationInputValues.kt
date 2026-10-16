@@ -42,12 +42,19 @@ internal fun PsiElement.inputDocumentation(
     local: TaigaLocalDocumentation,
 ): TaigaLocalDocumentation {
     val field =
-        text.trim().takeIf { it.length <= MAX_INPUT_FIELD_TEXT }
+        text
+            .trim()
+            .takeIf { it.length <= MAX_INPUT_FIELD_TEXT }
             ?.let(INPUT_FIELD::matchEntire)
             ?: return local
     val originalName = field.groupValues[1]
     val declaredType = field.groupValues[2].trim()
-    val type = SIGNAL_TYPE.matchEntire(declaredType)?.groupValues?.get(1)?.trim() ?: declaredType
+    val type =
+        SIGNAL_TYPE
+            .matchEntire(declaredType)
+            ?.groupValues
+            ?.get(1)
+            ?.trim() ?: declaredType
     return local.copy(
         inputTypes = local.inputTypes + (name to type),
         inputValues = local.inputValues + (name to localInputValues(type)),
