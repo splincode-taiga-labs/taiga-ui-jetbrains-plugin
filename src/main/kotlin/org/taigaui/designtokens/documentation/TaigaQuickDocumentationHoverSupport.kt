@@ -59,6 +59,13 @@ internal class TaigaQuickDocumentationHoverPopupListener :
         event.dismissTaigaQuickDocumentationHover()
     }
 
+    override fun mouseExited(event: EditorMouseEvent) {
+        val editor = event.editor
+        val project = editor.project ?: return
+
+        project.service<TaigaQuickDocumentationHoverController>().mouseExited(editor)
+    }
+
     override fun mouseMoved(event: EditorMouseEvent) {
         val editor = event.editor
         val project = editor.project ?: return
@@ -119,6 +126,20 @@ internal class TaigaQuickDocumentationHoverController(
     fun dismissHover(editor: Editor? = null) {
         if (editor == null || editor.project == project) {
             cancelScheduledHide()
+            clearHover()
+        }
+    }
+
+    fun mouseExited(editor: Editor) {
+        if (editor.project != project) {
+            return
+        }
+
+        clearHoverUnderline()
+
+        if (popup?.isVisible == true) {
+            scheduleHide()
+        } else {
             clearHover()
         }
     }
