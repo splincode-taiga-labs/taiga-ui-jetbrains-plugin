@@ -22,7 +22,11 @@ internal fun PsiElement.localDocumentation(symbol: String?): TaigaLocalDocumenta
     val local = TaigaLocalDocumentationParser.parse(declaration.text)
     return local.copy(
         inputValues =
-            if (declaration is PsiFile) local.inputTypes.mapValues { emptyList() } else local.inputTypes.mapValues { (_, type) -> declaration.localInputValues(type) },
+            if (declaration is PsiFile) {
+                local.inputTypes.mapValues { emptyList() }
+            } else {
+                local.inputTypes.mapValues { (_, type) -> declaration.localInputValues(type) }
+            },
         source = source?.let { file -> TaigaDocumentationSource(file, declaration.textOffset) },
     )
 }

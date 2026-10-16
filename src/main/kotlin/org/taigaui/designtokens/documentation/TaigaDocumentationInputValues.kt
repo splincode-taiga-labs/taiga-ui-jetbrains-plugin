@@ -26,7 +26,7 @@ internal fun PsiElement.localInputValues(
             .findAll(text.take(MAX_ALIAS_FILE_TEXT))
             .take(MAX_ALIAS_REFERENCES)
             .mapNotNull { match ->
-                val offset = textOffset + match.range.first
+                val offset = textRange.startOffset + match.range.first
                 file.findElementAt(offset)?.resolveTaigaDeclaration(file, offset)
             }.firstOrNull { element -> element.typeDefinition(type) != null }
             ?: return emptyList()
