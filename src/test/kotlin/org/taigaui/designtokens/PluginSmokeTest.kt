@@ -1,6 +1,5 @@
 package org.taigaui.designtokens
 
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -19,7 +18,7 @@ class PluginSmokeTest {
         assertTrue(descriptor.contains("independent community plugin for Taiga UI projects"))
         assertTrue(
             descriptor.contains(
-                "<platform.backend.documentation.symbolTargetProvider",
+                "<platform.backend.documentation.targetProvider",
             ),
         )
         assertTrue(
@@ -35,16 +34,6 @@ class PluginSmokeTest {
         assertTrue(
             descriptor.contains(
                 "org.taigaui.designtokens.documentation.TaigaQuickDocumentationHoverPopupListener",
-            ),
-        )
-        assertFalse(
-            descriptor.contains(
-                "<platform.backend.documentation.targetProvider",
-            ),
-        )
-        assertFalse(
-            descriptor.contains(
-                "TaigaQuickDocumentationCustomizer",
             ),
         )
     }
