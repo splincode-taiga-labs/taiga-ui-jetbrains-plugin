@@ -1,8 +1,8 @@
 package org.taigaui.designtokens.documentation
 
-import com.intellij.util.ui.JBUI
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.labels.LinkLabel
+import com.intellij.util.ui.JBUI
 import javax.swing.JTabbedPane
 import kotlin.time.Duration.Companion.milliseconds
 
