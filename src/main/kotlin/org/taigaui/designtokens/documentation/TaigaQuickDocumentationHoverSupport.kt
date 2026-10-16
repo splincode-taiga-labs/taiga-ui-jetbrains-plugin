@@ -159,7 +159,9 @@ internal class TaigaQuickDocumentationHoverController(
 
             withContext(Dispatchers.EDT) {
                 if (resolved == null || activeKey != request.key || !request.isStillCurrent(project)) {
-                    clearIfCurrent(request.key)
+                    if (activeKey == request.key) {
+                        clearHover()
+                    }
                 } else {
                     hoverJob = null
                     underline.show(
@@ -249,12 +251,6 @@ internal class TaigaQuickDocumentationHoverController(
     private fun cancelScheduledHide() {
         hideJob?.cancel()
         hideJob = null
-    }
-
-    private fun clearIfCurrent(key: TaigaQuickDocumentationHoverKey) {
-        if (activeKey == key) {
-            clearHover()
-        }
     }
 
     private fun clearHover() {
