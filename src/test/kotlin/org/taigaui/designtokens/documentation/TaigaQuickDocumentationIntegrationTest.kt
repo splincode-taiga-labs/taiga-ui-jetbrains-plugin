@@ -40,56 +40,104 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
     }
 
     @Test
-    fun `registered provider renders Taiga directive documentation`() {
+    fun `renders directive documentation for Taiga selector`() {
         val file = configureTemplate("<button tuiButton>Save</button>")
         warmDocumentation(file)
-        val offset = file.text.indexOf("tuiButton") + 3
-
-        var html: String? = null
-        runInEdtAndWait {
-            val targets =
-                IdeDocumentationTargetProvider
-                    .getInstance(project)
-                    .documentationTargets(myFixture.editor, file, offset)
-            val documentation =
-                targets
-                    .asSequence()
-                    .mapNotNull { target -> computeDocumentationBlocking(target.createPointer()) }
-                    .firstOrNull { data -> "TuiButton" in data.html }
-
-            html = documentation?.html
-        }
+        val html = renderDocumentation(file, "tuiButton")
 
         assertNotNull(html)
+        assertTrue(requireNotNull(html).contains("TuiButton"))
+        assertTrue(requireNotNull(html).contains("Directive"))
         assertTrue(requireNotNull(html).contains("@taiga-ui/core"))
-        assertTrue(requireNotNull(html).contains("tuiButton"))
-        assertTrue(requireNotNull(html).contains("TuiSizeXS | TuiSizeL"))
         assertTrue(requireNotNull(html).contains("&lt;button tuiButton&gt;Save&lt;/button&gt;"))
     }
 
     @Test
-    fun `registered provider renders Taiga element documentation`() {
-        val file = configureTemplate("<tui-calendar></tui-calendar>")
+    fun `renders focused input documentation`() {
+        val file = configureTemplate("<button tuiButton [iconEnd]=\"icon\">Save</button>")
         warmDocumentation(file)
-        val offset = file.text.indexOf("tui-calendar") + 4
-
-        var html: String? = null
-        runInEdtAndWait {
-            val targets =
-                IdeDocumentationTargetProvider
-                    .getInstance(project)
-                    .documentationTargets(myFixture.editor, file, offset)
-            val documentation =
-                targets
-                    .asSequence()
-                    .mapNotNull { target -> computeDocumentationBlocking(target.createPointer()) }
-                    .firstOrNull { data -> "TuiCalendar" in data.html }
-
-            html = documentation?.html
-        }
+        val html = renderDocumentation(file, "[iconEnd]")
 
         assertNotNull(html)
-        assertTrue(requireNotNull(html).contains("tui-calendar"))
+        assertTrue(requireNotNull(html).contains("iconEnd"))
+        assertTrue(requireNotNull(html).contains("Input"))
+        assertTrue(requireNotNull(html).contains("of TuiButton"))
+        assertTrue(requireNotNull(html).contains("TuiIcon"))
+        assertTrue(requireNotNull(html).contains("Icon displayed at the end"))
+        assertTrue(requireNotNull(html).contains("[iconEnd]"))
+    }
+
+    @Test
+    fun `renders literal possible values for input`() {
+        val file = configureTemplate("<button tuiButton [size]=\"size\">Save</button>")
+        warmDocumentation(file)
+        val html = renderDocumentation(file, "[size]")
+
+        assertNotNull(html)
+        assertTrue(requireNotNull(html).contains("Possible values"))
+        assertTrue(requireNotNull(html).contains("xs"))
+        assertTrue(requireNotNull(html).contains("xl"))
+    }
+
+    @Test
+    fun `renders focused Taiga output documentation`() {
+        val file = configureTemplate("<button tuiButton (valueChange)=\"onValue(\$event)\">Save</button>")
+        warmDocumentation(file)
+        val html = renderDocumentation(file, "(valueChange)")
+
+        assertNotNull(html)
+        assertTrue(requireNotNull(html).contains("valueChange"))
+        assertTrue(requireNotNull(html).contains("Output"))
+        assertTrue(requireNotNull(html).contains("MouseEvent"))
+        assertTrue(requireNotNull(html).contains("Emitted when the button value changes"))
+    }
+
+    @Test
+    fun `does not claim native click as Taiga output`() {
+        val file = configureTemplate("<button tuiButton (click)=\"onClick()\">Save</button>")
+        warmDocumentation(file)
+        val offset = file.text.indexOf("(click)") + 2
+
+        val targets = TaigaQuickDocumentationTargetProvider().documentationTargets(file, offset)
+
+        assertTrue(targets.isEmpty())
+    }
+
+    @Test
+    fun `renders Taiga element documentation`() {
+        val file = configureTemplate("<tui-calendar></tui-calendar>")
+        warmDocumentation(file)
+        val html = renderDocumentation(file, "tui-calendar")
+
+        assertNotNull(html)
+        assertTrue(requireNotNull(html).contains("TuiCalendar"))
+        assertTrue(requireNotNull(html).contains("Component"))
+    }
+
+    @Test
+    fun `renders TypeScript public symbol and type documentation`() {
+        val file =
+            configureTypeScript(
+                """
+                import {TuiAppearance, TuiButton} from '@taiga-ui/core';
+
+                const button = TuiButton;
+                const appearance: TuiAppearance = 'primary';
+                """.trimIndent(),
+            )
+        warmDocumentation(file)
+
+        val buttonHtml = renderDocumentation(file, "TuiButton", occurrence = 2)
+        val typeHtml = renderDocumentation(file, "TuiAppearance", occurrence = 2)
+
+        assertNotNull(buttonHtml)
+        assertTrue(requireNotNull(buttonHtml).contains("TuiButton"))
+        assertTrue(requireNotNull(buttonHtml).contains("@taiga-ui/core"))
+        assertNotNull(typeHtml)
+        assertTrue(requireNotNull(typeHtml).contains("TuiAppearance"))
+        assertTrue(requireNotNull(typeHtml).contains("Type"))
+        assertTrue(requireNotNull(typeHtml).contains("primary"))
+        assertTrue(requireNotNull(typeHtml).contains("secondary"))
     }
 
     @Test
@@ -114,15 +162,70 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
     }
 
     @Test
-    fun `resolver ignores Taiga-looking text outside HTML compatible files`() {
-        val file = myFixture.configureByText("plain.ts", "const example = '<button tuiButton></button>';")
-        val offset = file.text.indexOf("tuiButton") + 3
+    fun `resolver ignores Taiga-looking text in ordinary TypeScript string`() {
+        val file = myFixture.configureByText("plain.ts", "const example = 'TuiButton';")
+        val offset = file.text.indexOf("TuiButton") + 3
 
-        assertTrue(TaigaTemplateDocumentationResolver.find(file, offset) == null)
+        assertTrue(TaigaDocumentationResolver.findRequest(file, offset) == null)
+    }
+
+    private fun renderDocumentation(
+        file: PsiFile,
+        needle: String,
+        occurrence: Int = 1,
+    ): String? {
+        val offset = nthIndexOf(file.text, needle, occurrence) + (needle.length / 2)
+
+        var html: String? = null
+        runInEdtAndWait {
+            val targets =
+                IdeDocumentationTargetProvider
+                    .getInstance(project)
+                    .documentationTargets(myFixture.editor, file, offset)
+            val documentation =
+                targets
+                    .asSequence()
+                    .mapNotNull { target -> computeDocumentationBlocking(target.createPointer()) }
+                    .firstOrNull { data ->
+                        needle.trim('[', ']', '(', ')') in data.html ||
+                            "TuiButton" in data.html ||
+                            "TuiAppearance" in data.html
+                    }
+
+            html = documentation?.html
+        }
+
+        return html
+    }
+
+    private fun nthIndexOf(
+        text: String,
+        needle: String,
+        occurrence: Int,
+    ): Int {
+        var fromIndex = 0
+        var index = -1
+
+        repeat(occurrence) {
+            index = text.indexOf(needle, fromIndex)
+            require(index >= 0) { "Cannot find occurrence $occurrence of $needle" }
+            fromIndex = index + needle.length
+        }
+
+        return index
     }
 
     private fun configureTemplate(template: String): PsiFile {
         val file = createFile(workspaceRoot.resolve("src/component.html"), template)
+
+        myFixture.configureFromExistingVirtualFile(file)
+        PsiDocumentManager.getInstance(project).commitAllDocuments()
+
+        return myFixture.file
+    }
+
+    private fun configureTypeScript(source: String): PsiFile {
+        val file = createFile(workspaceRoot.resolve("src/consumer.ts"), source)
 
         myFixture.configureFromExistingVirtualFile(file)
         PsiDocumentManager.getInstance(project).commitAllDocuments()
@@ -209,8 +312,16 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
             {
               "name": "@taiga-ui/core",
               "version": "5.18.0",
+              "types": "index.d.ts",
               "web-types": "web-types.json"
             }
+            """.trimIndent(),
+        )
+        createFile(
+            workspaceRoot.resolve("node_modules/@taiga-ui/core/index.d.ts"),
+            """
+            export declare const TuiButton: unique symbol;
+            export type TuiAppearance = 'primary' | 'secondary' | 'accent' | 'neutral';
             """.trimIndent(),
         )
         createFile(
@@ -254,17 +365,31 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
             "TuiCalendar",
             FENCE,
             "",
+            "**Types:**",
+            "",
+            "### appearance",
+            FENCE + "text",
+            "TuiAppearance",
+            FENCE,
+            "",
             "# components/Button",
             "- **Package**: " + tick("CORE"),
             "- **Type**: components",
             "- **Version**: 5.0.0",
             "",
-            "Button is a basic component.",
+            "Styles native buttons using Taiga UI appearances, sizes and loading states.",
             "",
             "### API - Inputs",
             "| Property | Type | Description |",
             "| --- | --- | --- |",
-            "| " + tick("[size]") + " | " + tick("TuiSizeXS | TuiSizeL") + " | Button size |",
+            "| " + tick("[iconEnd]") + " | " + tick("TuiIcon") + " | Icon displayed at the end of the button content. |",
+            "| " + tick("[size]") + " | " + tick("'xs' \\| 's' \\| 'm' \\| 'l' \\| 'xl'") + " | Controls the button size. |",
+            "| " + tick("[appearance]") + " | " + tick("TuiAppearance") + " | Visual style of the button. |",
+            "",
+            "### API - Outputs",
+            "| Event | Type | Description |",
+            "| --- | --- | --- |",
+            "| " + tick("(valueChange)") + " | " + tick("MouseEvent") + " | Emitted when the button value changes. |",
             "",
             "### Example",
             FENCE + "html",
@@ -282,6 +407,13 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
             FENCE + "html",
             "<tui-calendar></tui-calendar>",
             FENCE,
+            "",
+            "# types/Appearance",
+            "- **Package**: " + tick("CORE"),
+            "- **Type**: types",
+            "- **Version**: 5.0.0",
+            "",
+            "Available button appearances.",
         ).joinToString("\n")
 
     private fun createFile(
