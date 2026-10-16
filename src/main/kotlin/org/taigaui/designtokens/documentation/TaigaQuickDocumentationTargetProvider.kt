@@ -1,17 +1,21 @@
 package org.taigaui.designtokens.documentation
 
+import com.intellij.codeInsight.lookup.LookupElement
 import com.intellij.model.Pointer
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.platform.backend.documentation.DocumentationResult
 import com.intellij.platform.backend.documentation.DocumentationTarget
 import com.intellij.platform.backend.documentation.DocumentationTargetProvider
+import com.intellij.platform.backend.documentation.LookupElementDocumentationTargetProvider
 import com.intellij.platform.backend.presentation.TargetPresentation
 import com.intellij.psi.PsiFile
 import java.nio.file.Path
 import java.nio.file.Paths
 
-internal class TaigaQuickDocumentationTargetProvider : DocumentationTargetProvider {
+internal class TaigaQuickDocumentationTargetProvider :
+    DocumentationTargetProvider,
+    LookupElementDocumentationTargetProvider {
     override fun documentationTargets(
         file: PsiFile,
         offset: Int,
@@ -19,18 +23,36 @@ internal class TaigaQuickDocumentationTargetProvider : DocumentationTargetProvid
         val selector =
             TaigaTemplateSelectorAtOffset.find(file.viewProvider.contents, offset)
                 ?: return emptyList()
+
+        return listOfNotNull(createTarget(file, selector))
+    }
+
+    override fun documentationTarget(
+        psiFile: PsiFile,
+        element: LookupElement,
+        offset: Int,
+    ): DocumentationTarget? {
+        val key =
+            element.lookupString.takeIf(TaigaTemplateSelectorAtOffset::isTaigaDocumentationKey)
+                ?: return null
+
+        return createTarget(psiFile, key)
+    }
+
+    private fun createTarget(
+        file: PsiFile,
+        key: String,
+    ): DocumentationTarget? {
         val sourceFile =
             file.virtualFile
                 ?.path
                 ?.let { path -> runCatching { Paths.get(path) }.getOrNull() }
-                ?: return emptyList()
+                ?: return null
 
-        return listOf(
-            TaigaQuickDocumentationTarget(
-                project = file.project,
-                sourceFile = sourceFile,
-                selector = selector,
-            ),
+        return TaigaQuickDocumentationTarget(
+            project = file.project,
+            sourceFile = sourceFile,
+            key = key,
         )
     }
 }
@@ -38,13 +60,13 @@ internal class TaigaQuickDocumentationTargetProvider : DocumentationTargetProvid
 private class TaigaQuickDocumentationTarget(
     private val project: Project,
     private val sourceFile: Path,
-    private val selector: String,
+    private val key: String,
 ) : DocumentationTarget {
     override fun createPointer(): Pointer<out DocumentationTarget> = Pointer.hardPointer(this)
 
     override fun computePresentation(): TargetPresentation =
         TargetPresentation
-            .builder(selector)
+            .builder(key)
             .presentation()
 
     override fun computeDocumentation(): DocumentationResult =
@@ -53,12 +75,14 @@ private class TaigaQuickDocumentationTarget(
                 return@asyncDocumentation null
             }
 
-            val entity =
+            val snapshot =
                 project
                     .service<TaigaDocsService>()
                     .snapshotFor(sourceFile)
-                    ?.findBySelector(selector)
-                    ?.firstOrNull()
+                    ?: return@asyncDocumentation null
+            val entity =
+                snapshot.findBySelector(key).firstOrNull()
+                    ?: snapshot.findByPublicSymbol(key).firstOrNull()
                     ?: return@asyncDocumentation null
 
             DocumentationResult
