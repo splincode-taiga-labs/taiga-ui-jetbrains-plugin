@@ -4,7 +4,10 @@ import com.intellij.lang.documentation.DocumentationMarkup
 import com.intellij.openapi.util.text.StringUtil
 
 internal object TaigaQuickDocumentationRenderer {
-    fun render(\n        entity: TaigaEntityDoc,\n        subject: TaigaDocumentationSubject,\n    ): String =
+    fun render(
+        entity: TaigaEntityDoc,
+        subject: TaigaDocumentationSubject,
+    ): String =
         buildString {
             append(DocumentationMarkup.DEFINITION_START)
             append("<b>")
