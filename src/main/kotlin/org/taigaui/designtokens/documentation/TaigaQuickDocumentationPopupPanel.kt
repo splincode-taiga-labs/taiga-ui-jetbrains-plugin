@@ -15,6 +15,7 @@ import javax.swing.BoxLayout
 import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.JSeparator
+import javax.swing.JTabbedPane
 import javax.swing.SwingUtilities
 
 internal class TaigaQuickDocumentationPopupPanel(
@@ -22,31 +23,31 @@ internal class TaigaQuickDocumentationPopupPanel(
     onClose: () -> Unit,
 ) : JPanel(BorderLayout()) {
     init {
-        border = JBUI.Borders.empty(12, 16)
+        border = JBUI.Borders.empty(10, 14)
         isOpaque = true
 
-        val content =
-            JPanel().apply {
-                layout = BoxLayout(this, BoxLayout.Y_AXIS)
-                isOpaque = false
-            }
+        val content = verticalPanel()
 
         content.add(createHeader(onClose))
-        content.add(Box.createVerticalStrut(JBUI.scale(4)))
-        createMetaLabel()?.let(content::add)
+        createMetaLabel()?.let { meta ->
+            content.add(Box.createVerticalStrut(JBUI.scale(3)))
+            content.add(meta)
+        }
 
         resolved.description?.takeIf(String::isNotBlank)?.let { description ->
-            content.add(Box.createVerticalStrut(JBUI.scale(10)))
+            content.add(Box.createVerticalStrut(JBUI.scale(8)))
             content.add(wrappedLabel(description))
         }
 
-        content.add(Box.createVerticalStrut(JBUI.scale(10)))
-        content.add(separator())
-        content.add(Box.createVerticalStrut(JBUI.scale(10)))
+        content.add(Box.createVerticalStrut(JBUI.scale(8)))
 
         when (resolved) {
-            is TaigaResolvedDocumentation.Entity -> content.addEntityDetails(resolved)
-            is TaigaResolvedDocumentation.Member -> content.addMemberDetails(resolved)
+            is TaigaResolvedDocumentation.Entity -> content.add(createEntityTabs(resolved))
+            is TaigaResolvedDocumentation.Member -> {
+                content.add(separator())
+                content.add(Box.createVerticalStrut(JBUI.scale(8)))
+                content.add(createMemberContent(resolved))
+            }
         }
 
         add(content, BorderLayout.CENTER)
@@ -63,13 +64,8 @@ internal class TaigaQuickDocumentationPopupPanel(
                     font = font.deriveFont(font.style or Font.BOLD)
                 },
             )
-            add(Box.createHorizontalStrut(JBUI.scale(8)))
-            add(
-                JBLabel(resolved.badge).apply {
-                    foreground = UIUtil.getContextHelpForeground()
-                    border = JBUI.Borders.empty(1, 6)
-                },
-            )
+            add(Box.createHorizontalStrut(JBUI.scale(7)))
+            add(createBadge(resolved.badge))
             add(Box.createHorizontalGlue())
             add(
                 LinkLabel<Any>("View documentation ↗", null) { _, _ ->
@@ -77,6 +73,16 @@ internal class TaigaQuickDocumentationPopupPanel(
                     onClose()
                 },
             )
+        }
+
+    private fun createBadge(text: String): JComponent =
+        JBLabel(text).apply {
+            isOpaque = true
+            background = UIUtil.getTextFieldBackground()
+            foreground = UIUtil.getContextHelpForeground()
+            border = JBUI.Borders.empty(2, 6)
+            font = font.deriveFont((font.size2D - 1F).coerceAtLeast(10F))
+            alignmentY = CENTER_ALIGNMENT
         }
 
     private fun createMetaLabel(): JComponent? {
@@ -96,46 +102,67 @@ internal class TaigaQuickDocumentationPopupPanel(
             }
     }
 
-    private fun JPanel.addEntityDetails(entityDocs: TaigaResolvedDocumentation.Entity) {
-        entityDocs.typeText?.takeIf(String::isNotBlank)?.let { type ->
-            addDetail("Type", "<code>${type.html()}</code>")
+    private fun createEntityTabs(entityDocs: TaigaResolvedDocumentation.Entity): JComponent {
+        val overview =
+            verticalPanel().apply {
+                entityDocs.typeText?.takeIf(String::isNotBlank)?.let { type ->
+                    addDetail("Type", "<code>${type.html()}</code>")
+                }
+
+                entityDocs.effectiveUsage?.takeIf(String::isNotBlank)?.let { usage ->
+                    addCodeSection("Usage", usage, "Copy usage")
+                }
+
+                entityDocs.canonicalImport()?.let { statement ->
+                    addCodeSection("Import", statement, "Copy import")
+                }
+            }
+
+        val hasApi = entityDocs.entity.inputs.isNotEmpty() || entityDocs.entity.outputs.isNotEmpty()
+
+        if (!hasApi) {
+            return overview
         }
 
-        entityDocs.effectiveUsage?.takeIf(String::isNotBlank)?.let { usage ->
-            addCodeSection("Usage", usage)
-        }
+        val api =
+            verticalPanel().apply {
+                addApiSection("Inputs", entityDocs.entity.inputs)
+                addApiSection("Outputs", entityDocs.entity.outputs)
+            }
 
-        entityDocs.canonicalImport()?.let { statement ->
-            addCodeSection("Import", statement)
-        }
-
-        addApiSection("Inputs", entityDocs.entity.inputs)
-        addApiSection("Outputs", entityDocs.entity.outputs)
-    }
-
-    private fun JPanel.addMemberDetails(memberDocs: TaigaResolvedDocumentation.Member) {
-        memberDocs.typeText?.takeIf(String::isNotBlank)?.let { type ->
-            addDetail("Type", "<code>${type.html()}</code>")
-        }
-
-        memberDocs.effectiveUsage?.takeIf(String::isNotBlank)?.let { usage ->
-            addCodeSection("Usage", usage)
-        }
-
-        memberDocs.possibleValues().takeIf(List<String>::isNotEmpty)?.let { values ->
-            addDetail(
-                "Possible values",
-                values.joinToString("&nbsp;&nbsp;") { value -> "<code>${value.html()}</code>" },
-            )
-        }
-
-        memberDocs.relatedMembers().takeIf(List<String>::isNotEmpty)?.let { related ->
-            addDetail(
-                "See also",
-                related.joinToString("&nbsp;&nbsp;") { value -> "<code>${value.html()}</code>" },
-            )
+        return JTabbedPane().apply {
+            isOpaque = false
+            border = JBUI.Borders.empty()
+            alignmentX = LEFT_ALIGNMENT
+            addTab("Overview", overview)
+            addTab("API", api)
         }
     }
+
+    private fun createMemberContent(memberDocs: TaigaResolvedDocumentation.Member): JComponent =
+        verticalPanel().apply {
+            memberDocs.typeText?.takeIf(String::isNotBlank)?.let { type ->
+                addDetail("Type", "<code>${type.html()}</code>")
+            }
+
+            memberDocs.effectiveUsage?.takeIf(String::isNotBlank)?.let { usage ->
+                addCodeSection("Usage", usage, "Copy usage")
+            }
+
+            memberDocs.possibleValues().takeIf(List<String>::isNotEmpty)?.let { values ->
+                addDetail(
+                    "Possible values",
+                    values.joinToString("&nbsp;&nbsp;") { value -> "<code>${value.html()}</code>" },
+                )
+            }
+
+            memberDocs.relatedMembers().takeIf(List<String>::isNotEmpty)?.let { related ->
+                addDetail(
+                    "See also",
+                    related.joinToString("&nbsp;&nbsp;") { value -> "<code>${value.html()}</code>" },
+                )
+            }
+        }
 
     private fun JPanel.addApiSection(
         title: String,
@@ -159,7 +186,7 @@ internal class TaigaQuickDocumentationPopupPanel(
 
             add(
                 JBLabel(
-                    "<html><code>${property.name.html()}</code>$type$description</html>",
+                    "<html><div width='$POPUP_TEXT_WIDTH'><code>${property.signature.html()}</code>$type$description</div></html>",
                 ).apply {
                     alignmentX = LEFT_ALIGNMENT
                 },
@@ -178,25 +205,31 @@ internal class TaigaQuickDocumentationPopupPanel(
             )
         }
 
-        add(Box.createVerticalStrut(JBUI.scale(8)))
+        add(Box.createVerticalStrut(JBUI.scale(6)))
     }
 
     private fun JPanel.addCodeSection(
         title: String,
         code: String,
+        copyTooltip: String,
     ) {
         addSectionTitle(title)
         add(
-            JBLabel(
-                "<html><div width='$POPUP_TEXT_WIDTH'><code>${code.html()}</code></div></html>",
-            ).apply {
-                isOpaque = true
-                background = UIUtil.getTextFieldBackground()
-                border = JBUI.Borders.empty(7, 9)
+            RoundedRowPanel().apply {
+                layout = BorderLayout(JBUI.scale(6), 0)
+                border = JBUI.Borders.empty(6, 8)
                 alignmentX = LEFT_ALIGNMENT
+
+                add(
+                    JBLabel(
+                        "<html><div width='$CODE_TEXT_WIDTH'><code>${code.html()}</code></div></html>",
+                    ),
+                    BorderLayout.CENTER,
+                )
+                add(CopyValueButton(code, copyTooltip), BorderLayout.EAST)
             },
         )
-        add(Box.createVerticalStrut(JBUI.scale(8)))
+        add(Box.createVerticalStrut(JBUI.scale(7)))
     }
 
     private fun JPanel.addDetail(
@@ -210,7 +243,7 @@ internal class TaigaQuickDocumentationPopupPanel(
                 alignmentX = LEFT_ALIGNMENT
             },
         )
-        add(Box.createVerticalStrut(JBUI.scale(8)))
+        add(Box.createVerticalStrut(JBUI.scale(7)))
     }
 
     private fun JPanel.addSectionTitle(title: String) {
@@ -220,8 +253,15 @@ internal class TaigaQuickDocumentationPopupPanel(
                 alignmentX = LEFT_ALIGNMENT
             },
         )
-        add(Box.createVerticalStrut(JBUI.scale(5)))
+        add(Box.createVerticalStrut(JBUI.scale(4)))
     }
+
+    private fun verticalPanel(): JPanel =
+        JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            isOpaque = false
+            alignmentX = LEFT_ALIGNMENT
+        }
 
     private fun separator(): JComponent =
         JSeparator().apply {
@@ -243,7 +283,8 @@ private fun wrappedLabel(text: String): JComponent =
         alignmentX = JComponent.LEFT_ALIGNMENT
     }
 
-private const val POPUP_TEXT_WIDTH = 520
+private const val POPUP_TEXT_WIDTH = 700
+private const val CODE_TEXT_WIDTH = 650
 
 internal fun JComponent.containsPointer(): Boolean =
     isShowing &&
