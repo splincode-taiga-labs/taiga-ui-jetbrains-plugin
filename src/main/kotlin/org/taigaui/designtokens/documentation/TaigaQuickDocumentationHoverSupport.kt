@@ -93,13 +93,15 @@ internal class TaigaQuickDocumentationHoverController(
         }
 
         cancelScheduledHide()
-        suppressNativeHover(request.editor)
 
         if (requestKey != activeKey) {
-            activeKey = requestKey
             hoverJob?.cancel()
-            hidePopup(restoreNativeHover = false)
+            hidePopup(restoreNativeHover = true)
+            activeKey = requestKey
+            suppressNativeHover(request.editor)
             hoverJob = scheduleHover(request)
+        } else {
+            suppressNativeHover(request.editor)
         }
     }
 
@@ -147,7 +149,6 @@ internal class TaigaQuickDocumentationHoverController(
             return
         }
 
-        hidePopup(restoreNativeHover = false)
         suppressNativeHover(request.editor)
 
         val panel =
