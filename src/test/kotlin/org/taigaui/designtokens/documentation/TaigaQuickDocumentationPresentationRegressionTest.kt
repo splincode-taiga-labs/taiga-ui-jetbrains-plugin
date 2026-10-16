@@ -1,8 +1,10 @@
 package org.taigaui.designtokens.documentation
 
 import com.intellij.ui.components.JBLabel
+import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.labels.LinkLabel
 import com.intellij.util.ui.JBUI
+import javax.swing.JScrollPane
 import javax.swing.JTabbedPane
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -170,6 +172,43 @@ class TaigaQuickDocumentationPresentationRegressionTest : TaigaDocumentationPopu
 
         host.showCard(small)
         assertEquals(initialSize, host.preferredSize)
+        host.stopTransition()
+    }
+
+    fun testShortHoverContentHidesScrollbarWithStableOuterSize() {
+        val card = TaigaQuickDocumentationPopupPanel(pipe(), compactHover = true, hoverPointer = true)
+        val host = TaigaDocumentationPopupHost(card, stabilizesHoverSize = true)
+        val before = java.awt.Dimension(host.preferredSize)
+        host.size = before
+        host.doLayout()
+        card.doLayout()
+        val scroll = descendants(card).filterIsInstance<JBScrollPane>().single()
+        scroll.doLayout()
+        card.updateHoverScrollbarVisibility()
+
+        assertEquals(
+            JScrollPane.VERTICAL_SCROLLBAR_NEVER,
+            taigaHoverScrollbarPolicy(scroll.viewport.extentSize.height, scroll.viewport.extentSize.height),
+        )
+        assertEquals(JScrollPane.VERTICAL_SCROLLBAR_NEVER, scroll.verticalScrollBarPolicy)
+        assertEquals(before, host.preferredSize)
+        host.stopTransition()
+    }
+
+    fun testLongHoverContentRemainsScrollableWithoutResizingHost() {
+        val card = TaigaQuickDocumentationPopupPanel(directive(), compactHover = true, hoverPointer = true)
+        val host = TaigaDocumentationPopupHost(card, stabilizesHoverSize = true)
+        val before = java.awt.Dimension(host.preferredSize)
+        host.size = before
+        host.doLayout()
+        card.doLayout()
+        val scroll = descendants(card).filterIsInstance<JBScrollPane>().single()
+        scroll.doLayout()
+        assertEquals(
+            JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+            taigaHoverScrollbarPolicy(scroll.viewport.extentSize.height + JBUI.scale(80), scroll.viewport.extentSize.height),
+        )
+        assertEquals(before, host.preferredSize)
         host.stopTransition()
     }
 

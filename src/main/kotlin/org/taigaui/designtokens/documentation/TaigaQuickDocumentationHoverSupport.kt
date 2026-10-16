@@ -504,7 +504,7 @@ internal class TaigaQuickDocumentationHoverController(
                     panel,
                     request.editor,
                     request.documentationTargetScreenBounds(),
-                    request.popupPlacement(panel.preferredSize),
+                    request.popupPlacement(host.preferredSize),
                     pinnedSize,
                     pinnedLocation,
                     pinned,

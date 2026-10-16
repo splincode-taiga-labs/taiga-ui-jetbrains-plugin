@@ -18,12 +18,15 @@ import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
 import java.awt.Point
 import java.awt.RenderingHints
+import java.awt.event.ComponentAdapter
+import java.awt.event.ComponentEvent
 import javax.swing.Box
 import javax.swing.BoxLayout
 import javax.swing.Icon
 import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JPanel
+import javax.swing.JScrollPane
 import javax.swing.LayoutFocusTraversalPolicy
 import javax.swing.SwingUtilities
 
@@ -147,6 +150,15 @@ internal class TaigaQuickDocumentationPopupPanel(
             }
         add(scroll, BorderLayout.CENTER)
         if (compactHover) {
+            scroll.viewport.addComponentListener(
+                object : ComponentAdapter() {
+                    override fun componentResized(event: ComponentEvent) {
+                        updateHoverScrollbarVisibility()
+                    }
+                },
+            )
+        }
+        if (compactHover) {
             val footer = compactDocumentationFooter(actions)
             if (footer.componentCount > 0) add(footer, BorderLayout.SOUTH)
         }
@@ -154,6 +166,19 @@ internal class TaigaQuickDocumentationPopupPanel(
     }
 
     val scrollPosition: Point get() = Point(scroll.viewport.viewPosition)
+
+    // The popup height is stable, but the scroll indicator belongs only to overflowing content.
+    internal fun updateHoverScrollbarVisibility() {
+        if (!compactHover) return
+        val availableHeight = scroll.viewport.extentSize.height
+        if (availableHeight <= 0) return
+
+        val policy =
+            taigaHoverScrollbarPolicy(content.preferredSize.height, availableHeight)
+        if (scroll.verticalScrollBarPolicy != policy) {
+            scroll.verticalScrollBarPolicy = policy
+        }
+    }
 
     fun alignHoverPointer(
         offset: Int,
@@ -235,6 +260,9 @@ internal class TaigaQuickDocumentationPopupPanel(
         revalidate()
         repaint()
         actions.resize?.invoke()
+        SwingUtilities.invokeLater {
+            if (isDisplayable) updateHoverScrollbarVisibility()
+        }
     }
 
     private fun invalidateContentLayout(component: java.awt.Container) {
@@ -795,6 +823,17 @@ internal fun wrappedLabel(
         alignmentX = JComponent.LEFT_ALIGNMENT
         font = font.deriveFont(Font.PLAIN)
         toolTipText = text
+    }
+
+/** Avoid an empty track when the content fits the fixed hover viewport. */
+internal fun taigaHoverScrollbarPolicy(
+    contentHeight: Int,
+    viewportHeight: Int,
+): Int =
+    if (contentHeight <= viewportHeight + JBUI.scale(2)) {
+        JScrollPane.VERTICAL_SCROLLBAR_NEVER
+    } else {
+        JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED
     }
 
 private val PIPE_COLOR = JBColor(Color(31, 105, 183), Color(102, 172, 247))
