@@ -1,5 +1,8 @@
 package org.taigaui.designtokens.documentation
 
+import com.intellij.openapi.actionSystem.ActionManager
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.command.undo.UndoManager
@@ -9,12 +12,13 @@ import com.intellij.openapi.editor.EditorFactory
 import com.intellij.openapi.editor.RangeMarker
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.impl.text.TextEditorProvider
+import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.wm.IdeFocusManager
 import com.intellij.platform.backend.documentation.impl.computeDocumentationBlocking
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.testFramework.DumbModeTestUtils
-import com.intellij.testFramework.ServiceContainerUtil
+import com.intellij.testFramework.replaceService
 import com.intellij.ui.UiInterceptors
 import com.intellij.ui.awt.RelativePoint
 import com.intellij.ui.components.JBList
@@ -35,12 +39,9 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
     override fun setUp() {
         super.setUp()
         TaigaDocumentationAngularFixture.install(myFixture)
-        ServiceContainerUtil.replaceService(
-            ApplicationManager.getApplication(),
-            IdeFocusManager::class.java,
-            focus,
-            testRootDisposable,
-        )
+        ApplicationManager
+            .getApplication()
+            .replaceService(IdeFocusManager::class.java, focus, testRootDisposable)
         UiInterceptors.registerPersistent(
             testRootDisposable,
             object : UiInterceptors.PersistentUiInterceptor<JBPopup>(JBPopup::class.java) {
@@ -242,6 +243,87 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
         activate(statusPanel(), "ESCAPE")
         assertNull(documentationField<TaigaDocumentationStatusPanel?>(status(), "panel"))
         assertNull(documentationField<Any?>(controller, "pendingKey"))
+    }
+
+    fun testUnavailableImportHelpInvokesNativeActionAtTheTrackedSourceTarget() {
+        val text =
+            TaigaDocumentationAngularFixture.CONSUMER.replace(
+                "templateUrl: './component.html'",
+                "template: `<button tuiUnimported>First</button>`",
+            ) +
+                """
+                @Component({selector: 'second', standalone: true, imports: [TuiButton],
+                    template: `<button tuiButton>Second</button>`})
+                export class SecondComponent {}
+                """.trimIndent()
+        val file = myFixture.tempDirFixture.createFile("src/inline.ts", text)
+        myFixture.configureFromExistingVirtualFile(file)
+        PsiDocumentManager.getInstance(project).commitAllDocuments()
+        myFixture.doHighlighting()
+        myFixture.editor.caretModel.moveToOffset(text.indexOf("tuiUnimported") + 1)
+        val originalOffset = myFixture.editor.caretModel.offset
+        controller.showFromCaret(myFixture.editor)
+        await("unavailable target") { labelText(statusPanel()).contains("No installed Taiga UI API") }
+        val marker = documentationField<RangeMarker>(status(), "target")
+        WriteCommandAction.runWriteCommandAction(project) {
+            myFixture.editor.document.insertString(0, "// prefix\n")
+        }
+        PsiDocumentManager.getInstance(project).commitAllDocuments()
+        val trackedOffset = originalOffset + "// prefix\n".length
+        myFixture.editor.caretModel.moveToOffset(
+            myFixture.editor.document.text
+                .lastIndexOf("tuiButton") + 1,
+        )
+        val manager = ActionManager.getInstance()
+        val original = requireNotNull(manager.getAction("ShowIntentionActions"))
+        var invokedEditor: Editor? = null
+        var invokedOffset: Int? = null
+        manager.replaceAction(
+            "ShowIntentionActions",
+            object : DumbAwareAction() {
+                override fun actionPerformed(event: AnActionEvent) {
+                    invokedEditor = event.getData(CommonDataKeys.EDITOR)
+                    invokedOffset = invokedEditor?.caretModel?.offset
+                }
+            },
+        )
+        try {
+            descendants(statusPanel())
+                .filterIsInstance<JButton>()
+                .first { it.text == "Angular quick fixes" }
+                .doClick()
+            await("native Angular context action") { invokedOffset != null }
+            assertSame(myFixture.editor, invokedEditor)
+            assertEquals(trackedOffset, invokedOffset)
+            assertSame(myFixture.editor.contentComponent, focus.requests.last())
+            assertFalse(marker.isValid)
+            assertNull(documentationField<Editor?>(status(), "editor"))
+            assertNull(panelOrNull())
+        } finally {
+            manager.replaceAction("ShowIntentionActions", original)
+        }
+    }
+
+    fun testDeletedUnavailableTargetCannotDispatchImportHelpAtANeighbor() {
+        configure("<button tuiUnimported>First</button>\n<button tuiButton>Second</button>", "tuiUnimported")
+        controller.showFromCaret(myFixture.editor)
+        await("unavailable target") { labelText(statusPanel()).contains("No installed Taiga UI API") }
+        val marker = documentationField<RangeMarker>(status(), "target")
+        WriteCommandAction.runWriteCommandAction(project) {
+            myFixture.editor.document.deleteString(0, "<button tuiUnimported>First</button>\n".length)
+        }
+        assertFalse(marker.isValid)
+        myFixture.editor.caretModel.moveToOffset(myFixture.editor.document.textLength)
+        val focusRequests = focus.requests.size
+        val caret = myFixture.editor.caretModel.offset
+        descendants(statusPanel())
+            .filterIsInstance<JButton>()
+            .first { it.text == "Angular quick fixes" }
+            .doClick()
+        UIUtil.dispatchAllInvocationEvents()
+        assertEquals(caret, myFixture.editor.caretModel.offset)
+        assertEquals(focusRequests, focus.requests.size)
+        assertNull(documentationField<Editor?>(status(), "editor"))
     }
 
     fun testChangedImportsDisableButtonsAndRejectPreviouslyCapturedAction() {
