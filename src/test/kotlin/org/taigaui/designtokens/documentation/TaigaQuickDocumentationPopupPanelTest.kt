@@ -90,12 +90,20 @@ class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
         var applied: String? = null
         val panel = TaigaQuickDocumentationPopupPanel(
             member,
-            actions = TaigaDocumentationPopupActions(applyValue = { applied = it; "Applied $it · Undo available" }),
+            actions = TaigaDocumentationPopupActions(
+                togglePin = {},
+                applyValue = {
+                    applied = it
+                    "Applied $it · Undo available"
+                },
+            ),
+            pinned = true,
         )
         descendants(panel).filterIsInstance<JButton>().first { it.text == "m" }.doClick()
         assertEquals("m", applied)
         assertTrue(labelText(panel).contains("Current value: m"))
         assertTrue(labelText(panel).contains("Undo available"))
+        renderAndSave(panel, "binding")
     }
 
     fun testDynamicAndDocumentationOnlyValuesAreCopyActions() {
@@ -127,24 +135,29 @@ class TaigaQuickDocumentationPopupPanelTest : BasePlatformTestCase() {
                                 navigateToSource = {},
                                 chooseIcon = {},
                                 openMember = {},
+                                togglePin = {},
                             ),
                         previews = previews,
                     )
-                val size = panel.preferredSize
-                assertTrue("Card must stay compact", size.height <= 700)
-                panel.size = Dimension(size)
-                layoutRecursively(panel)
-                val image = BufferedImage(size.width, size.height, BufferedImage.TYPE_INT_ARGB)
-                val graphics = image.createGraphics()
-                panel.printAll(graphics)
-                graphics.dispose()
-                val path = Path.of("build/reports/quick-documentation/$name.png")
-                Files.createDirectories(path.parent)
-                ImageIO.write(image, "png", path.toFile())
+                renderAndSave(panel, name)
             }
         } finally {
             JBColor.setDark(!previousBright)
         }
+    }
+
+    private fun renderAndSave(panel: TaigaQuickDocumentationPopupPanel, name: String) {
+        val size = panel.preferredSize
+        assertTrue("Card must stay compact", size.height <= 700)
+        panel.size = Dimension(size)
+        layoutRecursively(panel)
+        val image = BufferedImage(size.width, size.height, BufferedImage.TYPE_INT_ARGB)
+        val graphics = image.createGraphics()
+        panel.printAll(graphics)
+        graphics.dispose()
+        val path = Path.of("build/reports/quick-documentation/$name.png")
+        Files.createDirectories(path.parent)
+        ImageIO.write(image, "png", path.toFile())
     }
 
     private fun iconPreview(reference: TaigaDocumentationIcon): TaigaDocumentationIconPreview {

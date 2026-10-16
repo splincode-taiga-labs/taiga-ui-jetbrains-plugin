@@ -1,6 +1,7 @@
 package org.taigaui.designtokens.documentation
 
 import com.intellij.codeInsight.lookup.LookupManager
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.command.WriteCommandAction
@@ -79,7 +80,7 @@ private fun EditorMouseEvent.dismissTaigaQuickDocumentationHover() {
 internal class TaigaQuickDocumentationHoverController(
     private val project: Project,
     private val coroutineScope: CoroutineScope,
-) {
+) : Disposable {
     private val nativeHoverSuppression = DesignTokenNativeHoverPopupSuppression()
     private val underline = TaigaQuickDocumentationUnderline()
     private var activeKey: TaigaQuickDocumentationHoverKey? = null
@@ -106,6 +107,10 @@ internal class TaigaQuickDocumentationHoverController(
             },
             project,
         )
+    }
+
+    override fun dispose() {
+        clearHover()
     }
 
     fun mouseMoved(event: EditorMouseEvent) {
@@ -349,7 +354,7 @@ internal class TaigaQuickDocumentationHoverController(
                     location?.let { popup?.setLocation(it) }
                 }
             },
-            applyValue = bindingEditor?.let { editor -> { value -> editor.apply(value) } },
+            applyValue = bindingEditor?.let { editor -> { value: String -> editor.apply(value) } },
             currentValue = bindingEditor?.currentValue,
             chooseIcon = { reference -> chooseIcon(request, reference) },
             openMember = { member ->
