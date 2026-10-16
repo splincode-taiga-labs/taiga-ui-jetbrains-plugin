@@ -12,8 +12,7 @@ internal data class TaigaDocumentationView(
     val selectedMember: String? = null,
     val expanded: Boolean = false,
 ) {
-    fun isCompactHover(explicit: Boolean): Boolean =
-        !explicit && !expanded && !fullApi && !showExample
+    fun isCompactHover(explicit: Boolean): Boolean = !explicit && !expanded && !fullApi && !showExample
 
     @Suppress("ReturnCount")
     fun refreshed(
