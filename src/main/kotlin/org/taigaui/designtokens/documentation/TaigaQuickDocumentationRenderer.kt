@@ -29,7 +29,12 @@ internal object TaigaQuickDocumentationRenderer {
 
             addSection(
                 title = "Selector:",
-                content = entity.selectors.sorted().joinToString(", ") { selector -> "<code>${selector.html()}</code>" },
+                content =
+                    entity.selectors
+                        .sorted()
+                        .joinToString(", ") { selector ->
+                            "<code>${selector.html()}</code>"
+                        },
             )
 
             entity.canonicalImport()?.let { statement ->
@@ -104,8 +109,7 @@ internal object TaigaQuickDocumentationRenderer {
     private fun TaigaEntityDoc.displaySymbol(): String =
         publicSymbols.firstOrNull() ?: title
 
-    private fun TaigaEntityDoc.canonicalImport(): String? =
-        publicSymbols.firstOrNull()?.let { symbol ->
+    private fun TaigaEntityDoc.canonicalImport(): String? = publicSymbols.firstOrNull()?.let { symbol ->
             packageNames.singleOrNull()?.let { packageName ->
                 "import {$symbol} from '$packageName';"
             }
