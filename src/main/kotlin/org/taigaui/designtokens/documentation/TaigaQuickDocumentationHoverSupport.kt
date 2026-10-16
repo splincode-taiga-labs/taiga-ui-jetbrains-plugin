@@ -667,7 +667,7 @@ internal class TaigaQuickDocumentationHoverController(
     ) {
         captureCurrentView()?.let(history::addLast)
         hidePopup(restoreNativeHover = false)
-        showView(request, view)
+        showView(request, view.copy(expanded = true))
     }
 
     private fun captureCurrentView(): TaigaDocumentationView? =
