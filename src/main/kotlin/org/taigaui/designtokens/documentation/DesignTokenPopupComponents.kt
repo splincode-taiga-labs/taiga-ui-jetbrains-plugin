@@ -66,17 +66,18 @@ internal class WrappedTextPane(
 
 internal class CopyValueButton(
     value: String,
+    private val copyTooltip: String = "Copy value",
 ) : JButton(AllIcons.Actions.Copy) {
     private val resetTimer =
         Timer(COPY_FEEDBACK_DURATION_MS) {
             icon = AllIcons.Actions.Copy
-            toolTipText = "Copy value"
+            toolTipText = copyTooltip
         }.apply {
             isRepeats = false
         }
 
     init {
-        configurePopupIconButton("Copy value")
+        configurePopupIconButton(copyTooltip)
 
         addActionListener {
             CopyPasteManager.getInstance().setContents(StringSelection(value))
