@@ -2,11 +2,14 @@ package org.taigaui.designtokens.documentation
 
 import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.util.text.StringUtil
+import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.labels.LinkLabel
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
 import java.awt.BorderLayout
+import java.awt.Color
+import java.awt.Dimension
 import java.awt.Font
 import java.awt.MouseInfo
 import java.awt.Point
@@ -51,6 +54,13 @@ internal class TaigaQuickDocumentationPopupPanel(
         }
 
         add(content, BorderLayout.CENTER)
+
+        val width = JBUI.scale(POPUP_WIDTH)
+        val naturalHeight = super.getPreferredSize().height
+
+        preferredSize = Dimension(width, naturalHeight)
+        minimumSize = preferredSize
+        maximumSize = Dimension(width, Int.MAX_VALUE)
     }
 
     private fun createHeader(onClose: () -> Unit): JComponent =
@@ -68,7 +78,7 @@ internal class TaigaQuickDocumentationPopupPanel(
             add(quickDocsBadge(resolved.badge))
             add(Box.createHorizontalGlue())
             add(
-                LinkLabel<Any>("View documentation ↗", null) { _, _ ->
+                LinkLabel<Any>("Documentation ↗", null) { _, _ ->
                     BrowserUtil.browse(resolved.documentationUri.toString())
                     onClose()
                 },
@@ -100,11 +110,21 @@ internal class TaigaQuickDocumentationPopupPanel(
                 }
 
                 entityDocs.effectiveUsage?.takeIf(String::isNotBlank)?.let { usage ->
-                    addCodeSection("Usage", usage, "Copy usage")
+                    addCodeSection(
+                        title = "Usage",
+                        code = usage,
+                        copyTooltip = "Copy usage",
+                        language = PopupCodeLanguage.HTML,
+                    )
                 }
 
                 entityDocs.canonicalImport()?.let { statement ->
-                    addCodeSection("Import", statement, "Copy import")
+                    addCodeSection(
+                        title = "Import",
+                        code = statement,
+                        copyTooltip = "Copy import",
+                        language = PopupCodeLanguage.TYPESCRIPT,
+                    )
                 }
             }
 
@@ -136,7 +156,12 @@ internal class TaigaQuickDocumentationPopupPanel(
             }
 
             memberDocs.effectiveUsage?.takeIf(String::isNotBlank)?.let { usage ->
-                addCodeSection("Usage", usage, "Copy usage")
+                addCodeSection(
+                    title = "Usage",
+                    code = usage,
+                    copyTooltip = "Copy usage",
+                    language = PopupCodeLanguage.HTML,
+                )
             }
 
             memberDocs.possibleValues().takeIf(List<String>::isNotEmpty)?.let { values ->
@@ -162,7 +187,7 @@ internal class TaigaQuickDocumentationPopupPanel(
             return
         }
 
-        addSectionTitle("$title (${properties.size})")
+        addSectionTitle("$title · ${properties.size}")
 
         val visible = properties.take(MAX_VISIBLE_API_PROPERTIES)
 
@@ -202,8 +227,9 @@ internal class TaigaQuickDocumentationPopupPanel(
         title: String,
         code: String,
         copyTooltip: String,
+        language: PopupCodeLanguage,
     ) {
-        addSectionTitle(title)
+        addSectionTitle(title.uppercase())
         add(
             RoundedRowPanel().apply {
                 layout = BorderLayout(JBUI.scale(6), 0)
@@ -212,7 +238,7 @@ internal class TaigaQuickDocumentationPopupPanel(
 
                 add(
                     JBLabel(
-                        "<html><div width='$CODE_TEXT_WIDTH'><code>${code.html()}</code></div></html>",
+                        "<html><div width='$CODE_TEXT_WIDTH'><code>${highlightCode(code, language)}</code></div></html>",
                     ),
                     BorderLayout.CENTER,
                 )
@@ -260,10 +286,90 @@ internal class TaigaQuickDocumentationPopupPanel(
     }
 }
 
+private enum class PopupCodeLanguage {
+    HTML,
+    TYPESCRIPT,
+}
+
+private fun highlightCode(
+    code: String,
+    language: PopupCodeLanguage,
+): String =
+    when (language) {
+        PopupCodeLanguage.HTML -> highlightHtml(code)
+        PopupCodeLanguage.TYPESCRIPT -> highlightTypeScript(code)
+    }
+
+private fun highlightHtml(code: String): String =
+    buildString {
+        var offset = 0
+
+        HTML_TAG.findAll(code).forEach { tag ->
+            append(code.substring(offset, tag.range.first).codeHtml())
+
+            append(tag.groupValues[1].codeHtml())
+            append(tag.groupValues[2].highlight(CODE_TAG_COLOR))
+            append(highlightHtmlAttributes(tag.groupValues[3]))
+            append(tag.groupValues[4].codeHtml())
+
+            offset = tag.range.last + 1
+        }
+
+        append(code.substring(offset).codeHtml())
+    }
+
+private fun highlightHtmlAttributes(attributes: String): String =
+    buildString {
+        var offset = 0
+
+        HTML_ATTRIBUTE.findAll(attributes).forEach { attribute ->
+            append(attributes.substring(offset, attribute.range.first).codeHtml())
+            append(attribute.groupValues[1].highlight(CODE_ATTRIBUTE_COLOR))
+            append(attribute.groupValues[2].codeHtml())
+            append(attribute.groupValues[3].highlight(CODE_STRING_COLOR))
+            offset = attribute.range.last + 1
+        }
+
+        append(attributes.substring(offset).codeHtml())
+    }
+
+private fun highlightTypeScript(code: String): String =
+    buildString {
+        var offset = 0
+
+        TYPESCRIPT_TOKEN.findAll(code).forEach { token ->
+            append(code.substring(offset, token.range.first).codeHtml())
+
+            val value = token.value
+            val color =
+                when {
+                    value.firstOrNull() == '\'' || value.firstOrNull() == '"' -> CODE_STRING_COLOR
+                    value in TYPESCRIPT_KEYWORDS -> CODE_KEYWORD_COLOR
+                    value.firstOrNull()?.isUpperCase() == true -> CODE_SYMBOL_COLOR
+                    else -> CODE_TEXT_COLOR
+                }
+
+            append(value.highlight(color))
+            offset = token.range.last + 1
+        }
+
+        append(code.substring(offset).codeHtml())
+    }
+
+private fun String.highlight(color: Color): String =
+    "<span style='color:${color.htmlColor()}'>${codeHtml()}</span>"
+
+private fun String.codeHtml(): String =
+    StringUtil
+        .escapeXmlEntities(this)
+        .replace("\n", "<br>")
+
+private fun Color.htmlColor(): String = String.format("#%02x%02x%02x", red, green, blue)
+
 private fun quickDocsSeparator(): JComponent =
     JSeparator().apply {
         alignmentX = JComponent.LEFT_ALIGNMENT
-        maximumSize = java.awt.Dimension(Int.MAX_VALUE, preferredSize.height)
+        maximumSize = Dimension(Int.MAX_VALUE, preferredSize.height)
     }
 
 private fun quickDocsBadge(text: String): JComponent =
@@ -283,8 +389,36 @@ private fun wrappedLabel(text: String): JComponent =
         alignmentX = JComponent.LEFT_ALIGNMENT
     }
 
-private const val POPUP_TEXT_WIDTH = 700
-private const val CODE_TEXT_WIDTH = 650
+private val HTML_TAG = Regex("""(</?)([A-Za-z][\w:-]*)([^<>]*?)(/?>)""")
+private val HTML_ATTRIBUTE = Regex("""([:@*#\[\]()A-Za-z_][^\s=/>]*)(\s*=\s*)("[^"]*"|'[^']*')""")
+private val TYPESCRIPT_TOKEN =
+    Regex(
+        """('(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|\b(?:import|from|export|const|let|type|interface|extends|implements|as)\b|\b[A-Z][A-Za-z0-9_]*\b)""",
+    )
+private val TYPESCRIPT_KEYWORDS =
+    setOf(
+        "import",
+        "from",
+        "export",
+        "const",
+        "let",
+        "type",
+        "interface",
+        "extends",
+        "implements",
+        "as",
+    )
+
+private val CODE_TAG_COLOR = JBColor(Color(0x00, 0x67, 0xA3), Color(0x56, 0xB6, 0xC2))
+private val CODE_ATTRIBUTE_COLOR = JBColor(Color(0x00, 0x5C, 0xB9), Color(0x9C, 0xDC, 0xFE))
+private val CODE_STRING_COLOR = JBColor(Color(0x06, 0x7D, 0x17), Color(0x98, 0xC3, 0x79))
+private val CODE_KEYWORD_COLOR = JBColor(Color(0x7A, 0x3E, 0x9D), Color(0xC6, 0x78, 0xDD))
+private val CODE_SYMBOL_COLOR = JBColor(Color(0x00, 0x65, 0xA8), Color(0x61, 0xAF, 0xEF))
+private val CODE_TEXT_COLOR = UIUtil.getLabelForeground()
+
+private const val POPUP_WIDTH = 560
+private const val POPUP_TEXT_WIDTH = 500
+private const val CODE_TEXT_WIDTH = 455
 
 internal fun JComponent.containsPointer(): Boolean =
     isShowing &&
