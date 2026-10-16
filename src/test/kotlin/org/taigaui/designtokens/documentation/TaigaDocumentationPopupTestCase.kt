@@ -2,8 +2,8 @@ package org.taigaui.designtokens.documentation
 
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.ui.components.JBLabel
-import com.intellij.util.ui.JBUI
 import com.intellij.ui.components.labels.LinkLabel
+import com.intellij.util.ui.JBUI
 import org.taigaui.designtokens.icons.IconSvgPreviewRenderer
 import org.taigaui.designtokens.icons.IconSvgSource
 import java.awt.Component
