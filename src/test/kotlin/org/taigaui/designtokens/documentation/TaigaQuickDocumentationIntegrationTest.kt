@@ -6,6 +6,8 @@ import com.intellij.platform.backend.documentation.impl.computeDocumentationBloc
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiFile
 import com.intellij.testFramework.fixtures.LightPlatformCodeInsightFixture4TestCase
+import com.intellij.testFramework.fixtures.TempDirTestFixture
+import com.intellij.testFramework.fixtures.impl.TempDirTestFixtureImpl
 import com.intellij.testFramework.runInEdtAndWait
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertNotNull
@@ -17,6 +19,8 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
     private val docsSource = requireNotNull(TaigaDocsSources.forMajor(5))
     private val docsCache = TaigaDocsCache()
     private lateinit var workspaceRoot: Path
+
+    override fun createTempDirTestFixture(): TempDirTestFixture = TempDirTestFixtureImpl()
 
     override fun setUp() {
         super.setUp()
@@ -292,7 +296,7 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
     }
 
     private fun warmDocumentation(file: PsiFile) {
-        docsCache.write(docsSource, docsFixture())
+        assertTrue("Test documentation cache must be writable", docsCache.write(docsSource, docsFixture()))
         val path = Path.of(requireNotNull(file.virtualFile).path)
 
         runBlocking {
