@@ -97,6 +97,7 @@ internal object TaigaDocumentationResolver {
                 subjects = listOf(subject),
                 startOffset = nameElement.textRange.startOffset,
                 endOffset = nameElement.textRange.endOffset,
+                usage = attribute.parent.compactUsage(),
             )
         }
 
@@ -117,6 +118,7 @@ internal object TaigaDocumentationResolver {
             subjects = listOf(subject),
             startOffset = element.textRange.startOffset,
             endOffset = element.textRange.endOffset,
+            usage = tag.compactUsage(),
         )
     }
 
@@ -160,6 +162,7 @@ private fun XmlTag.taigaSubjects(): List<TaigaDocumentationSubject> =
                         ?.toLocalSubject(selector)
                         ?: selector.fallbackSubject(),
                 )
+                add(selector.fallbackSubject())
             }
 
         attributes.forEach { attribute ->
@@ -171,10 +174,17 @@ private fun XmlTag.taigaSubjects(): List<TaigaDocumentationSubject> =
                     ?.toLocalSubject(selector)
                     ?: selector.fallbackSubject(),
             )
+            add(selector.fallbackSubject())
         }
     }.distinctBy { subject ->
         listOf(subject.selector, subject.publicSymbol, subject.packageName)
     }
+
+private fun XmlTag.compactUsage(): String =
+    text
+        .replace(WHITESPACE, " ")
+        .trim()
+        .take(MAX_TEMPLATE_USAGE_LENGTH)
 
 private fun XmlTag.memberUsage(
     member: MemberBinding,
@@ -272,6 +282,9 @@ private data class MemberBindingPattern(
             ?.removeSuffix(suffix)
             ?.let { name -> MemberBinding(name, kind) }
 }
+
+private val WHITESPACE = Regex("\\s+")
+private const val MAX_TEMPLATE_USAGE_LENGTH = 260
 
 private val MEMBER_BINDING_PATTERNS =
     listOf(
