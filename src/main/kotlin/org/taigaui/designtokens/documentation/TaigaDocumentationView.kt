@@ -13,7 +13,7 @@ internal data class TaigaDocumentationView(
     val expanded: Boolean = false,
 ) {
     fun isCompactHover(explicit: Boolean): Boolean =
-        resolved.badge == "Pipe" && !explicit && !expanded && !fullApi && !showExample
+        !explicit && !expanded && !fullApi && !showExample
 
     @Suppress("ReturnCount")
     fun refreshed(
