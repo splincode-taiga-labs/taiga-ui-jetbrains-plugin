@@ -152,7 +152,73 @@ internal val TaigaResolvedDocumentation.description: String?
             is TaigaResolvedDocumentation.Member -> property.description
         }
 
+internal val TaigaResolvedDocumentation.ownerName: String?
+    get() =
+        when (this) {
+            is TaigaResolvedDocumentation.Entity -> null
+            is TaigaResolvedDocumentation.Member ->
+                subject.publicSymbol ?: entity.publicSymbols.firstOrNull() ?: entity.title
+        }
+
+internal val TaigaResolvedDocumentation.typeText: String?
+    get() =
+        when (this) {
+            is TaigaResolvedDocumentation.Entity -> typeDefinition
+            is TaigaResolvedDocumentation.Member -> property.documentedType
+        }
+
+internal val TaigaResolvedDocumentation.effectiveUsage: String?
+    get() =
+        usage
+            ?: (this as? TaigaResolvedDocumentation.Entity)
+                ?.entity
+                ?.example
+                ?.code
+                ?.takeIf { code -> code.length <= MAX_INLINE_USAGE_LENGTH }
+
+internal fun TaigaResolvedDocumentation.canonicalImport(): String? {
+    if (this !is TaigaResolvedDocumentation.Entity) {
+        return null
+    }
+
+    val symbol = subject.publicSymbol
+    val resolvedPackageName = packageName
+
+    return if (symbol != null && resolvedPackageName != null) {
+        "import {$symbol} from '$resolvedPackageName';"
+    } else {
+        null
+    }
+}
+
+internal fun TaigaResolvedDocumentation.possibleValues(): List<String> =
+    typeText
+        ?.let { type ->
+            STRING_LITERAL.findAll(type)
+                .map { match -> match.groupValues[1] }
+                .distinct()
+                .toList()
+        }.orEmpty()
+        .takeIf { values -> values.size > 1 }
+        .orEmpty()
+
+internal fun TaigaResolvedDocumentation.relatedMembers(limit: Int = 4): List<String> =
+    when (this) {
+        is TaigaResolvedDocumentation.Entity -> emptyList()
+        is TaigaResolvedDocumentation.Member ->
+            (entity.inputs + entity.outputs)
+                .asSequence()
+                .map(TaigaApiProperty::name)
+                .filter { name -> name != property.name }
+                .distinct()
+                .take(limit)
+                .toList()
+    }
+
 internal fun TaigaDocKind.displayName(): String =
     name
         .lowercase()
-        .replaceFirstChar(Char::uppercase)
+        .replaceFirstChar { char -> char.uppercase() }
+
+private val STRING_LITERAL = Regex("""['"]([^'"]+)['"]""")
+private const val MAX_INLINE_USAGE_LENGTH = 260
