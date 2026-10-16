@@ -9,7 +9,8 @@ import javax.swing.SwingUtilities
 
 class TaigaQuickDocumentationAppearanceTest : TaigaDocumentationPopupTestCase() {
     fun testHiddenLongExampleDoesNotExpandTheInputTab() {
-        val owner = directive()
+        val original = directive()
+        val owner = original.copy(entity = original.entity.copy(inputs = original.entity.inputs.take(1)))
         val baseline = TaigaQuickDocumentationPopupPanel(owner).preferredSize.height
         val code = "<button tuiButton>Save</button>\n".repeat(60)
         val documented = owner.copy(entity = owner.entity.copy(example = TaigaExample("html", code)))
