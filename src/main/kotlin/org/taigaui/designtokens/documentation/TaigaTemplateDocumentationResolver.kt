@@ -1,9 +1,7 @@
 package org.taigaui.designtokens.documentation
 
-import com.intellij.codeInsight.lookup.LookupElement
 import com.intellij.lang.html.HtmlCompatibleFile
 import com.intellij.polySymbols.PolySymbol
-import com.intellij.polySymbols.completion.PolySymbolCodeCompletionItem
 import com.intellij.polySymbols.html.attributes.HtmlAttributeSymbolDescriptor
 import com.intellij.polySymbols.html.elements.HtmlElementSymbolDescriptor
 import com.intellij.polySymbols.utils.unwrapMatchedSymbols
@@ -24,12 +22,23 @@ internal data class TaigaDocumentationSubject(
         get() = publicSymbol ?: selector ?: packageName.orEmpty()
 }
 
+internal data class TaigaDocumentationMatch(
+    val subject: TaigaDocumentationSubject,
+    val startOffset: Int,
+    val endOffset: Int,
+)
+
 internal object TaigaTemplateDocumentationResolver {
-    @Suppress("ReturnCount")
     fun find(
         file: PsiFile,
         offset: Int,
-    ): TaigaDocumentationSubject? {
+    ): TaigaDocumentationSubject? = findMatch(file, offset)?.subject
+
+    @Suppress("ReturnCount")
+    fun findMatch(
+        file: PsiFile,
+        offset: Int,
+    ): TaigaDocumentationMatch? {
         if (file !is HtmlCompatibleFile || file.textLength == 0 || offset !in 0..file.textLength) {
             return null
         }
@@ -53,60 +62,40 @@ internal object TaigaTemplateDocumentationResolver {
                     .getParentOfType(element, XmlTag::class.java, false)
                     ?.descriptor
                     ?.let { descriptor -> (descriptor as? HtmlElementSymbolDescriptor)?.symbol }
+                ?: return null
+        val subject = symbol.toLocalSubject(selector = name) ?: return null
 
-        return symbol?.toLocalSubject(selector = name)
-            ?: TaigaDocumentationSubject(
-                selector = name,
-                publicSymbol = null,
-                packageName = null,
-            )
+        return TaigaDocumentationMatch(
+            subject = subject,
+            startOffset = element.textRange.startOffset,
+            endOffset = element.textRange.endOffset,
+        )
     }
 
-    @Suppress("ReturnCount")
-    fun find(
-        file: PsiFile,
-        element: LookupElement,
-    ): TaigaDocumentationSubject? {
-        if (file !is HtmlCompatibleFile) {
-            return null
-        }
-
-        val lookupString = element.lookupString
-        val selector = lookupString.takeIf(::isTaigaSelector)
-        val requestedSymbol = lookupString.takeIf(::isTaigaPublicSymbol)
+    fun find(symbol: PolySymbol): TaigaDocumentationSubject? {
+        val selector = symbol.name.takeIf(::isTaigaSelector)
+        val requestedSymbol = symbol.name.takeIf(::isTaigaPublicSymbol)
 
         if (selector == null && requestedSymbol == null) {
             return null
         }
 
-        return PolySymbolCodeCompletionItem
-            .getPsiElement(element)
-            ?.toLocalSubject(selector, requestedSymbol)
-            ?: TaigaDocumentationSubject(
-                selector = selector,
-                publicSymbol = requestedSymbol,
-                packageName = null,
-            )
+        return symbol.toLocalSubject(selector, requestedSymbol)
     }
 
     private fun PolySymbol.toLocalSubject(
         selector: String?,
         requestedSymbol: String? = null,
     ): TaigaDocumentationSubject? {
-        val symbols = unwrapMatchedSymbols()
-        val contexts = symbols.mapNotNull { symbol -> symbol.psiContext }.toList()
+        val contexts =
+            unwrapMatchedSymbols()
+                .mapNotNull { symbol -> symbol.psiContext }
+                .toList()
+                .ifEmpty { listOfNotNull(psiContext) }
 
-        if (contexts.isNotEmpty()) {
-            return contexts
-                .mapNotNull { context -> context.toLocalSubject(selector, requestedSymbol) }
-                .firstOrNull()
-        }
-
-        return TaigaDocumentationSubject(
-            selector = selector,
-            publicSymbol = requestedSymbol ?: name.takeIf(::isTaigaPublicSymbol),
-            packageName = null,
-        )
+        return contexts
+            .mapNotNull { context -> context.toLocalSubject(selector, requestedSymbol) }
+            .firstOrNull()
     }
 
     private fun PsiElement.toLocalSubject(
