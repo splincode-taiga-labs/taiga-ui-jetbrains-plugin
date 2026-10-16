@@ -484,7 +484,7 @@ internal class TaigaQuickDocumentationHoverController(
                     hoverPointer = !request.explicit && !pinned,
                 )
             if (!reuseHoverPopup(request, panel)) {
-                val host = TaigaDocumentationPopupHost(panel)
+                val host = TaigaDocumentationPopupHost(panel, stabilizesHoverSize = compactHover && !pinned)
                 val createdPopup =
                     createTaigaDocumentationPopup(
                         project,
@@ -526,7 +526,7 @@ internal class TaigaQuickDocumentationHoverController(
         if (existingPopup != null && host != null) {
             popupContent = panel
             host.showCard(panel)
-            existingPopup.setSize(host.preferredSize)
+            if (!host.stabilizesHoverSize) existingPopup.setSize(host.preferredSize)
             positionTaigaHoverCard(existingPopup, panel, request.documentationTargetScreenBounds())
             return true
         }
@@ -646,7 +646,7 @@ internal class TaigaQuickDocumentationHoverController(
         if (pinned) {
             popup.moveToFitScreen()
         } else {
-            popup.setSize(panel.preferredSize)
+            if (popupHost?.stabilizesHoverSize != true) popup.setSize(panel.preferredSize)
             val request = currentRequest
             if (request != null && !request.explicit && popup.isVisible) {
                 positionTaigaHoverCard(popup, panel, request.documentationTargetScreenBounds())
