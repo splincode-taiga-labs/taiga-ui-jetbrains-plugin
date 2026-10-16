@@ -1,6 +1,7 @@
 package org.taigaui.designtokens.documentation
 
 import com.intellij.lang.javascript.documentation.JSDocumentationUtils
+import com.intellij.lang.javascript.psi.ecma6.TypeScriptClass
 import com.intellij.psi.PsiElement
 
 internal data class TaigaDocumentationMemberMetadata(
@@ -27,11 +28,22 @@ internal fun PsiElement.bindingMetadata(): TaigaDocumentationMemberMetadata {
 }
 
 private fun PsiElement.bindingDocComment(): String =
-    JSDocumentationUtils
-        .findDocComment(this)
-        ?.text
-        ?.take(MAX_MEMBER_TEXT)
-        .orEmpty()
+    JSDocumentationUtils.findDocComment(this)?.text?.take(MAX_MEMBER_TEXT) ?: associatedBindingComment()
+
+private fun PsiElement.associatedBindingComment(): String =
+    generateSequence(this) { it.parent?.takeUnless { parent -> parent is TypeScriptClass } }
+        .take(MAX_COMMENT_PARENTS)
+        .firstNotNullOfOrNull { element ->
+            val text = element.text.orEmpty().take(MAX_MEMBER_TEXT)
+            DOC_COMMENT.find(text)?.takeIf { text.substring(0, it.range.first).isBlank() }?.value
+                ?: generateSequence(element.prevSibling) { it.prevSibling }
+                    .dropWhile { it.text.isNullOrBlank() }
+                    .firstOrNull()
+                    ?.text
+                    ?.trim()
+                    ?.take(MAX_MEMBER_TEXT)
+                    ?.let { DOC_COMMENT.matchEntire(it)?.value }
+        }.orEmpty()
 
 private fun String.bindingDescription(): String? =
     removePrefix("/**")
@@ -43,7 +55,9 @@ private fun String.bindingDescription(): String? =
         .joinToString(" ")
         .takeIf(String::isNotBlank)
 
-private val DEPRECATED = Regex("""@deprecated\s+([^\n*]+)""")
+private val DOC_COMMENT = Regex("""/\*\*[\s\S]*?\*/""")
+private val DEPRECATED = Regex("""@deprecated(?:[ \t]+([^\n*]+))?""")
 private val REPLACEMENT = Regex("""(?i)\buse\s+(?:\{@link\s+|[`'"])?([A-Za-z_$][\w$]*)(?:}|[`'"])?\s+instead\b""")
 private val TRANSFORM = Regex("""\btransform\s*:\s*([\w$.]+)""")
 private const val MAX_MEMBER_TEXT = 8_000
+private const val MAX_COMMENT_PARENTS = 3
