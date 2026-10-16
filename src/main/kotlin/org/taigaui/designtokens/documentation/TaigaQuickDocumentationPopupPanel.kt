@@ -64,7 +64,9 @@ internal class TaigaQuickDocumentationPopupPanel(
     private val apiQuery: String? = null,
     private val selectedMember: String? = null,
     private val compactHover: Boolean = false,
+    hoverPointer: Boolean = false,
 ) : JPanel(BorderLayout(0, JBUI.scale(12))) {
+    private val pointerBorder = TaigaDocumentationPointerBorder().takeIf { hoverPointer }
     private val content = verticalPanel()
     private val secondaryContent = verticalPanel()
     private val previewContent = verticalPanel()
@@ -85,6 +87,7 @@ internal class TaigaQuickDocumentationPopupPanel(
 
     init {
         border = if (compactHover) JBUI.Borders.empty(12, 14) else JBUI.Borders.empty(16, 18)
+        pointerBorder?.let { border = javax.swing.BorderFactory.createCompoundBorder(it, border) }
         background = DESIGN_TOKEN_POPUP_BACKGROUND
         getAccessibleContext().accessibleName = "Taiga UI documentation for ${resolved.presentationName}"
         isFocusCycleRoot = true
@@ -118,11 +121,14 @@ internal class TaigaQuickDocumentationPopupPanel(
             if (showExample) {
                 resolved.entity.example?.let { example ->
                     content.add(sectionTitle("Example"))
-                    content.add(codeRow(example.code.take(MAX_EXAMPLE_LENGTH), example.code, "Copy example"))
+                    content.add(codeRow(example.code.take(MAX_EXAMPLE_LENGTH)))
                 }
             }
             addSecondaryActions(showExample)
-            if (secondaryContent.componentCount > 0) content.add(detailsSection())
+            if (secondaryContent.componentCount > 0) {
+                content.add(Box.createVerticalStrut(JBUI.scale(10)))
+                content.add(secondaryContent)
+            }
         }
         scroll =
             JBScrollPane(content).apply {
@@ -139,12 +145,36 @@ internal class TaigaQuickDocumentationPopupPanel(
                     )
             }
         add(scroll, BorderLayout.CENTER)
-        val footer = if (compactHover) compactDocumentationFooter(actions) else footer()
-        if (footer.componentCount > 0) add(footer, BorderLayout.SOUTH)
+        if (compactHover) {
+            val footer = compactDocumentationFooter(actions)
+            if (footer.componentCount > 0) add(footer, BorderLayout.SOUTH)
+        }
         keyboardButtons(this)
     }
 
     val scrollPosition: Point get() = Point(scroll.viewport.viewPosition)
+
+    fun alignHoverPointer(
+        offset: Int,
+        visible: Boolean = true,
+    ) {
+        pointerBorder?.let {
+            it.pointerX = offset
+            it.pointerVisible = visible
+            repaint()
+        }
+    }
+
+    override fun paintComponent(graphics: Graphics) {
+        super.paintComponent(graphics)
+        if (pointerBorder != null) {
+            graphics.color =
+                com.intellij.openapi.editor.colors.EditorColorsManager
+                    .getInstance()
+                    .globalScheme.defaultBackground
+            graphics.fillRect(0, 0, width, JBUI.scale(10))
+        }
+    }
 
     fun restoreScrollPosition(position: Point) {
         SwingUtilities.invokeLater {
@@ -320,7 +350,7 @@ internal class TaigaQuickDocumentationPopupPanel(
         verticalPanel().apply {
             when (entity.badge) {
                 "Pipe" -> add(pipeContent(entity.localDocumentation.pipe))
-                "Type" -> entity.typeText?.let { add(documentationRow("Type", codeRow(it))) }
+                "Type" -> entity.typeText?.let { add(documentationRow("Type", documentationCodeBlock(it))) }
                 else -> addControlContent(this, entity)
             }
         }
@@ -335,7 +365,7 @@ internal class TaigaQuickDocumentationPopupPanel(
         }
         documentationSummaryUsage(entity)?.let { content.add(documentationRow("Usage", documentationCodeBlock(it))) }
         entity.canonicalImport()?.let {
-            content.add(documentationRow("Import", documentationCodeBlock(it, copyLabel = "Copy import")))
+            content.add(documentationRow("Import", documentationCodeBlock(it)))
         }
         if (fullApi) {
             val browser =
@@ -352,28 +382,28 @@ internal class TaigaQuickDocumentationPopupPanel(
         } else if (entity.usage != null) {
             content.add(
                 TaigaDocumentationTabs().apply {
-                    addTab(
-                        "Inputs (${entity.entity.inputs.size})",
-                        documentationApiTable(entity, entity.entity.inputs, TaigaApiMemberKind.INPUT, actions),
-                    )
-                    addTab(
-                        "Outputs (${entity.entity.outputs.size})",
-                        documentationApiTable(entity, entity.entity.outputs, TaigaApiMemberKind.OUTPUT, actions),
-                    )
+                    if (entity.entity.inputs.isNotEmpty()) {
+                        addTab(
+                            "Inputs (${entity.entity.inputs.size})",
+                            documentationApiList(entity, entity.entity.inputs, TaigaApiMemberKind.INPUT, actions),
+                        )
+                    }
+                    if (entity.entity.outputs.isNotEmpty()) {
+                        addTab(
+                            "Outputs (${entity.entity.outputs.size})",
+                            documentationApiList(entity, entity.entity.outputs, TaigaApiMemberKind.OUTPUT, actions),
+                        )
+                    }
                     entity.entity.example?.let {
                         addTab(
                             "Examples",
-                            codeRow(it.code.take(MAX_EXAMPLE_LENGTH), it.code, "Copy example"),
+                            codeRow(it.code.take(MAX_EXAMPLE_LENGTH)),
                         )
                     }
                     addChangeListener { updateContentSize() }
                 },
             )
         }
-        entity.localDocumentation.defaults
-            .take(2)
-            .mapNotNull(::documentationDefaultProviderInfo)
-            .forEach(secondaryContent::add)
         addTemplateActions(secondaryContent, entity)
     }
 
@@ -477,13 +507,10 @@ internal class TaigaQuickDocumentationPopupPanel(
             val declared = local?.declaredAcceptedType ?: type
             content.add(documentationRow(label, documentationAcceptedType(declared, type, local?.expandedType)))
         }
-        local?.expandedType?.takeUnless { sameDocumentationType(it, receiver.typeText) }?.let {
-            secondaryContent.add(detail("Expanded type", it, copy = true))
-        }
         local?.valueType?.takeUnless { sameDocumentationType(it, receiver.typeText) }?.let {
-            secondaryContent.add(detail("Stored value type", it, copy = true))
+            secondaryContent.add(detail("Stored value type", it))
         }
-        local?.transform?.let { secondaryContent.add(detail("Input transform", it, copy = true)) }
+        local?.transform?.let { secondaryContent.add(detail("Input transform", it)) }
         local?.deprecated?.let { content.add(note("Deprecated", it, DEFAULT_COLOR)) }
         if (multiple &&
             local?.required == true
@@ -499,9 +526,6 @@ internal class TaigaQuickDocumentationPopupPanel(
         content: JPanel,
         receiver: TaigaResolvedDocumentation.Member,
     ) {
-        actions.openOwner?.let { open ->
-            content.add(link("View ${receiver.subject.presentationName} API →") { open(receiver.ownerDocumentation()) })
-        }
         val source = receiver.source
         val navigate = actions.navigateDeclaration
         if (source != null && navigate != null) {
@@ -594,32 +618,7 @@ internal class TaigaQuickDocumentationPopupPanel(
         }
     }
 
-    private fun footer(): JComponent =
-        verticalPanel().apply {
-            val entity = resolved as? TaigaResolvedDocumentation.Entity ?: return@apply
-            val hasApi = entity.entity.inputs.isNotEmpty() || entity.entity.outputs.isNotEmpty()
-            if (!fullApi && hasApi) {
-                actions.openOwner?.let { open ->
-                    add(documentationSeparator())
-                    add(Box.createVerticalStrut(JBUI.scale(8)))
-                    add(link("Browse API →") { open(entity) })
-                }
-            }
-        }
-
-    private fun addOwnerApi(content: JPanel) {
-        if (resolved !is TaigaResolvedDocumentation.Member || resolved.receivers.size > 1) return
-        val receiver = resolved.receivers.singleOrNull() ?: resolved
-        actions.openOwner?.let { open ->
-            if (content.componentCount > 0) content.add(Box.createHorizontalStrut(JBUI.scale(12)))
-            content.add(
-                link("View ${receiver.subject.presentationName} API →") { open(receiver.ownerDocumentation()) },
-            )
-        }
-    }
-
     private fun addSecondaryActions(showExample: Boolean) {
-        addOwnerApi(secondaryContent)
         actions.navigateToSource?.let { secondaryContent.add(link("Source ↗", it)) }
         val reference = resolved.documentationIcons.firstOrNull()
         if (reference != null && actions.chooseIcon != null) {
@@ -631,22 +630,6 @@ internal class TaigaQuickDocumentationPopupPanel(
         }
         actions.showImportFixes?.let { show -> secondaryContent.add(link("Angular quick fixes →", show)) }
     }
-
-    private fun detailsSection(): JComponent =
-        verticalPanel().apply {
-            secondaryContent.isVisible = false
-            secondaryContent.border = JBUI.Borders.emptyTop(10)
-            lateinit var toggle: LinkLabel<Any>
-            toggle =
-                link("Details ▸") {
-                    secondaryContent.isVisible = !secondaryContent.isVisible
-                    toggle.text = if (secondaryContent.isVisible) "Details ▾" else "Details ▸"
-                    updateContentSize()
-                }
-            add(Box.createVerticalStrut(JBUI.scale(10)))
-            add(toggle)
-            add(secondaryContent)
-        }
 }
 
 private fun compactDocumentationFooter(actions: TaigaDocumentationPopupActions): JComponent =
@@ -752,27 +735,9 @@ private class DocumentationNotePanel(
 private fun detail(
     title: String,
     value: String,
-    copy: Boolean = false,
-    copyLabel: String = "Copy ${title.lowercase()}",
-): JComponent =
-    verticalPanel().apply {
-        add(
-            JPanel(BorderLayout()).apply {
-                isOpaque = false
-                alignmentX = JComponent.LEFT_ALIGNMENT
-                add(sectionTitle(title), BorderLayout.CENTER)
-                if (copy) add(CopyValueButton(value, copyLabel).apply { toolTipText = value }, BorderLayout.EAST)
-            },
-        )
-        add(documentationCodeLabel(value))
-        add(Box.createVerticalStrut(JBUI.scale(8)))
-    }
+): JComponent = documentationRow(title, documentationCodeLabel(value))
 
-private fun codeRow(
-    code: String,
-    completeCode: String = code,
-    copyLabel: String = "Copy code",
-): JComponent = documentationCodeBlock(code, completeCode, copyLabel)
+private fun codeRow(code: String): JComponent = documentationCodeBlock(code, 450)
 
 private fun sectionTitle(title: String): JComponent =
     JBLabel(title).apply {

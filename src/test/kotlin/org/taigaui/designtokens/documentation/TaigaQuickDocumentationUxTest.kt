@@ -1,18 +1,13 @@
 package org.taigaui.designtokens.documentation
 
-import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.ui.JBColor
-import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBTextField
 import com.intellij.ui.components.labels.LinkLabel
 import com.intellij.ui.scale.JBUIScale
 import com.intellij.util.ui.JBUI
-import java.awt.datatransfer.DataFlavor
 import javax.swing.JButton
-import javax.swing.JViewport
-import javax.swing.SwingUtilities
 
 class TaigaQuickDocumentationUxTest : TaigaDocumentationPopupTestCase() {
     fun testFiniteInputCardHasOneTypeAndOnePairOfValueActions() {
@@ -56,15 +51,12 @@ class TaigaQuickDocumentationUxTest : TaigaDocumentationPopupTestCase() {
                     )
                 assertFalse(labelText(panel).contains("Expanded type"))
                 val visible = visibleDescendants(panel).filterIsInstance<JButton>().filter { !it.text.isNullOrEmpty() }
-                assertEquals(listOf("'s'", "'m'", "'l'", "'xl'", "'xs'"), visible.map { it.text }.toList())
+                assertEquals(listOf("Apply"), visible.map { it.text }.toList())
                 assertEquals("s", descendants(panel).filterIsInstance<ComboBox<*>>().single().selectedItem)
                 assertFalse(button(panel, "Apply").isEnabled)
                 assertTrue("A simple input must fit a short card", panel.preferredSize.height <= JBUI.scale(520))
                 renderAndSave(panel, "compact-size-${if (dark) "dark" else "light"}")
-                expandDetails(panel)
                 selectValue(panel, "m")
-                assertEquals(0, writes)
-                activate(button(panel, "Copy"), "ENTER")
                 assertEquals(0, writes)
                 activate(button(panel, "Apply"), "ENTER")
                 assertEquals(1, writes)
@@ -76,7 +68,7 @@ class TaigaQuickDocumentationUxTest : TaigaDocumentationPopupTestCase() {
         }
     }
 
-    fun testDetailsRevealDistinctTypesAndKeepImportantWarningsVisible() {
+    fun testFocusedMemberShowsRelevantTypesAndWarningsWithoutDetails() {
         val owner = directive()
         val member =
             owner.focusedMember(owner.entity.inputs.first(), TaigaApiMemberKind.INPUT).copy(
@@ -102,35 +94,15 @@ class TaigaQuickDocumentationUxTest : TaigaDocumentationPopupTestCase() {
                 member,
                 actions = TaigaDocumentationPopupActions(showImportFixes = {}),
             )
-        val summary =
-            visibleDescendants(panel).filterIsInstance<JBLabel>().joinToString {
-                it.accessibleContext.accessibleName
-                    ?: it.text
-            }
-        assertTrue(summary.contains("Required input"))
-        assertTrue(summary.contains("Deprecated"))
-        assertFalse(summary.contains("Expanded type"))
-        assertFalse(
-            visibleDescendants(panel).filterIsInstance<LinkLabel<*>>().any { it.text == "Angular quick fixes →" },
-        )
-        val collapsedHeight = panel.preferredSize.height
-        expandDetails(panel)
-        assertTrue("Expanded details must grow the card", panel.preferredSize.height > collapsedHeight)
-        val details = visibleDescendants(panel).filterIsInstance<JBLabel>().joinToString { it.text }
-        assertTrue(details.contains("Expanded type"))
-        assertTrue(details.contains("Stored value type"))
-        assertTrue(details.contains("coerceSize"))
-        val copy = button(panel, "Copy expanded type")
-        activate(copy, "ENTER")
-        assertEquals("'s' | 'm'", CopyPasteManager.getInstance().getContents(DataFlavor.stringFlavor))
-        renderAndSave(panel, "input-details")
-        val viewport = descendants(panel).filterIsInstance<JViewport>().first()
-        val position = SwingUtilities.convertPoint(copy.parent, copy.location, viewport)
-        assertTrue("Expanded type must have height", copy.height > 0)
-        assertTrue("Expanded type must be visible", position.y + copy.height <= viewport.height)
-        val toggle = descendants(panel).filterIsInstance<LinkLabel<*>>().first { it.text == "Details ▾" }
-        activate(toggle, "ENTER")
-        assertEquals(collapsedHeight, panel.preferredSize.height)
+        val text = labelText(panel)
+        assertTrue(text.contains("Required input"))
+        assertTrue(text.contains("Deprecated"))
+        assertTrue(text.contains("Stored value type"))
+        assertTrue(text.contains("coerceSize"))
+        assertFalse(text.contains("Expanded type"))
+        assertFalse(descendants(panel).filterIsInstance<LinkLabel<*>>().any { it.text.startsWith("Details") })
+        assertFalse(descendants(panel).any { it is CopyValueButton })
+        renderAndSave(panel, "focused-member-facts")
     }
 
     fun testAllValuesAreSearchableAndStaleFilteringCannotEnableWrites() {
@@ -168,34 +140,29 @@ class TaigaQuickDocumentationUxTest : TaigaDocumentationPopupTestCase() {
         val apply = button(panel, "Apply")
         assertFalse(apply.isEnabled)
         activate(apply, "ENTER")
-        activate(button(panel, "Copy"), "ENTER")
         assertEquals("value15", applied)
-        assertEquals("'value14'", CopyPasteManager.getInstance().getContents(DataFlavor.stringFlavor))
         search.text = "unknown"
         assertTrue(labelText(panel).contains("0 of 15 values"))
         assertFalse(button(panel, "Apply").isEnabled)
-        assertFalse(button(panel, "Copy").isEnabled)
     }
 
-    fun testCopyActionsKeepCompleteTypesImportsAndExamples() {
+    fun testDocumentationCardsHaveNoClipboardControls() {
         val owner = directive()
-        val code = "<button tuiButton>Save</button>\n".repeat(60)
-        val entity = owner.copy(entity = owner.entity.copy(example = TaigaExample("html", code)))
-        val panel = TaigaQuickDocumentationPopupPanel(entity, showExample = true)
-        activate(button(panel, "Copy example"), "ENTER")
-        assertEquals(code, CopyPasteManager.getInstance().getContents(DataFlavor.stringFlavor))
-        activate(button(panel, "Copy import"), "ENTER")
-        assertEquals(
-            "import {TuiButton} from '@taiga-ui/core';",
-            CopyPasteManager.getInstance().getContents(DataFlavor.stringFlavor),
-        )
         val member = owner.focusedMember(owner.entity.inputs.first(), TaigaApiMemberKind.INPUT)
-        val inputPanel = TaigaQuickDocumentationPopupPanel(member)
-        activate(button(inputPanel, "Copy type"), "ENTER")
-        assertEquals("TuiSize", CopyPasteManager.getInstance().getContents(DataFlavor.stringFlavor))
+        listOf(owner, member).forEach { resolved ->
+            val panel = TaigaQuickDocumentationPopupPanel(resolved)
+            assertFalse(descendants(panel).any { it is CopyValueButton })
+            assertFalse(descendants(panel).filterIsInstance<JButton>().any { it.text.orEmpty().startsWith("Copy") })
+            assertFalse(
+                descendants(panel).filterIsInstance<LinkLabel<*>>().any {
+                    it.text.startsWith("Details") ||
+                        it.text.startsWith("Browse API")
+                },
+            )
+        }
     }
 
-    fun testRefreshProgressBlocksWritesAndKeepsCopyAndImportHelp() {
+    fun testRefreshProgressBlocksWritesAndKeepsImportHelp() {
         var refreshed = false
         var quickFixes = false
         val panel =
@@ -210,18 +177,11 @@ class TaigaQuickDocumentationUxTest : TaigaDocumentationPopupTestCase() {
         panel.showRefreshProgress(true)
         assertTrue(labelText(panel).contains("Waiting for indexing"))
         assertFalse(descendants(panel).filterIsInstance<JButton>().first { it.text == "Refresh" }.isEnabled)
-        expandDetails(panel)
         descendants(panel)
             .filterIsInstance<LinkLabel<*>>()
             .first { it.text == "Angular quick fixes →" }
             .doClick()
         assertTrue(quickFixes)
-        activate(button(panel, "Copy import"), "ENTER")
-        val imported = CopyPasteManager.getInstance().getContents<String>(DataFlavor.stringFlavor).orEmpty()
-        assertTrue(imported.contains("TuiButton"))
-        panel.showRefreshFailure()
-        descendants(panel).filterIsInstance<JButton>().first { it.text == "Refresh" }.doClick()
-        assertTrue(refreshed)
     }
 
     fun testUnavailableExplicitCardExplainsTheTargetAndOffersNativeQuickFixes() {
@@ -279,7 +239,7 @@ class TaigaQuickDocumentationUxTest : TaigaDocumentationPopupTestCase() {
                 JBUIScale.setUserScaleFactorForTest(scale)
                 assertEquals(scale, JBUIScale.scale(1f))
                 listOf(false, true).forEach { dark ->
-                    renderLongSharedBindingCard(shared, type, scale, dark)
+                    renderLongSharedBindingCard(shared, scale, dark)
                 }
             }
         } finally {
@@ -290,7 +250,6 @@ class TaigaQuickDocumentationUxTest : TaigaDocumentationPopupTestCase() {
 
     private fun renderLongSharedBindingCard(
         shared: TaigaResolvedDocumentation.Member,
-        type: String,
         scale: Float,
         dark: Boolean,
     ) {
@@ -301,16 +260,7 @@ class TaigaQuickDocumentationUxTest : TaigaDocumentationPopupTestCase() {
                 actions = TaigaDocumentationPopupActions(showImportFixes = {}),
             )
         assertTrue("Long types must fit the card", panel.preferredSize.width <= JBUI.scale(580))
-        val copies =
-            descendants(panel)
-                .filterIsInstance<JButton>()
-                .filter { it.accessibleContext.accessibleName == "Copy type" }
-                .toList()
-        assertEquals(2, copies.size)
-        copies.forEach {
-            assertEquals("Copy type", it.accessibleContext.accessibleName)
-            assertEquals(type, it.toolTipText)
-        }
+        assertFalse(descendants(panel).any { it is CopyValueButton })
         val theme = if (dark) "dark" else "light"
         renderAndSave(panel, "long-receivers-$theme-${(scale * 100).toInt()}")
     }

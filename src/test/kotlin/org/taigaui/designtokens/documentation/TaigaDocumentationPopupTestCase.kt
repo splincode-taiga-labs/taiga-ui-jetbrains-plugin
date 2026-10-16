@@ -34,19 +34,11 @@ abstract class TaigaDocumentationPopupTestCase : BasePlatformTestCase() {
         panel: Component,
         value: String,
     ) {
-        descendants(panel).filterIsInstance<LinkLabel<*>>().firstOrNull { it.text == "Details ▸" }?.let {
-            activate(it, "ENTER")
-        }
         descendants(panel).filterIsInstance<ComboBox<*>>().single().selectedItem = value
     }
 
     internal fun visibleDescendants(component: Component): Sequence<Component> =
         descendants(component).filter { child -> generateSequence(child) { it.parent }.all(Component::isVisible) }
-
-    internal fun expandDetails(panel: Component) {
-        val toggle = descendants(panel).filterIsInstance<LinkLabel<*>>().first { it.text == "Details ▸" }
-        activate(toggle, "ENTER")
-    }
 
     internal fun activate(
         component: JComponent,

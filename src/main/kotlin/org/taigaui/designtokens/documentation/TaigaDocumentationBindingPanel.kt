@@ -1,15 +1,12 @@
 package org.taigaui.designtokens.documentation
 
-import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
 import java.awt.Dimension
-import java.awt.FlowLayout
 import java.awt.Font
-import java.awt.datatransfer.StringSelection
 import javax.swing.Box
 import javax.swing.BoxLayout
 import javax.swing.DefaultComboBoxModel
@@ -50,7 +47,6 @@ internal class TaigaDocumentationBindingPanel(
         }
     private val choices = ComboBox(values.toTypedArray())
     private val apply = JButton("Apply")
-    private val copy = JButton("Copy")
     private var contextCurrent = true
 
     init {
@@ -60,29 +56,23 @@ internal class TaigaDocumentationBindingPanel(
         updateCurrentValue()
         if (member.binding != null) editorContent.add(current)
         if (values.isNotEmpty()) {
-            add(
-                documentationRow(
-                    "Possible values",
-                    JPanel(FlowLayout(FlowLayout.LEFT, JBUI.scale(4), 0)).apply {
-                        isOpaque = false
-                        val visible = values.take(if (values.take(5).sumOf { it.length } > 30) 3 else 5)
-                        visible.forEach { value ->
-                            add(TaigaDocumentationLiteralButton(value) { copyLiteral(value) })
-                        }
-                        if (visible.size < values.size) add(JBLabel("+${values.size - visible.size}"))
-                    },
-                ),
-            )
-            editorContent.add(Box.createVerticalStrut(JBUI.scale(6)))
-            choices.apply {
-                getAccessibleContext().accessibleName = "Allowed input values"
-                preferredSize = Dimension(JBUI.scale(220), preferredSize.height)
-                this@TaigaDocumentationBindingPanel.currentValue?.takeIf { it in values }?.let { selectedItem = it }
-                addActionListener { updateActions() }
+            val valueType = values.joinToString(" | ") { "'$it'" }
+            if (!sameDocumentationType(valueType, member.typeText) &&
+                !sameDocumentationType(valueType, member.localMember?.expandedType)
+            ) {
+                add(documentationRow("Possible values", documentationCodeLabel(compactDocumentationType(valueType))))
             }
-            if (values.size > SEARCHABLE_VALUES_THRESHOLD) editorContent.add(valueSearch())
-            editorContent.add(valueActions())
-            if (!canApply) editorContent.add(JBLabel(member.valueActionUnavailableReason()))
+            if (canApply) {
+                editorContent.add(Box.createVerticalStrut(JBUI.scale(6)))
+                choices.apply {
+                    getAccessibleContext().accessibleName = "Allowed input values"
+                    preferredSize = Dimension(JBUI.scale(220), preferredSize.height)
+                    this@TaigaDocumentationBindingPanel.currentValue?.takeIf { it in values }?.let { selectedItem = it }
+                    addActionListener { updateActions() }
+                }
+                if (values.size > SEARCHABLE_VALUES_THRESHOLD) editorContent.add(valueSearch())
+                editorContent.add(valueActions())
+            }
             add(status)
             updateActions()
         }
@@ -90,13 +80,8 @@ internal class TaigaDocumentationBindingPanel(
 
     fun invalidateContext() {
         contextCurrent = false
-        showStatus("Refresh to apply. Copy remains available.")
+        showStatus("Refresh to apply.")
         updateActions()
-    }
-
-    private fun copyLiteral(value: String) {
-        CopyPasteManager.getInstance().setContents(StringSelection("'$value'"))
-        showStatus("Copied '$value'")
     }
 
     private fun updateActions() {
@@ -109,8 +94,6 @@ internal class TaigaDocumentationBindingPanel(
                 value == currentValue -> "This value is already applied"
                 else -> "Apply the selected value to this binding"
             }
-        copy.isEnabled = value != null
-        copy.toolTipText = value?.let { "Copy '$it'" }
         choices.toolTipText = value
     }
 
@@ -131,8 +114,6 @@ internal class TaigaDocumentationBindingPanel(
                     isOpaque = false
                     layout = BoxLayout(this, BoxLayout.X_AXIS)
                     add(apply)
-                    add(Box.createHorizontalStrut(JBUI.scale(4)))
-                    add(copy)
                 },
                 BorderLayout.EAST,
             )
@@ -147,12 +128,7 @@ internal class TaigaDocumentationBindingPanel(
                 }
                 showStatus(result)
             }
-            copy.addActionListener {
-                val value = choices.selectedItem as? String ?: return@addActionListener
-                copyLiteral(value)
-            }
             apply.bind("ENTER", "apply-input-value") { if (apply.isEnabled) apply.doClick() }
-            copy.bind("ENTER", "copy-input-value") { if (copy.isEnabled) copy.doClick() }
         }
 
     private fun valueSearch(): JBTextField =
@@ -200,10 +176,10 @@ internal class TaigaDocumentationBindingPanel(
 
 private fun TaigaResolvedDocumentation.Member.valueActionUnavailableReason(): String =
     when {
-        binding?.literal == null && binding != null -> "Dynamic expression. Copy a value to use it manually."
-        binding == null -> "No existing binding. Copy a value to use it manually."
-        localValues().isEmpty() -> "Installed types do not confirm a finite set of values. Copy is available."
-        else -> "Source editing is unavailable. Copy is available."
+        binding?.literal == null && binding != null -> "Dynamic expression."
+        binding == null -> "No existing binding."
+        localValues().isEmpty() -> "Installed types do not confirm a finite set of values."
+        else -> "Source editing is unavailable."
     }
 
 private const val SEARCHABLE_VALUES_THRESHOLD = 12

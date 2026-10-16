@@ -120,7 +120,7 @@ class TaigaQuickDocumentationPopupPanelTest : TaigaDocumentationPopupTestCase() 
         assertEquals(reference, chosen)
     }
 
-    fun testFocusedIconInputHasItsOwnPreviewChooserAndOwnerApi() {
+    fun testFocusedIconInputHasItsOwnPreviewAndChooser() {
         val start = TaigaDocumentationIcon("iconStart", "@tui.chevron", 3, 15)
         val end = TaigaDocumentationIcon("iconEnd", "@tui.eye", 30, 38)
         val owner = directive().copy(icons = listOf(start, end))
@@ -136,8 +136,8 @@ class TaigaQuickDocumentationPopupPanelTest : TaigaDocumentationPopupTestCase() 
         assertEquals(listOf(end), member.documentationIcons)
         descendants(panel).filterIsInstance<JButton>().first { it.text == "Choose icon" }.doClick()
         assertEquals(end, chosen)
-        descendants(panel).filterIsInstance<LinkLabel<*>>().first { it.text == "View TuiButton API →" }.doClick()
-        assertEquals(owner.entity.inputs, opened?.entity?.inputs)
+        assertNull(opened)
+        assertFalse(descendants(panel).filterIsInstance<LinkLabel<*>>().any { it.text.contains("API →") })
         assertTrue(labelText(panel).contains("@tui.eye"))
         assertFalse(labelText(panel).contains("@tui.chevron"))
         renderAndSave(panel, "icon-input")
@@ -201,13 +201,7 @@ class TaigaQuickDocumentationPopupPanelTest : TaigaDocumentationPopupTestCase() 
                 ).get(KeyStroke.getKeyStroke("alt LEFT"))
         panel.actionMap.get(backKey).actionPerformed(ActionEvent(panel, ActionEvent.ACTION_PERFORMED, "back"))
         assertTrue(back)
-        expandDetails(panel)
         renderAndSave(panel, "api-browser")
-        val provider =
-            descendants(panel)
-                .filterIsInstance<JBLabel>()
-                .first { it.text.orEmpty().contains("Project providers") }
-        assertTrue("Provider explanation must fit the API card", provider.width >= provider.preferredSize.width)
         val focused =
             TaigaQuickDocumentationPopupPanel(
                 requireNotNull(member),
@@ -299,7 +293,7 @@ class TaigaQuickDocumentationPopupPanelTest : TaigaDocumentationPopupTestCase() 
         }
     }
 
-    fun testDynamicAndDocumentationOnlyValuesAreCopyActions() {
+    fun testDynamicAndDocumentationOnlyValuesCannotModifySource() {
         val entity = directive()
         val member =
             TaigaResolvedDocumentation.Member(
@@ -314,15 +308,12 @@ class TaigaQuickDocumentationPopupPanelTest : TaigaDocumentationPopupTestCase() 
                 TaigaApiMemberKind.INPUT,
             )
         val panel = TaigaQuickDocumentationPopupPanel(member)
-        selectValue(panel, "m")
-        val apply = button(panel, "Apply")
-        assertFalse(apply.isEnabled)
-        button(panel, "Copy").doClick()
-        assertTrue(labelText(panel).contains("Copied 'm'"))
+        assertFalse(descendants(panel).filterIsInstance<JButton>().any { it.text == "Apply" })
+        assertFalse(descendants(panel).any { it is CopyValueButton })
         assertTrue(member.localValues().isEmpty())
     }
 
-    fun testKeyboardReachesPinSourceApiAndCloseActions() {
+    fun testKeyboardReachesPinSourceAndCloseWithoutBrowseApi() {
         var pinned = false
         var source = false
         var api = 0
@@ -346,14 +337,14 @@ class TaigaQuickDocumentationPopupPanelTest : TaigaDocumentationPopupTestCase() 
         val sourceLink = links.first { it.text == "Source ↗" }
         assertTrue(sourceLink.isFocusable)
         activate(sourceLink, "ENTER")
-        activate(links.first { it.text == "Browse API →" }, "SPACE")
+        assertFalse(links.any { it.text.startsWith("Browse API") })
         assertTrue(source)
-        assertEquals("Space must open the API exactly once", 1, api)
+        assertEquals(0, api)
         activate(panel, "ESCAPE")
         assertTrue(closed)
     }
 
-    fun testStaleCardBlocksIconWritesAndKeepsCopyAndKeyboardRefresh() {
+    fun testStaleCardBlocksIconWritesAndKeepsKeyboardRefresh() {
         val entity = directive()
         val member =
             TaigaResolvedDocumentation.Member(
@@ -393,20 +384,11 @@ class TaigaQuickDocumentationPopupPanelTest : TaigaDocumentationPopupTestCase() 
         val apply = button(panel, "Apply")
         assertFalse(apply.isEnabled)
         activate(apply, "ENTER")
-        activate(button(panel, "Copy"), "ENTER")
         assertEquals(0, writes)
-        assertTrue(labelText(panel).contains("Copied 'm'"))
         assertTrue(labelText(panel).contains("Code changed"))
         activate(panel, "F5")
         assertTrue(refreshed)
         renderAndSave(panel, "stale-binding")
-        val value = button(panel, "Copy")
-        val viewport = descendants(panel).filterIsInstance<JViewport>().first()
-        val position = SwingUtilities.convertPoint(value.parent, value.location, viewport)
-        assertTrue(
-            "Literal buttons must remain visible after invalidation",
-            position.y + value.height <= viewport.height,
-        )
     }
 
     fun testCardKeyboardActionDoesNotRequireMouseHoverSetting() {
@@ -433,7 +415,7 @@ class TaigaQuickDocumentationPopupPanelTest : TaigaDocumentationPopupTestCase() 
         }
     }
 
-    fun testKeyboardCopiesStaticLiteralWithoutApplyingIt() {
+    fun testKeyboardSelectionDoesNotApplyUntilRequested() {
         val entity = directive()
         val member =
             TaigaResolvedDocumentation.Member(
@@ -459,12 +441,8 @@ class TaigaQuickDocumentationPopupPanelTest : TaigaDocumentationPopupTestCase() 
                     }),
             )
         selectValue(panel, "m")
-        val value = button(panel, "Copy")
-        activate(value, "ENTER")
-        value.doClick()
+        assertFalse(descendants(panel).any { it is CopyValueButton })
         assertEquals(0, writes)
-        assertTrue(labelText(panel).contains("Copied 'm'"))
-        selectValue(panel, "m")
         val apply = button(panel, "Apply")
         activate(apply, "ENTER")
         assertEquals(1, writes)

@@ -90,20 +90,32 @@ private fun TaigaDocumentationSubject.documentationEntity(snapshot: TaigaDocsSna
 
     return base.copy(
         kind = kind,
-        inputs = base.installedProperties(local, TaigaApiMemberKind.INPUT),
-        outputs = base.installedProperties(local, TaigaApiMemberKind.OUTPUT),
+        inputs = base.installedProperties(local, TaigaApiMemberKind.INPUT, snapshot),
+        outputs = base.installedProperties(local, TaigaApiMemberKind.OUTPUT, snapshot),
     )
 }
 
 private fun TaigaEntityDoc.installedProperties(
     local: TaigaLocalDocumentation,
     kind: TaigaApiMemberKind,
+    snapshot: TaigaDocsSnapshot?,
 ): List<TaigaApiProperty> {
     val documented = if (kind == TaigaApiMemberKind.INPUT) inputs else outputs
     return local.members.filter { it.kind == kind }.map { member ->
-        val old = documented.firstOrNull { it.name == member.name }
+        val owner = snapshot?.find(member.declaration)
+        val ownerProperties = if (kind == TaigaApiMemberKind.INPUT) owner?.inputs else owner?.outputs
+        val old =
+            documented
+                .firstOrNull { it.name == member.name }
+                ?.takeIf { !it.description.isNullOrBlank() }
+                ?: ownerProperties?.firstOrNull { it.name == member.fieldName || it.name == member.name }
         val signature = if (kind == TaigaApiMemberKind.INPUT) "[${member.name}]" else "(${member.name})"
-        TaigaApiProperty(member.name, signature, member.type, member.description ?: old?.description)
+        TaigaApiProperty(
+            member.name,
+            signature,
+            member.type,
+            member.description?.takeIf(String::isNotBlank) ?: old?.description,
+        )
     }
 }
 

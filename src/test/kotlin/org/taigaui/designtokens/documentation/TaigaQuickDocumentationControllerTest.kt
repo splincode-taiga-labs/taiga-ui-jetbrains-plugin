@@ -134,7 +134,7 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
         }
         open("<button tuiButton size=\"m\">Save</button>", "tuiButton")
         button("Pin").doClick()
-        link("Browse API →").doClick()
+        actions().openOwner?.invoke(view().resolved as TaigaResolvedDocumentation.Entity)
         descendants(panel())
             .filterIsInstance<JBTextField>()
             .single()
@@ -354,7 +354,7 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
             myFixture.editor.document.text
                 .contains("size=\"m\""),
         )
-        assertTrue(button("Copy").isEnabled)
+        assertFalse(descendants(panel()).filterIsInstance<JButton>().any { it.text == "Copy" })
     }
 
     fun testUndoRedoCannotReuseTheRefreshedBindingAction() {

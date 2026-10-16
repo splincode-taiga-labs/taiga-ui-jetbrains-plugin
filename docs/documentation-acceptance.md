@@ -22,8 +22,8 @@ The controller suite uses the IntelliJ Platform editor, Angular PSI, installed d
 | Pin/Unpin/Close restore native hover and dispose editing range markers                             | `testPinUnpinAndCloseRestoreNativeHoverAndDisposeEditorAdapters`                                               |
 | Inline templates, shared inputs and exposed host-directive aliases use the host editor             | `testInlineSharedBindingAndHostDirectiveUseTheHostEditor`; external templates are used throughout the suite    |
 | Native completion provides installed documentation without opening the interactive card            | `testNativeCompletionProvidesInstalledDocumentationWithoutOpeningAnInteractiveCard`                            |
-| Finite input cards show one type and one shared Apply/Copy pair; selecting/copying never writes    | `TaigaQuickDocumentationUxTest.testFiniteInputCardHasOneTypeAndOnePairOfValueActions`; light/dark PNG previews |
-| Details reveals distinct types and helpers while required/deprecated warnings remain visible       | `testDetailsRevealDistinctTypesAndKeepImportantWarningsVisible`                                                |
+| Finite input cards show compact types and one Apply action; selecting never writes                 | `TaigaQuickDocumentationUxTest.testFiniteInputCardHasOneTypeAndOnePairOfValueActions`; light/dark PNG previews |
+| Focused cards show relevant types and warnings without a Details disclosure                        | `testFocusedMemberShowsRelevantTypesAndWarningsWithoutDetails`                                                 |
 | Long shared types fit bounded cards in both themes at 100%, 125% and 200% user scale               | `TaigaQuickDocumentationUxTest.testLongSharedBindingCardsFitBothThemesAtEverySupportedScale`; six PNG previews |
 
 Run these checks with:
@@ -78,11 +78,11 @@ Record IDE build, macOS version, keymap, theme and scale for each pass. Follow t
 - [ ] Invoke native Quick Documentation and completion documentation; verify one documentation surface and no duplicate interactive hover.
 - [ ] Use Angular quick fixes in the deliberately missing-import component; verify the correct component is changed.
 - [ ] Add a required input and type immediately through automatic Refresh; verify OS focus, caret and one Undo.
-- [ ] Resize/move a pinned window, browse/search, press F5, then Back; verify history, selection, scroll and geometry.
+- [ ] Resize/move a pinned window, select another parameter, press F5, then Back; verify history, scroll and geometry.
 - [ ] Close the card or source editor during indexing/loading; verify no late popup appears.
-- [ ] Select a value without applying it; use Apply/Copy separately, search a large set, and expand/collapse Details.
+- [ ] Select a value without applying it; use Apply, search a large editable set, and verify there are no Details or clipboard controls.
 - [ ] Change imports, Undo/Redo or delete the source element; verify old actions cannot write.
-- [ ] Traverse all actions with Tab/Shift+Tab; use Enter/Space, Escape, search, Back, F5 and the configured Show Taiga UI Card shortcut.
+- [ ] Traverse all actions with Tab/Shift+Tab; use Enter/Space, Escape, value search, Back, F5 and the configured Show Taiga UI Card shortcut.
 - [ ] Repeat in light/dark themes at 100%, 125% and 200%; inspect long types/descriptions/examples and each screen edge.
 
 Manual execution is pending. Headless CI previews and recorded focus/geometry assertions cannot substitute for a real macOS/WebStorm session.

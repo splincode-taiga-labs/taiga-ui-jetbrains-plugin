@@ -1,10 +1,8 @@
 package org.taigaui.designtokens.documentation
 
 import com.intellij.openapi.editor.colors.EditorColorsManager
-import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
-import java.awt.datatransfer.DataFlavor
 import javax.swing.JTabbedPane
 import javax.swing.JViewport
 import javax.swing.SwingUtilities
@@ -18,13 +16,8 @@ class TaigaQuickDocumentationAppearanceTest : TaigaDocumentationPopupTestCase() 
         val panel = TaigaQuickDocumentationPopupPanel(documented)
         assertTrue("Hidden example must not inflate the API summary", panel.preferredSize.height <= baseline + 24)
         val tabs = descendants(panel).filterIsInstance<JTabbedPane>().single()
-        tabs.selectedIndex = 2
+        tabs.selectedIndex = tabs.indexOfTab("Examples")
         assertTrue(panel.preferredSize.height > baseline)
-        activate(button(panel, "Copy example"), "ENTER")
-        assertEquals(
-            documented.entity.example?.code,
-            CopyPasteManager.getInstance().getContents(DataFlavor.stringFlavor),
-        )
     }
 
     fun testReferenceLayoutIsAlsoUsedForMouseHover() {
@@ -55,8 +48,7 @@ class TaigaQuickDocumentationAppearanceTest : TaigaDocumentationPopupTestCase() 
                 ),
                 showExample = true,
             )
-        activate(button(panel, "Copy example"), "ENTER")
-        assertEquals(code, CopyPasteManager.getInstance().getContents(DataFlavor.stringFlavor))
+        assertFalse(descendants(panel).any { it is CopyValueButton })
     }
 
     fun testReferenceCardsInBothThemesKeepEditingSecondaryAndTsApiExplicit() {
@@ -169,11 +161,7 @@ class TaigaQuickDocumentationAppearanceTest : TaigaDocumentationPopupTestCase() 
                 val position = SwingUtilities.convertPoint(label.parent, label.location, viewport)
                 assertTrue("Code row labels must stay aligned to the left", position.x <= 1)
             }
-        visibleDescendants(panel).filterIsInstance<CopyValueButton>().forEach { button ->
-            val position = SwingUtilities.convertPoint(button.parent, button.location, viewport)
-            assertTrue("Copy actions must fit within the card", position.x + button.width <= viewport.width)
-            assertTrue("Copy actions need usable bounds", button.width > 0 && button.height > 0)
-        }
+        assertFalse(descendants(panel).any { it is CopyValueButton })
         if (name == "typescript") assertFalse(descendants(panel).any { it is JTabbedPane })
         if (name == "size-input") {
             assertTrue(
@@ -181,9 +169,7 @@ class TaigaQuickDocumentationAppearanceTest : TaigaDocumentationPopupTestCase() 
                     it.accessibleContext.accessibleName == "TuiSizeXS"
                 },
             )
-            assertFalse(visibleDescendants(panel).any { it == button(panel, "Apply") })
-            activate(button(panel, "Copy literal 'l'"), "ENTER")
-            assertEquals("'l'", CopyPasteManager.getInstance().getContents(DataFlavor.stringFlavor))
+            assertFalse(descendants(panel).filterIsInstance<javax.swing.JButton>().any { it.text == "Apply" })
         }
     }
 }
