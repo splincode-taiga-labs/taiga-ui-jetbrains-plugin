@@ -149,7 +149,8 @@ internal object TaigaDocumentationResolver {
                 manager.isInjectedFragment(candidateFile)
         if (!templateContext) return null
         val candidateOffset = if (candidateFile == file) offset else candidate.textOffset
-        val declaration = candidate.resolveTaigaDeclaration(candidateFile, candidateOffset) ?: return null
+        val declaration =
+            candidate.resolveTaigaDeclaration(candidateFile, candidateOffset, incompleteCode = true) ?: return null
         val subject = declaration.toLocalSubject(selector = null) ?: return null
         val pipe = subject.localDocumentation.pipe ?: return null
         return if (reference.name == pipe.name) {
