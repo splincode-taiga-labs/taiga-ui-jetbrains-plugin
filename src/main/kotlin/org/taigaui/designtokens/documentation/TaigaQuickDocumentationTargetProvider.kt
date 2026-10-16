@@ -38,6 +38,7 @@ internal class TaigaQuickDocumentationTargetProvider :
         return createTarget(psiFile, subject)
     }
 
+    @Suppress("ReturnCount")
     private fun createTarget(
         file: PsiFile,
         subject: TaigaDocumentationSubject,
