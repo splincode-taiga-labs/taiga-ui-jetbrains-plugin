@@ -22,7 +22,7 @@ From the plugin repository:
 
 Gradle uses the WebStorm version pinned by `platformVersion` and opens the supplied project in the sandbox IDE.
 
-In the sandbox project, move the pointer over a Taiga UI token name inside `var(...)` and keep it still for about 350 ms. The plugin shows its custom Swing popup directly; it does not register or use the IntelliJ Quick Documentation provider.
+In the sandbox project, move the pointer over a Taiga UI token name inside `var(...)` and keep it still for about 350 ms. Design-token hover still uses its custom Swing popup. For Taiga UI components and directives in Angular templates, place the caret on selectors such as `tuiButton` or `tui-calendar` and invoke **View | Quick Documentation** / `Ctrl+Q` (`F1` on the default macOS keymap) to test the native documentation provider.
 
 After changing plugin code, stop the running sandbox IDE and start `runIde` again. Hot reload is not used for plugin classes or `plugin.xml` extension registrations.
 
