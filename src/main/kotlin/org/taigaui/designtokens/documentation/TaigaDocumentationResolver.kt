@@ -237,7 +237,7 @@ private fun PsiElement.toLocalSubject(
     }
 
 private fun PsiElement.taigaPublicSymbol(): String? =
-    generateSequence<PsiElement?>(this) { element -> element?.parent }
+    generateSequence(this) { element: PsiElement -> element.parent }
         .filterIsInstance<PsiNamedElement>()
         .mapNotNull(PsiNamedElement::getName)
         .firstOrNull(::isTaigaPublicSymbol)
@@ -256,7 +256,7 @@ internal fun PsiElement.taigaPackageName(): String? =
 private fun PsiElement.typeDefinition(symbol: String): String? =
     generateSequence<PsiElement?>(this) { element -> element?.parent }
         .take(TYPE_DEFINITION_PARENT_LIMIT)
-        .mapNotNull { element -> element?.text?.take(MAX_DECLARATION_TEXT) }
+        .map { element -> element.text.take(MAX_DECLARATION_TEXT) }
         .mapNotNull { text ->
             Regex(
                 """\btype\s+${Regex.escape(symbol)}(?:<[^>]+>)?\s*=\s*(.+?);""",
@@ -319,7 +319,7 @@ private val MEMBER_BINDING_PATTERNS =
         MemberBindingPattern("on-", "", TaigaApiMemberKind.OUTPUT),
     )
 private val TAIGA_PACKAGE_PATH = Regex("""(?:^|/)node_modules/@taiga-ui/([^/]+)(?:/|$)""")
-private val WHITESPACE = Regex("\s+")
+private val WHITESPACE = Regex("\\s+")
 private const val TYPE_DEFINITION_PARENT_LIMIT = 6
 private const val MAX_DECLARATION_TEXT = 8_000
 private const val MAX_TYPE_DEFINITION = 800
