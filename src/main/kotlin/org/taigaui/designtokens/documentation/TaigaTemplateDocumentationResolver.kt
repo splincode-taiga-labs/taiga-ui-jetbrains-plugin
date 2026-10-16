@@ -18,10 +18,10 @@ import com.intellij.psi.xml.XmlTokenType
 internal data class TaigaDocumentationSubject(
     val selector: String?,
     val publicSymbol: String?,
-    val packageName: String,
+    val packageName: String?,
 ) {
     val presentationName: String
-        get() = publicSymbol ?: selector ?: packageName
+        get() = publicSymbol ?: selector ?: packageName.orEmpty()
 }
 
 internal object TaigaTemplateDocumentationResolver {
@@ -83,11 +83,22 @@ internal object TaigaTemplateDocumentationResolver {
     private fun PolySymbol.toLocalSubject(
         selector: String?,
         requestedSymbol: String? = null,
-    ): TaigaDocumentationSubject? =
-        unwrapMatchedSymbols()
-            .mapNotNull { symbol -> symbol.psiContext }
-            .mapNotNull { context -> context.toLocalSubject(selector, requestedSymbol) }
-            .firstOrNull()
+    ): TaigaDocumentationSubject? {
+        val symbols = unwrapMatchedSymbols()
+        val contexts = symbols.mapNotNull { symbol -> symbol.psiContext }
+
+        if (contexts.isNotEmpty()) {
+            return contexts
+                .mapNotNull { context -> context.toLocalSubject(selector, requestedSymbol) }
+                .firstOrNull()
+        }
+
+        return TaigaDocumentationSubject(
+            selector = selector,
+            publicSymbol = requestedSymbol ?: name.takeIf(::isTaigaPublicSymbol),
+            packageName = null,
+        )
+    }
 
     private fun PsiElement.toLocalSubject(
         selector: String?,
