@@ -115,6 +115,10 @@ internal object TaigaDocumentationResolver {
 
         val tag = PsiTreeUtil.getParentOfType(element, XmlTag::class.java, false) ?: return null
         val tagName = tag.name.takeIf(::isTaigaSelector) ?: return null
+
+        if (element.text != tagName) {
+            return null
+        }
         val subject =
             (tag.descriptor as? HtmlElementSymbolDescriptor)
                 ?.symbol
@@ -258,7 +262,7 @@ internal object TaigaDocumentationResolver {
             .map { element -> element.text.take(MAX_DECLARATION_TEXT) }
             .mapNotNull { text ->
                 Regex(
-                    """\\btype\\s+${Regex.escape(symbol)}(?:<[^>]+>)?\\s*=\\s*(.+?);""",
+                    """\btype\s+${Regex.escape(symbol)}(?:<[^>]+>)?\s*=\s*(.+?);""",
                     RegexOption.DOT_MATCHES_ALL,
                 ).find(text)
                     ?.groupValues
