@@ -4,7 +4,6 @@ import com.intellij.codeInsight.lookup.LookupElement
 import com.intellij.lang.injection.InjectedLanguageManager
 import com.intellij.model.Pointer
 import com.intellij.openapi.components.service
-import com.intellij.openapi.project.Project
 import com.intellij.platform.backend.documentation.DocumentationResult
 import com.intellij.platform.backend.documentation.DocumentationTarget
 import com.intellij.platform.backend.documentation.DocumentationTargetProvider
@@ -20,11 +19,11 @@ internal class TaigaQuickDocumentationTargetProvider :
         file: PsiFile,
         offset: Int,
     ): List<DocumentationTarget> {
-        val selector =
-            TaigaTemplateSelectorAtOffset.find(file.viewProvider.contents, offset)
+        val subject =
+            TaigaTemplateDocumentationResolver.find(file, offset)
                 ?: return emptyList()
 
-        return listOfNotNull(createTarget(file, selector))
+        return createTarget(file, subject)?.let(::listOf).orEmpty()
     }
 
     override fun documentationTarget(
@@ -32,64 +31,67 @@ internal class TaigaQuickDocumentationTargetProvider :
         element: LookupElement,
         offset: Int,
     ): DocumentationTarget? {
-        val key =
-            element.lookupString.takeIf(TaigaTemplateSelectorAtOffset::isTaigaDocumentationKey)
+        val subject =
+            TaigaTemplateDocumentationResolver.find(psiFile, element)
                 ?: return null
 
-        return createTarget(psiFile, key)
+        return createTarget(psiFile, subject)
     }
 
     private fun createTarget(
         file: PsiFile,
-        key: String,
+        subject: TaigaDocumentationSubject,
     ): DocumentationTarget? {
-        val sourceFile =
-            InjectedLanguageManager
-                .getInstance(file.project)
-                .getTopLevelFile(file)
-                .virtualFile
-                ?.path
-                ?.let { path -> runCatching { Path.of(path) }.getOrNull() }
-                ?: return null
+        val sourceFile = file.sourcePath() ?: return null
+        val service = file.project.service<TaigaDocsService>()
+        val snapshot = service.cachedSnapshotFor(sourceFile)
 
-        return TaigaQuickDocumentationTarget(
-            project = file.project,
-            sourceFile = sourceFile,
-            key = key,
-        )
+        if (snapshot == null) {
+            service.warmUp(sourceFile)
+
+            return null
+        }
+
+        val entity = snapshot.find(subject) ?: return null
+
+        return TaigaQuickDocumentationTarget(entity, subject)
     }
 }
 
 private class TaigaQuickDocumentationTarget(
-    private val project: Project,
-    private val sourceFile: Path,
-    private val key: String,
+    private val entity: TaigaEntityDoc,
+    private val subject: TaigaDocumentationSubject,
 ) : DocumentationTarget {
     override fun createPointer(): Pointer<out DocumentationTarget> = Pointer.hardPointer(this)
 
     override fun computePresentation(): TargetPresentation =
         TargetPresentation
-            .builder(key)
+            .builder(subject.presentationName)
             .presentation()
 
     override fun computeDocumentation(): DocumentationResult =
-        DocumentationResult.asyncDocumentation {
-            if (project.isDisposed) {
-                return@asyncDocumentation null
-            }
-
-            val snapshot =
-                project
-                    .service<TaigaDocsService>()
-                    .snapshotFor(sourceFile)
-                    ?: return@asyncDocumentation null
-            val entity =
-                snapshot.findBySelector(key).firstOrNull()
-                    ?: snapshot.findByPublicSymbol(key).firstOrNull()
-                    ?: return@asyncDocumentation null
-
-            DocumentationResult
-                .documentation(TaigaQuickDocumentationRenderer.render(entity))
-                .externalUrl(entity.documentationUri.toString())
-        }
+        DocumentationResult
+            .documentation(TaigaQuickDocumentationRenderer.render(entity, subject))
+            .externalUrl(entity.documentationUri.toString())
 }
+
+private fun PsiFile.sourcePath(): Path? =
+    InjectedLanguageManager
+        .getInstance(project)
+        .getTopLevelFile(this)
+        .virtualFile
+        ?.path
+        ?.let { path -> runCatching { Path.of(path) }.getOrNull() }
+
+private fun TaigaDocsSnapshot.find(subject: TaigaDocumentationSubject): TaigaEntityDoc? =
+    buildList {
+        subject.publicSymbol?.let { symbol ->
+            addAll(findByPublicSymbol(symbol))
+        }
+        subject.selector?.let { selector ->
+            addAll(findBySelector(selector))
+        }
+    }.distinctBy(TaigaEntityDoc::sectionId)
+        .firstOrNull { entity ->
+            entity.packageNames.isEmpty() || subject.packageName in entity.packageNames
+        }
