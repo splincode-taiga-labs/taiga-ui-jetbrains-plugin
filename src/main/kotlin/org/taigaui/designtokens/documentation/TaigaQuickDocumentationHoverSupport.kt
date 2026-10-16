@@ -121,7 +121,12 @@ internal class TaigaQuickDocumentationHoverController(
             },
             project,
         )
-        project.messageBus.connect(project).subscribe(PsiModificationTracker.TOPIC) { contextChanged() }
+        project.messageBus.connect(project).subscribe(
+            PsiModificationTracker.TOPIC,
+            object : PsiModificationTracker.Listener {
+                override fun modificationCountChanged() = contextChanged()
+            },
+        )
         project.messageBus.connect(project).subscribe(
             VirtualFileManager.VFS_CHANGES,
             object : BulkFileListener {
@@ -665,13 +670,14 @@ internal class TaigaQuickDocumentationHoverController(
         val references = resolved.documentationIcons.filter { it.name.isNotEmpty() }.take(2)
         if (references.isEmpty()) return
 
-        previewJob = icons.loadPreviews(request.sourceFile, references) { previews ->
-            if (popupContent === panel && request.isStillCurrent(project)) {
-                panel.showIconPreviews(previews)
-                popup?.setSize(panel.preferredSize)
-                popup?.moveToFitScreen()
+        previewJob =
+            icons.loadPreviews(request.sourceFile, references) { previews ->
+                if (popupContent === panel && request.isStillCurrent(project)) {
+                    panel.showIconPreviews(previews)
+                    popup?.setSize(panel.preferredSize)
+                    popup?.moveToFitScreen()
+                }
             }
-        }
     }
 
     private fun chooseIcon(

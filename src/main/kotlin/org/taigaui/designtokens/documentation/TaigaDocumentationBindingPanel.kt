@@ -57,7 +57,8 @@ internal class TaigaDocumentationBindingPanel(
             add(current)
         }
         if (values.isNotEmpty()) {
-            prompt.text = if (canApply) "Choose a value to apply (Shift-click/Enter copies)" else "Choose a literal to copy"
+            prompt.text =
+                if (canApply) "Choose a value to apply (Shift-click/Enter copies)" else "Choose a literal to copy"
             add(
                 prompt.apply {
                     alignmentX = LEFT_ALIGNMENT
@@ -108,7 +109,10 @@ internal class TaigaDocumentationBindingPanel(
         }
     }
 
-    private fun copyLiteral(value: String, status: JBLabel) {
+    private fun copyLiteral(
+        value: String,
+        status: JBLabel,
+    ) {
         CopyPasteManager.getInstance().setContents(StringSelection("'$value'"))
         status.text = "Copied '$value'"
         status.toolTipText = status.text
