@@ -189,6 +189,43 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
         return html
     }
 
+    fun testShowsInstalledPipeInAngularInterpolation() {
+        val file = configureTemplate("<div>{{ value | tuiMapper : mapper }}</div>")
+        warmDocumentation(file)
+        myFixture.doHighlighting()
+
+        val html = renderDocumentation(file, "tuiMapper")
+
+        assertNotNull(html)
+        assertTrue(requireNotNull(html).contains("TuiMapperPipe"))
+        assertTrue(requireNotNull(html).contains("Pipe"))
+        assertTrue(requireNotNull(html).contains("@taiga-ui/cdk"))
+        assertTrue(requireNotNull(html).contains("Parameters"))
+        assertTrue(requireNotNull(html).contains("mapper(value, ...args)"))
+        assertTrue(requireNotNull(html).contains("Pure pipe"))
+    }
+
+    fun testDoesNotClaimUnknownOrNativePipes() {
+        val file = configureTemplate("<div>{{ value | tuiUnknownPipe }} {{ value | async }}</div>")
+        warmDocumentation(file)
+
+        assertNull(renderDocumentation(file, "tuiUnknownPipe"))
+        assertNull(renderDocumentation(file, "async"))
+    }
+
+    fun testPreviewsOnlyStaticIconBindings() {
+        val file = configureTemplate("<button tuiButton [iconEnd]=\"'@tui.eye'\">Save</button>")
+        warmDocumentation(file)
+        val request = TaigaDocumentationResolver.findRequest(file, file.text.indexOf("tuiButton") + 2)
+
+        assertEquals("@tui.eye", (request as? TaigaDocumentationRequest.Entity)?.icons?.singleOrNull()?.name)
+
+        val dynamic = configureTemplate("<button tuiButton [iconEnd]=\"shown ? '@tui.eye' : '@tui.eye-off'\">Save</button>")
+        val dynamicRequest = TaigaDocumentationResolver.findRequest(dynamic, dynamic.text.indexOf("tuiButton") + 2)
+
+        assertTrue((dynamicRequest as? TaigaDocumentationRequest.Entity)?.icons?.isEmpty() == true)
+    }
+
     private fun nthIndexOf(
         text: String,
         needle: String,
@@ -280,16 +317,20 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
             }
 
             export declare function Component(metadata: ComponentMetadata): ClassDecorator;
+            export declare function Pipe(metadata: {name: string; pure?: boolean}): ClassDecorator;
             """.trimIndent(),
         )
         createFile(
             workspaceRoot.resolve("src/component.ts"),
             """
             import {Component} from '@angular/core';
+            import {TuiMapperPipe} from '@taiga-ui/cdk';
 
             @Component({
                 selector: 'example',
                 templateUrl: './component.html',
+                standalone: true,
+                imports: [TuiMapperPipe],
             })
             export class ExampleComponent {}
             """.trimIndent(),
@@ -297,6 +338,22 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
     }
 
     private fun configureTaigaPackage() {
+        createFile(
+            workspaceRoot.resolve("node_modules/@taiga-ui/cdk/package.json"),
+            """{"name":"@taiga-ui/cdk","version":"5.18.0","types":"index.ts"}""",
+        )
+        createFile(
+            workspaceRoot.resolve("node_modules/@taiga-ui/cdk/index.ts"),
+            """
+            import {Pipe} from '@angular/core';
+            @Pipe({name: 'tuiMapper'})
+            export class TuiMapperPipe {
+                transform<T extends unknown[], U, G>(value: U, mapper: (value: U, ...args: T) => G, ...args: T): G {
+                    return mapper(value, ...args);
+                }
+            }
+            """.trimIndent(),
+        )
         createFile(
             workspaceRoot.resolve("node_modules/@taiga-ui/core/package.json"),
             """
@@ -341,6 +398,13 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
     private fun docsFixture(): String =
         listOf(
             "# Import Map - Package Exports Reference",
+            "",
+            "## @taiga-ui/cdk",
+            "**Pipes:**",
+            "### mapper",
+            FENCE + "text",
+            "TuiMapperPipe",
+            FENCE,
             "",
             "## @taiga-ui/core",
             "",
@@ -421,6 +485,18 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
             "- **Version**: 5.0.0",
             "",
             "Available button appearances.",
+            "",
+            "# pipes/Mapper",
+            "- **Package**: " + tick("CDK"),
+            "- **Type**: pipes",
+            "- **Version**: 5.0.0",
+            "",
+            "Maps a value through a function.",
+            "",
+            "### Example",
+            FENCE + "html",
+            "{{ value | tuiMapper : mapper }}",
+            FENCE,
         ).joinToString("\n")
 
     private fun createFile(

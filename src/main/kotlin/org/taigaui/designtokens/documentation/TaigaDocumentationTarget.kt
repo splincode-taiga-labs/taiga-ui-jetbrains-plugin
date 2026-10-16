@@ -16,6 +16,7 @@ internal sealed interface TaigaDocumentationRequest {
         override val endOffset: Int,
         override val usage: String? = null,
         val typeDefinition: String? = null,
+        val icons: List<TaigaDocumentationIcon> = emptyList(),
     ) : TaigaDocumentationRequest
 
     data class Member(
@@ -25,6 +26,7 @@ internal sealed interface TaigaDocumentationRequest {
         override val startOffset: Int,
         override val endOffset: Int,
         override val usage: String? = null,
+        val declaration: TaigaDocumentationSubject? = null,
     ) : TaigaDocumentationRequest
 }
 
@@ -42,6 +44,7 @@ internal sealed interface TaigaResolvedDocumentation {
         override val endOffset: Int,
         override val usage: String?,
         val typeDefinition: String?,
+        val icons: List<TaigaDocumentationIcon> = emptyList(),
     ) : TaigaResolvedDocumentation
 
     data class Member(
@@ -52,6 +55,7 @@ internal sealed interface TaigaResolvedDocumentation {
         override val usage: String?,
         val property: TaigaApiProperty,
         val kind: TaigaApiMemberKind,
+        val declaration: TaigaDocumentationSubject? = null,
     ) : TaigaResolvedDocumentation
 }
 
@@ -67,6 +71,7 @@ internal fun TaigaDocsSnapshot.resolve(request: TaigaDocumentationRequest): Taig
                         endOffset = request.endOffset,
                         usage = request.usage,
                         typeDefinition = request.typeDefinition,
+                        icons = request.icons.filter { icon -> entity.inputs.any { property -> property.name == icon.attribute } },
                     )
                 }
             }
@@ -89,6 +94,7 @@ internal fun TaigaDocsSnapshot.resolve(request: TaigaDocumentationRequest): Taig
                     usage = request.usage,
                     property = property,
                     kind = request.kind,
+                    declaration = request.declaration?.takeIf { subject -> subject.packageName != null },
                 )
             }
     }
@@ -141,6 +147,7 @@ internal val TaigaResolvedDocumentation.badge: String
 
             is TaigaResolvedDocumentation.Entity ->
                 when {
+                    entity.kind == TaigaDocKind.PIPE -> "Pipe"
                     entity.kind == TaigaDocKind.TYPE -> "Type"
                     subject.selector?.startsWith("tui-") == true -> "Component"
                     subject.selector != null -> "Directive"
@@ -169,7 +176,10 @@ internal val TaigaResolvedDocumentation.typeText: String?
     get() =
         when (this) {
             is TaigaResolvedDocumentation.Entity -> typeDefinition
-            is TaigaResolvedDocumentation.Member -> property.documentedType
+            is TaigaResolvedDocumentation.Member ->
+                declaration?.localDocumentation?.inputTypes?.get(property.name)
+                    ?: subject.localDocumentation.inputTypes[property.name]
+                    ?: property.documentedType
         }
 
 internal val TaigaResolvedDocumentation.effectiveUsage: String?
@@ -218,10 +228,19 @@ internal fun TaigaResolvedDocumentation.relatedMembers(limit: Int = 4): List<Str
                 .asSequence()
                 .map(TaigaApiProperty::name)
                 .filter { name -> name != property.name }
+                .filter { name -> property.description?.contains(Regex("\\b${Regex.escape(name)}\\b")) == true }
                 .distinct()
                 .take(limit)
                 .toList()
     }
+
+internal val TaigaResolvedDocumentation.source: TaigaDocumentationSource?
+    get() =
+        (this as? TaigaResolvedDocumentation.Member)?.declaration?.localDocumentation?.source
+            ?: subject.localDocumentation.source
+
+internal val TaigaResolvedDocumentation.localDocumentation: TaigaLocalDocumentation
+    get() = subject.localDocumentation
 
 internal fun TaigaDocKind.displayName(): String =
     name

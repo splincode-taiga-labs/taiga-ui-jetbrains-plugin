@@ -5,6 +5,24 @@ import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiPolyVariantReference
 import com.intellij.psi.PsiReference
+import java.nio.file.Path
+
+internal fun PsiElement.localDocumentation(symbol: String?): TaigaLocalDocumentation {
+    val declaration =
+        ancestors(TYPE_DEFINITION_PARENT_LIMIT)
+            .firstOrNull { element ->
+                val name = symbol?.let(Regex::escape) ?: "Tui\\w+"
+                Regex("\\bclass\\s+$name\\b").containsMatchIn(element.text.take(MAX_LOCAL_DECLARATION_TEXT))
+            }
+            ?: this
+    val file = declaration.containingFile?.originalFile?.virtualFile
+    val path = file?.takeIf { it.extension in DECLARATION_EXTENSIONS }?.path
+    val source = path?.let { value -> runCatching { Path.of(value) }.getOrNull() }
+
+    return TaigaLocalDocumentationParser.parse(declaration.text).copy(
+        source = source?.let { file -> TaigaDocumentationSource(file, declaration.textOffset) },
+    )
+}
 
 internal fun PsiElement.candidateReferences(
     file: PsiFile,
@@ -124,3 +142,5 @@ private val WHITESPACE = Regex("\\s+")
 private const val TYPE_DEFINITION_PARENT_LIMIT = 6
 private const val MAX_DECLARATION_TEXT = 8_000
 private const val MAX_TYPE_DEFINITION = 800
+private const val MAX_LOCAL_DECLARATION_TEXT = 32_000
+private val DECLARATION_EXTENSIONS = setOf("ts", "js", "mjs", "mts", "cts", "cjs")
