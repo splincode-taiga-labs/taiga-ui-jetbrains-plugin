@@ -4,6 +4,7 @@ import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
+import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.labels.LinkLabel
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
@@ -11,421 +12,470 @@ import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.Font
+import java.awt.Graphics
+import java.awt.Graphics2D
+import java.awt.GridBagConstraints
+import java.awt.GridBagLayout
 import java.awt.MouseInfo
 import java.awt.Point
+import java.awt.RenderingHints
 import javax.swing.Box
 import javax.swing.BoxLayout
+import javax.swing.Icon
+import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.JSeparator
-import javax.swing.JTabbedPane
 import javax.swing.SwingUtilities
 
+internal data class TaigaDocumentationIconPreview(
+    val reference: TaigaDocumentationIcon,
+    val icon: Icon,
+)
+
+internal data class TaigaDocumentationPopupActions(
+    val navigateToSource: (() -> Unit)? = null,
+    val chooseIcon: ((TaigaDocumentationIcon) -> Unit)? = null,
+    val openMember: ((TaigaResolvedDocumentation.Member) -> Unit)? = null,
+    val showExample: (() -> Unit)? = null,
+)
+
+/** The same compact card structure serves every kind, with kind-specific content. */
 internal class TaigaQuickDocumentationPopupPanel(
     private val resolved: TaigaResolvedDocumentation,
-    onClose: () -> Unit,
-) : JPanel(BorderLayout()) {
+    private val onClose: () -> Unit = {},
+    private val actions: TaigaDocumentationPopupActions = TaigaDocumentationPopupActions(),
+    private val previews: List<TaigaDocumentationIconPreview> = emptyList(),
+    showExample: Boolean = false,
+) : JPanel(BorderLayout(0, JBUI.scale(12))) {
+    private val content = verticalPanel()
+    private val previewContent = verticalPanel()
+    private val scroll: JBScrollPane
+
     init {
-        border = JBUI.Borders.empty(10, 14)
-        isOpaque = true
+        border = JBUI.Borders.empty(16, 18)
+        background = DESIGN_TOKEN_POPUP_BACKGROUND
+        accessibleContext.accessibleName = "Taiga UI documentation for ${resolved.presentationName}"
 
-        val content = verticalPanel()
-
-        content.add(createHeader(onClose))
-        createMetaLabel()?.let { meta ->
-            content.add(Box.createVerticalStrut(JBUI.scale(3)))
-            content.add(meta)
-        }
-
+        content.add(header())
+        content.add(Box.createVerticalStrut(JBUI.scale(4)))
+        content.add(meta())
         resolved.description?.takeIf(String::isNotBlank)?.let { description ->
-            content.add(Box.createVerticalStrut(JBUI.scale(8)))
-            content.add(wrappedLabel(description))
+            content.add(Box.createVerticalStrut(JBUI.scale(12)))
+            content.add(wrappedLabel(description.take(MAX_DESCRIPTION_LENGTH)))
         }
+        content.add(Box.createVerticalStrut(JBUI.scale(14)))
 
-        content.add(Box.createVerticalStrut(JBUI.scale(8)))
-
-        when (resolved) {
-            is TaigaResolvedDocumentation.Entity -> content.add(createEntityTabs(resolved))
-            is TaigaResolvedDocumentation.Member -> {
-                content.add(quickDocsSeparator())
-                content.add(Box.createVerticalStrut(JBUI.scale(8)))
-                content.add(createMemberContent(resolved))
+        when (val documentation = resolved) {
+            is TaigaResolvedDocumentation.Entity -> content.add(entityContent(documentation))
+            is TaigaResolvedDocumentation.Member -> content.add(memberContent(documentation))
+        }
+        if (showExample) {
+            resolved.entity.example?.let { example ->
+                content.add(sectionTitle("Example"))
+                content.add(codeRow(example.code.take(MAX_EXAMPLE_LENGTH)))
             }
         }
 
-        add(content, BorderLayout.CENTER)
-
-        val width = JBUI.scale(POPUP_WIDTH)
-        val naturalHeight = super.getPreferredSize().height
-
-        preferredSize = Dimension(width, naturalHeight)
-        minimumSize = preferredSize
-        maximumSize = Dimension(width, Int.MAX_VALUE)
+        scroll = JBScrollPane(content).apply {
+            border = JBUI.Borders.empty()
+            isOpaque = false
+            viewport.isOpaque = false
+            horizontalScrollBarPolicy = JBScrollPane.HORIZONTAL_SCROLLBAR_NEVER
+            preferredSize = Dimension(JBUI.scale(CONTENT_WIDTH), content.preferredSize.height.coerceAtMost(JBUI.scale(MAX_BODY_HEIGHT)))
+        }
+        add(scroll, BorderLayout.CENTER)
+        add(footer(), BorderLayout.SOUTH)
     }
 
-    private fun createHeader(onClose: () -> Unit): JComponent =
+    fun showIconPreviews(values: List<TaigaDocumentationIconPreview>) {
+        previewContent.removeAll()
+        addIconPreviews(previewContent, values)
+        scroll.preferredSize = Dimension(JBUI.scale(CONTENT_WIDTH), content.preferredSize.height.coerceAtMost(JBUI.scale(MAX_BODY_HEIGHT)))
+        revalidate()
+        repaint()
+    }
+
+    private fun header(): JComponent =
         JPanel().apply {
             layout = BoxLayout(this, BoxLayout.X_AXIS)
             isOpaque = false
             alignmentX = LEFT_ALIGNMENT
-
             add(
                 JBLabel(resolved.presentationName).apply {
-                    font = font.deriveFont(font.style or Font.BOLD)
+                    foreground = CARD_FOREGROUND
+                    font = font.deriveFont(Font.BOLD, font.size2D + 2F)
                 },
             )
-            add(Box.createHorizontalStrut(JBUI.scale(7)))
-            add(quickDocsBadge(resolved.badge))
+            add(Box.createHorizontalStrut(JBUI.scale(10)))
+            add(badge(resolved.badge))
             add(Box.createHorizontalGlue())
-            add(
-                LinkLabel<Any>("Documentation ↗", null) { _, _ ->
-                    BrowserUtil.browse(resolved.documentationUri.toString())
-                    onClose()
+        }
+
+    private fun meta(): JComponent =
+        JBLabel(
+            listOfNotNull(
+                resolved.ownerName?.let { "of $it" } ?: resolved.subject.selector,
+                resolved.packageName,
+            ).joinToString("  ·  "),
+        ).apply {
+            foreground = CARD_MUTED_FOREGROUND
+            alignmentX = LEFT_ALIGNMENT
+        }
+
+    private fun entityContent(entity: TaigaResolvedDocumentation.Entity): JComponent =
+        verticalPanel().apply {
+            when (entity.badge) {
+                "Pipe" -> add(pipeContent(entity.localDocumentation.pipe))
+                "Type" -> entity.typeText?.let { add(codeRow(it)) }
+                else -> {
+                    if (entity.icons.isNotEmpty()) {
+                        addIconPreviews(previewContent, previews)
+                        add(previewContent)
+                    }
+                    entity.localDocumentation.selector?.let { selector ->
+                        val elements = selector.split(',').map { it.substringBefore('[').trim() }.filter(String::isNotBlank).distinct()
+                        if (elements.isNotEmpty() && entity.badge == "Directive") {
+                            add(detail("Elements", elements.joinToString(" · ")))
+                        }
+                    }
+                    addApiSection(this, "Parameters", entity.entity.inputs, TaigaApiMemberKind.INPUT)
+                    addApiSection(this, "Events", entity.entity.outputs, TaigaApiMemberKind.OUTPUT)
+                    entity.localDocumentation.defaults.take(MAX_VISIBLE_DEFAULTS).forEach { add(defaultNote(it)) }
+                }
+            }
+        }
+
+    private fun memberContent(member: TaigaResolvedDocumentation.Member): JComponent =
+        verticalPanel().apply {
+            member.typeText?.let { add(detail("Type", it)) }
+            member.possibleValues().takeIf(List<String>::isNotEmpty)?.let { values ->
+                add(detail("Possible values", values.joinToString("  ·  ")))
+            }
+            member.localDocumentation.defaults.firstOrNull { it.name == member.property.name }?.let { add(defaultNote(it)) }
+            member.declaration?.publicSymbol?.takeIf { it != member.ownerName }?.let { owner ->
+                add(detail("Declared by", owner))
+            }
+            member.relatedMembers().takeIf(List<String>::isNotEmpty)?.let { related ->
+                add(detail("See also", related.joinToString("  ·  ")))
+            }
+        }
+
+    private fun pipeContent(pipe: TaigaPipeDocumentation?): JComponent =
+        verticalPanel().apply {
+            if (pipe != null) {
+                pipe.invocation?.let { invocation ->
+                    add(sectionTitle("What it calls"))
+                    add(codeRow(invocation))
+                }
+                if (pipe.parameters.isNotEmpty()) {
+                    add(sectionTitle("Parameters"))
+                    add(
+                        table(
+                            pipe.parameters.map { parameter ->
+                                (parameter.name + if (parameter.optional) "?" else "") to
+                                    listOfNotNull(parameter.type, parameter.description).joinToString(" — ")
+                            },
+                        ),
+                    )
+                }
+                pipe.resultType?.let { add(detail("Result", it)) }
+                pipe.pure?.let { pure ->
+                    add(
+                        note(
+                            if (pure) "Pure pipe" else "Impure pipe",
+                            if (pure) {
+                                "Recomputed when the value or arguments change. Mutating an object without replacing its reference does not trigger this pipe."
+                            } else {
+                                "Angular invokes this pipe during change detection."
+                            },
+                            PIPE_COLOR,
+                        ),
+                    )
+                }
+            }
+        }
+
+    private fun addIconPreviews(
+        content: JPanel,
+        values: List<TaigaDocumentationIconPreview>,
+    ) {
+        if (values.isEmpty()) return
+        content.add(sectionTitle("Icon from current value"))
+        values.forEach { preview ->
+            content.add(
+                RoundedRowPanel().apply {
+                    layout = BorderLayout(JBUI.scale(12), 0)
+                    border = JBUI.Borders.empty(8)
+                    alignmentX = LEFT_ALIGNMENT
+                    add(
+                        JBLabel(preview.icon).apply {
+                            preferredSize = JBUI.size(72, 72)
+                            isOpaque = true
+                            background = Color.WHITE
+                        },
+                        BorderLayout.WEST,
+                    )
+                    add(wrappedLabel(preview.reference.name, CONTENT_WIDTH - 112).apply { font = codeFont() }, BorderLayout.CENTER)
                 },
             )
-        }
-
-    private fun createMetaLabel(): JComponent? {
-        val meta =
-            listOfNotNull(
-                resolved.ownerName?.let { owner -> "of $owner" },
-                resolved.packageName,
-            ).joinToString("  ·  ")
-
-        return meta
-            .takeIf(String::isNotBlank)
-            ?.let { value ->
-                JBLabel(value).apply {
-                    foreground = UIUtil.getContextHelpForeground()
-                    alignmentX = LEFT_ALIGNMENT
-                }
-            }
-    }
-
-    private fun createEntityTabs(entityDocs: TaigaResolvedDocumentation.Entity): JComponent {
-        val overview =
-            verticalPanel().apply {
-                entityDocs.typeText?.takeIf(String::isNotBlank)?.let { type ->
-                    addDetail("Type", "<code>${type.html()}</code>")
-                }
-
-                entityDocs.effectiveUsage?.takeIf(String::isNotBlank)?.let { usage ->
-                    addCodeSection(
-                        title = "Usage",
-                        code = usage,
-                        copyTooltip = "Copy usage",
-                        language = PopupCodeLanguage.HTML,
-                    )
-                }
-
-                entityDocs.canonicalImport()?.let { statement ->
-                    addCodeSection(
-                        title = "Import",
-                        code = statement,
-                        copyTooltip = "Copy import",
-                        language = PopupCodeLanguage.TYPESCRIPT,
-                    )
-                }
-            }
-
-        val hasApi = entityDocs.entity.inputs.isNotEmpty() || entityDocs.entity.outputs.isNotEmpty()
-
-        if (!hasApi) {
-            return overview
-        }
-
-        val api =
-            verticalPanel().apply {
-                addApiSection("Inputs", entityDocs.entity.inputs)
-                addApiSection("Outputs", entityDocs.entity.outputs)
-            }
-
-        return JTabbedPane().apply {
-            isOpaque = false
-            border = JBUI.Borders.empty()
-            alignmentX = LEFT_ALIGNMENT
-            addTab("Overview", overview)
-            addTab("API", api)
+            content.add(Box.createVerticalStrut(JBUI.scale(12)))
         }
     }
 
-    private fun createMemberContent(memberDocs: TaigaResolvedDocumentation.Member): JComponent =
-        verticalPanel().apply {
-            memberDocs.typeText?.takeIf(String::isNotBlank)?.let { type ->
-                addDetail("Type", "<code>${type.html()}</code>")
-            }
-
-            memberDocs.effectiveUsage?.takeIf(String::isNotBlank)?.let { usage ->
-                addCodeSection(
-                    title = "Usage",
-                    code = usage,
-                    copyTooltip = "Copy usage",
-                    language = PopupCodeLanguage.HTML,
-                )
-            }
-
-            memberDocs.possibleValues().takeIf(List<String>::isNotEmpty)?.let { values ->
-                addDetail(
-                    "Possible values",
-                    values.joinToString("&nbsp;&nbsp;") { value -> "<code>${value.html()}</code>" },
-                )
-            }
-
-            memberDocs.relatedMembers().takeIf(List<String>::isNotEmpty)?.let { related ->
-                addDetail(
-                    "See also",
-                    related.joinToString("&nbsp;&nbsp;") { value -> "<code>${value.html()}</code>" },
-                )
-            }
-        }
-
-    private fun JPanel.addApiSection(
+    private fun addApiSection(
+        content: JPanel,
         title: String,
         properties: List<TaigaApiProperty>,
+        kind: TaigaApiMemberKind,
     ) {
-        if (properties.isEmpty()) {
-            return
-        }
-
-        addSectionTitle("$title · ${properties.size}")
-
-        val visible = properties.take(MAX_VISIBLE_API_PROPERTIES)
-
-        visible.forEach { property ->
-            val type = property.documentedType?.let { value -> "&nbsp;&nbsp;<code>${value.html()}</code>" }.orEmpty()
-            val description =
-                property.description
-                    ?.takeIf(String::isNotBlank)
-                    ?.let { value -> "&nbsp;&nbsp;—&nbsp;${value.html()}" }
-                    .orEmpty()
-
-            add(
-                JBLabel(
-                    "<html><div width='$POPUP_TEXT_WIDTH'><code>${property.signature.html()}</code>$type$description</div></html>",
-                ).apply {
-                    alignmentX = LEFT_ALIGNMENT
+        if (properties.isEmpty()) return
+        content.add(sectionTitle(title))
+        content.add(
+            table(
+                properties.take(MAX_VISIBLE_API_PROPERTIES).map { property ->
+                    property.name to listOfNotNull(
+                        resolved.localDocumentation.inputTypes[property.name] ?: property.documentedType,
+                        property.description,
+                    ).joinToString(" — ").take(MAX_PROPERTY_DESCRIPTION_LENGTH)
                 },
-            )
-            add(Box.createVerticalStrut(JBUI.scale(4)))
-        }
-
-        val remaining = properties.size - visible.size
-
-        if (remaining > 0) {
-            add(
-                JBLabel("+$remaining more in full documentation").apply {
-                    foreground = UIUtil.getContextHelpForeground()
-                    alignmentX = LEFT_ALIGNMENT
+            ) { name ->
+                val entity = resolved as? TaigaResolvedDocumentation.Entity
+                val property = properties.firstOrNull { it.name == name }
+                if (entity != null && property != null) {
+                    actions.openMember?.invoke(
+                        TaigaResolvedDocumentation.Member(
+                            entity.entity, entity.subject, entity.startOffset, entity.endOffset,
+                            null, property, kind,
+                        ),
+                    )
+                }
+            },
+        )
+        if (properties.size > MAX_VISIBLE_API_PROPERTIES) {
+            content.add(
+                JBLabel("+${properties.size - MAX_VISIBLE_API_PROPERTIES} more in full documentation").apply {
+                    foreground = CARD_MUTED_FOREGROUND
                 },
             )
         }
-
-        add(Box.createVerticalStrut(JBUI.scale(6)))
+        content.add(Box.createVerticalStrut(JBUI.scale(12)))
     }
 
-    private fun JPanel.addCodeSection(
-        title: String,
-        code: String,
-        copyTooltip: String,
-        language: PopupCodeLanguage,
-    ) {
-        addSectionTitle(title.uppercase())
-        add(
-            RoundedRowPanel().apply {
-                layout = BorderLayout(JBUI.scale(6), 0)
-                border = JBUI.Borders.empty(6, 8)
-                alignmentX = LEFT_ALIGNMENT
+    private fun footer(): JComponent =
+        verticalPanel().apply {
+            add(JSeparator())
+            add(Box.createVerticalStrut(JBUI.scale(12)))
+            add(
+                JPanel().apply {
+                    layout = BoxLayout(this, BoxLayout.X_AXIS)
+                    isOpaque = false
+                    alignmentX = LEFT_ALIGNMENT
+                    val reference = (resolved as? TaigaResolvedDocumentation.Entity)?.icons?.firstOrNull()
+                    if (reference != null && actions.chooseIcon != null) {
+                        add(JButton("Choose icon").apply { addActionListener { actions.chooseIcon.invoke(reference) } })
+                    } else if (resolved.entity.example != null && actions.showExample != null) {
+                        add(link("Example →") { actions.showExample.invoke() })
+                    }
+                    add(Box.createHorizontalGlue())
+                    actions.navigateToSource?.let { navigate ->
+                        add(link("Source ↗", navigate))
+                        add(Box.createHorizontalStrut(JBUI.scale(16)))
+                    }
+                    add(
+                        link(if (resolved.badge == "Directive") "Full API ↗" else "Documentation ↗") {
+                            BrowserUtil.browse(resolved.documentationUri.toString())
+                            onClose()
+                        },
+                    )
+                },
+            )
+        }
+}
 
-                add(
-                    JBLabel(
-                        "<html><div width='$CODE_TEXT_WIDTH'><code>${highlightCode(code, language)}</code></div></html>",
-                    ),
-                    BorderLayout.CENTER,
-                )
-                add(CopyValueButton(code, copyTooltip), BorderLayout.EAST)
-            },
-        )
-        add(Box.createVerticalStrut(JBUI.scale(7)))
+private fun table(
+    rows: List<Pair<String, String>>,
+    onSelect: ((String) -> Unit)? = null,
+): JComponent =
+    RoundedRowPanel().apply {
+        layout = GridBagLayout()
+        alignmentX = JComponent.LEFT_ALIGNMENT
+        rows.forEachIndexed { index, (name, description) ->
+            val member =
+                if (onSelect == null) {
+                    JBLabel(name).apply {
+                        foreground = CARD_FOREGROUND
+                        font = codeFont()
+                    }
+                } else {
+                    link(name) { onSelect(name) }.apply { font = codeFont() }
+                }
+            add(
+                member,
+                GridBagConstraints().apply {
+                    gridx = 0
+                    gridy = index
+                    anchor = GridBagConstraints.NORTHWEST
+                    insets = JBUI.insets(8, 10)
+                },
+            )
+            add(
+                wrappedLabel(description, PROPERTY_TEXT_WIDTH),
+                GridBagConstraints().apply {
+                    gridx = 1
+                    gridy = index
+                    weightx = 1.0
+                    fill = GridBagConstraints.HORIZONTAL
+                    anchor = GridBagConstraints.NORTHWEST
+                    insets = JBUI.insets(8, 10)
+                },
+            )
+        }
     }
 
-    private fun JPanel.addDetail(
-        label: String,
-        htmlValue: String,
-    ) {
-        add(
-            JBLabel(
-                "<html><span>${label.html()}</span>&nbsp;&nbsp;&nbsp;$htmlValue</html>",
-            ).apply {
-                alignmentX = LEFT_ALIGNMENT
-            },
-        )
-        add(Box.createVerticalStrut(JBUI.scale(7)))
-    }
+private fun defaultNote(default: TaigaInputDefault): JComponent =
+    note(
+        "If ${default.name} is omitted",
+        default.provider?.let { "Read from $it. Project providers may change this value." }
+            ?: "Library default: ${default.value}.",
+        DEFAULT_COLOR,
+    )
 
-    private fun JPanel.addSectionTitle(title: String) {
+private fun note(
+    title: String,
+    description: String,
+    color: Color,
+): JComponent =
+    DocumentationNotePanel(color).apply {
+        border = JBUI.Borders.empty(10, 12)
+        alignmentX = JComponent.LEFT_ALIGNMENT
         add(
             JBLabel(title).apply {
-                foreground = UIUtil.getContextHelpForeground()
-                alignmentX = LEFT_ALIGNMENT
+                foreground = color
+                font = font.deriveFont(Font.BOLD)
             },
+            BorderLayout.NORTH,
         )
-        add(Box.createVerticalStrut(JBUI.scale(4)))
+        add(wrappedLabel(description, CONTENT_WIDTH - 36), BorderLayout.CENTER)
     }
 
-    private fun verticalPanel(): JPanel =
-        JPanel().apply {
-            layout = BoxLayout(this, BoxLayout.Y_AXIS)
-            isOpaque = false
-            alignmentX = LEFT_ALIGNMENT
-        }
+private class DocumentationNotePanel(private val color: Color) : JPanel(BorderLayout(0, JBUI.scale(6))) {
+    init {
+        isOpaque = false
+    }
 
-    private fun String.html(): String = StringUtil.escapeXmlEntities(this)
+    override fun paintComponent(graphics: Graphics) {
+        val copy = graphics.create() as Graphics2D
+        val arc = JBUI.scale(10)
 
-    private companion object {
-        const val MAX_VISIBLE_API_PROPERTIES = 6
+        copy.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+        copy.color = Color(color.red, color.green, color.blue, 18)
+        copy.fillRoundRect(0, 0, width - 1, height - 1, arc, arc)
+        copy.color = Color(color.red, color.green, color.blue, 130)
+        copy.drawRoundRect(0, 0, width - 1, height - 1, arc, arc)
+        copy.dispose()
+        super.paintComponent(graphics)
     }
 }
 
-private enum class PopupCodeLanguage {
-    HTML,
-    TYPESCRIPT,
+private fun detail(
+    title: String,
+    value: String,
+): JComponent =
+    verticalPanel().apply {
+        add(sectionTitle(title))
+        add(wrappedLabel(value).apply { font = codeFont() })
+        add(Box.createVerticalStrut(JBUI.scale(12)))
+    }
+
+private fun codeRow(code: String): JComponent =
+    RoundedRowPanel().apply {
+        layout = BorderLayout()
+        border = JBUI.Borders.empty(10, 12)
+        alignmentX = JComponent.LEFT_ALIGNMENT
+        add(wrappedLabel(code, CONTENT_WIDTH - 36).apply { font = codeFont() }, BorderLayout.CENTER)
+    }
+
+private fun sectionTitle(title: String): JComponent =
+    JBLabel(title).apply {
+        foreground = CARD_FOREGROUND
+        font = font.deriveFont(Font.BOLD)
+        border = JBUI.Borders.emptyBottom(7)
+        alignmentX = JComponent.LEFT_ALIGNMENT
+    }
+
+private fun badge(text: String): JComponent = TaigaDocumentationBadge(text)
+
+private class TaigaDocumentationBadge(text: String) : JBLabel(text) {
+    init {
+        foreground =
+            when (text) {
+                "Component" -> COMPONENT_COLOR
+                "Directive", "Input" -> DIRECTIVE_COLOR
+                "Pipe", "Output" -> PIPE_COLOR
+                else -> UIUtil.getContextHelpForeground()
+            }
+        border = JBUI.Borders.empty(3, 8)
+        font = font.deriveFont(font.size2D - 1F)
+    }
+
+    override fun paintComponent(graphics: Graphics) {
+        val copy = graphics.create() as Graphics2D
+        val arc = JBUI.scale(16)
+
+        copy.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+        copy.color = Color(foreground.red, foreground.green, foreground.blue, 28)
+        copy.fillRoundRect(0, 0, width - 1, height - 1, arc, arc)
+        copy.color = foreground
+        copy.drawRoundRect(0, 0, width - 1, height - 1, arc, arc)
+        copy.dispose()
+        super.paintComponent(graphics)
+    }
 }
 
-private fun highlightCode(
-    code: String,
-    language: PopupCodeLanguage,
-): String =
-    when (language) {
-        PopupCodeLanguage.HTML -> highlightHtml(code)
-        PopupCodeLanguage.TYPESCRIPT -> highlightTypeScript(code)
-    }
-
-private fun highlightHtml(code: String): String =
-    buildString {
-        var offset = 0
-
-        HTML_TAG.findAll(code).forEach { tag ->
-            append(code.substring(offset, tag.range.first).codeHtml())
-
-            append(tag.groupValues[1].codeHtml())
-            append(tag.groupValues[2].highlight(CODE_TAG_COLOR))
-            append(highlightHtmlAttributes(tag.groupValues[3]))
-            append(tag.groupValues[4].codeHtml())
-
-            offset = tag.range.last + 1
-        }
-
-        append(code.substring(offset).codeHtml())
-    }
-
-private fun highlightHtmlAttributes(attributes: String): String =
-    buildString {
-        var offset = 0
-
-        HTML_ATTRIBUTE.findAll(attributes).forEach { attribute ->
-            append(attributes.substring(offset, attribute.range.first).codeHtml())
-            append(attribute.groupValues[1].highlight(CODE_ATTRIBUTE_COLOR))
-            append(attribute.groupValues[2].codeHtml())
-            append(attribute.groupValues[3].highlight(CODE_STRING_COLOR))
-            offset = attribute.range.last + 1
-        }
-
-        append(attributes.substring(offset).codeHtml())
-    }
-
-private fun highlightTypeScript(code: String): String =
-    buildString {
-        var offset = 0
-
-        TYPESCRIPT_TOKEN.findAll(code).forEach { token ->
-            append(code.substring(offset, token.range.first).codeHtml())
-
-            val value = token.value
-            val color =
-                when {
-                    value.firstOrNull() == '\'' || value.firstOrNull() == '"' -> CODE_STRING_COLOR
-                    value in TYPESCRIPT_KEYWORDS -> CODE_KEYWORD_COLOR
-                    value.firstOrNull()?.isUpperCase() == true -> CODE_SYMBOL_COLOR
-                    else -> CODE_TEXT_COLOR
-                }
-
-            append(value.highlight(color))
-            offset = token.range.last + 1
-        }
-
-        append(code.substring(offset).codeHtml())
-    }
-
-private fun String.highlight(color: Color): String =
-    "<font color='${color.htmlColor()}'>${codeHtml()}</font>"
-
-private fun String.codeHtml(): String =
-    StringUtil
-        .escapeXmlEntities(this)
-        .replace("\n", "<br>")
-
-private fun Color.htmlColor(): String = String.format("#%02x%02x%02x", red, green, blue)
-
-private fun quickDocsSeparator(): JComponent =
-    JSeparator().apply {
-        alignmentX = JComponent.LEFT_ALIGNMENT
-        maximumSize = Dimension(Int.MAX_VALUE, preferredSize.height)
-    }
-
-private fun quickDocsBadge(text: String): JComponent =
-    JBLabel(text).apply {
-        isOpaque = true
-        background = UIUtil.getTextFieldBackground()
-        foreground = UIUtil.getContextHelpForeground()
-        border = JBUI.Borders.empty(2, 6)
-        font = font.deriveFont((font.size2D - 1F).coerceAtLeast(10F))
-        alignmentY = JComponent.CENTER_ALIGNMENT
-    }
-
-private fun wrappedLabel(text: String): JComponent =
-    JBLabel(
-        "<html><div width='$POPUP_TEXT_WIDTH'>${StringUtil.escapeXmlEntities(text)}</div></html>",
-    ).apply {
+private fun verticalPanel(): JPanel =
+    JPanel().apply {
+        layout = BoxLayout(this, BoxLayout.Y_AXIS)
+        isOpaque = false
         alignmentX = JComponent.LEFT_ALIGNMENT
     }
 
-private val HTML_TAG = Regex("""(</?)([A-Za-z][\w:-]*)([^<>]*?)(/?>)""")
-private val HTML_ATTRIBUTE = Regex("""([:@*#\[\]()A-Za-z_][^\s=/>]*)(\s*=\s*)("[^"]*"|'[^']*')""")
-private val TYPESCRIPT_TOKEN =
-    Regex(
-        """('(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|\b(?:import|from|export|const|let|type|interface|extends|implements|as)\b|\b[A-Z][A-Za-z0-9_]*\b)""",
-    )
-private val TYPESCRIPT_KEYWORDS =
-    setOf(
-        "import",
-        "from",
-        "export",
-        "const",
-        "let",
-        "type",
-        "interface",
-        "extends",
-        "implements",
-        "as",
-    )
+private fun link(
+    title: String,
+    action: () -> Unit,
+): LinkLabel<Any> =
+    LinkLabel<Any>(title, null) { _, _ -> action() }.apply {
+        foreground = DESIGN_TOKEN_POPUP_LINK_COLOR
+    }
 
-private val CODE_TAG_COLOR = JBColor(Color(0x00, 0x67, 0xA3), Color(0x56, 0xB6, 0xC2))
-private val CODE_ATTRIBUTE_COLOR = JBColor(Color(0x00, 0x5C, 0xB9), Color(0x9C, 0xDC, 0xFE))
-private val CODE_STRING_COLOR = JBColor(Color(0x06, 0x7D, 0x17), Color(0x98, 0xC3, 0x79))
-private val CODE_KEYWORD_COLOR = JBColor(Color(0x7A, 0x3E, 0x9D), Color(0xC6, 0x78, 0xDD))
-private val CODE_SYMBOL_COLOR = JBColor(Color(0x00, 0x65, 0xA8), Color(0x61, 0xAF, 0xEF))
-private val CODE_TEXT_COLOR = UIUtil.getLabelForeground()
+private fun wrappedLabel(
+    text: String,
+    width: Int = CONTENT_WIDTH,
+): JBLabel =
+    JBLabel("<html><div width='$width'>${StringUtil.escapeXmlEntities(text).replace("\n", "<br>")}</div></html>").apply {
+        foreground = CARD_FOREGROUND
+        alignmentX = JComponent.LEFT_ALIGNMENT
+    }
 
-private const val POPUP_WIDTH = 560
-private const val POPUP_TEXT_WIDTH = 500
-private const val CODE_TEXT_WIDTH = 455
+private fun codeFont(): Font = Font(Font.MONOSPACED, Font.PLAIN, UIUtil.getLabelFont().size)
 
 internal fun JComponent.containsPointer(): Boolean =
     isShowing &&
-        MouseInfo
-            .getPointerInfo()
-            ?.location
-            ?.let(::Point)
-            ?.also { point -> SwingUtilities.convertPointFromScreen(point, this) }
-            ?.let(::contains)
-            ?: false
+        MouseInfo.getPointerInfo()?.location?.let(::Point)
+            ?.also { SwingUtilities.convertPointFromScreen(it, this) }
+            ?.let(::contains) ?: false
+
+private val COMPONENT_COLOR = JBColor(Color(123, 62, 174), Color(190, 139, 245))
+private val DIRECTIVE_COLOR = JBColor(Color(0, 115, 120), Color(97, 215, 208))
+private val PIPE_COLOR = JBColor(Color(31, 105, 183), Color(102, 172, 247))
+private val DEFAULT_COLOR = JBColor(Color(136, 91, 0), Color(234, 180, 68))
+private val CARD_FOREGROUND = JBColor(Color(35, 38, 42), Color(225, 227, 233))
+private val CARD_MUTED_FOREGROUND = JBColor(Color(91, 96, 105), Color(151, 158, 170))
+private const val CONTENT_WIDTH = 508
+private const val PROPERTY_TEXT_WIDTH = 310
+private const val MAX_BODY_HEIGHT = 520
+private const val MAX_DESCRIPTION_LENGTH = 450
+private const val MAX_PROPERTY_DESCRIPTION_LENGTH = 240
+private const val MAX_EXAMPLE_LENGTH = 1_200
+private const val MAX_VISIBLE_API_PROPERTIES = 6
+private const val MAX_VISIBLE_DEFAULTS = 2
