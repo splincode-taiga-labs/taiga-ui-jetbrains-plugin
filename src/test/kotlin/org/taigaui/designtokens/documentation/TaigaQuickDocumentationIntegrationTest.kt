@@ -1,7 +1,6 @@
 package org.taigaui.designtokens.documentation
 
 import com.intellij.openapi.components.service
-import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.platform.backend.documentation.impl.computeDocumentationBlocking
 import com.intellij.psi.PsiDocumentManager
@@ -12,7 +11,6 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.nio.file.Files
 import java.nio.file.Path
 
 class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4TestCase() {
@@ -22,7 +20,7 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
 
     override fun setUp() {
         super.setUp()
-        workspaceRoot = Files.createTempDirectory("taiga-quick-docs")
+        workspaceRoot = Path.of(myFixture.tempDirPath)
         docsCache.invalidate(docsSource)
         configureAngularProject()
         configureTaigaPackage()
@@ -32,7 +30,6 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
         try {
             docsCache.invalidate(docsSource)
             project.service<TaigaDocsService>().clearMemory()
-            workspaceRoot.toFile().deleteRecursively()
         } finally {
             super.tearDown()
         }
@@ -40,7 +37,10 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
 
     @Test
     fun `renders directive documentation for Taiga selector`() {
-        val file = configureTemplate("<button tuiButton>Save</button>")
+        val file =
+            configureTemplate(
+                "<button appearance=\"secondary\" size=\"xs\" tuiButton [disabled]=\"disabled\">Current</button>",
+            )
         warmDocumentation(file)
         val html = renderDocumentation(file, "tuiButton")
 
@@ -49,6 +49,7 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
         assertTrue(requireNotNull(html).contains("Directive"))
         assertTrue(requireNotNull(html).contains("@taiga-ui/core"))
         assertTrue(requireNotNull(html).contains("&lt;button tuiButton&gt;Save&lt;/button&gt;"))
+        assertTrue(!requireNotNull(html).contains("Current"))
     }
 
     @Test
@@ -426,12 +427,13 @@ class TaigaQuickDocumentationIntegrationTest : LightPlatformCodeInsightFixture4T
         path: Path,
         content: String,
     ): VirtualFile {
-        Files.createDirectories(path.parent)
-        Files.writeString(path, content)
+        val relativePath =
+            workspaceRoot
+                .relativize(path)
+                .toString()
+                .replace('\\', '/')
 
-        return requireNotNull(
-            LocalFileSystem.getInstance().refreshAndFindFileByNioFile(path),
-        )
+        return myFixture.tempDirFixture.createFile(relativePath, content)
     }
 
     private fun tick(value: String): String = BACKTICK + value + BACKTICK
