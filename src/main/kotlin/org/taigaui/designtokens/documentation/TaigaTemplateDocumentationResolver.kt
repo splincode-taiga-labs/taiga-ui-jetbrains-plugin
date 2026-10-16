@@ -74,17 +74,6 @@ internal object TaigaTemplateDocumentationResolver {
         )
     }
 
-    fun find(symbol: PolySymbol): TaigaDocumentationSubject? {
-        val selector = symbol.name.takeIf(::isTaigaSelector)
-        val requestedSymbol = symbol.name.takeIf(::isTaigaPublicSymbol)
-
-        if (selector == null && requestedSymbol == null) {
-            return null
-        }
-
-        return symbol.toLocalSubject(selector, requestedSymbol)
-    }
-
     @Suppress("ReturnCount")
     fun find(
         file: PsiFile,
@@ -106,11 +95,6 @@ internal object TaigaTemplateDocumentationResolver {
             .getPsiElement(element)
             ?.toLocalSubject(selector, requestedSymbol)
     }
-
-    fun sourcePath(symbol: PolySymbol): java.nio.file.Path? =
-        symbol
-            .localContexts()
-            .firstNotNullOfOrNull { context -> context.containingFile?.sourcePath() }
 
     private fun PolySymbol.toLocalSubject(
         selector: String?,
