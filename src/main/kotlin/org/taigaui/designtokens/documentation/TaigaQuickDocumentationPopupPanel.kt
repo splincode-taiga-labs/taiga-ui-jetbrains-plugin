@@ -171,15 +171,26 @@ internal class TaigaQuickDocumentationPopupPanel(
 
     private fun memberContent(member: TaigaResolvedDocumentation.Member): JComponent =
         verticalPanel().apply {
-            member.typeText?.let { add(detail(if (member.kind == TaigaApiMemberKind.OUTPUT) "\$event type" else "Type", it)) }
+            member.typeText?.let {
+                val label = if (member.kind == TaigaApiMemberKind.OUTPUT) "\$event type" else "Type"
+                add(detail(label, it))
+            }
             add(TaigaDocumentationBindingPanel(member, actions.applyValue, actions.currentValue))
+            val declaredRequiredInputs =
+                member.declaration
+                    ?.localDocumentation
+                    ?.requiredInputs
+                    .orEmpty()
             if (member.property.name in member.subject.localDocumentation.requiredInputs ||
-                member.property.name in member.declaration?.localDocumentation?.requiredInputs.orEmpty()
+                member.property.name in declaredRequiredInputs
             ) {
                 add(detail("Requirement", "Required input"))
             }
             val default =
-                member.declaration?.localDocumentation?.defaults?.firstOrNull { it.name == member.property.name }
+                member.declaration
+                    ?.localDocumentation
+                    ?.defaults
+                    ?.firstOrNull { it.name == member.property.name }
                     ?: member.localDocumentation.defaults.firstOrNull { it.name == member.property.name }
             default?.let {
                 add(

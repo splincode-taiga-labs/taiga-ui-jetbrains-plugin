@@ -168,7 +168,10 @@ internal class TaigaQuickDocumentationHoverController(
             }
         }
 
-    fun dismissHover(editor: Editor? = null, force: Boolean = false) {
+    fun dismissHover(
+        editor: Editor? = null,
+        force: Boolean = false,
+    ) {
         if (pinned && !force) return
         if (editor == null || editor.project == project) {
             cancelScheduledHide()
@@ -384,7 +387,9 @@ internal class TaigaQuickDocumentationHoverController(
         if (binding.endOffset > document.textLength ||
             binding.context.any { it.endOffset > document.textLength } ||
             document.charsSequence.subSequence(binding.startOffset, binding.endOffset).toString() != binding.text
-        ) return
+        ) {
+            return
+        }
         bindingMember = member
         bindingEditor = TaigaDocumentationBindingEditor(project, document, binding, values)
     }
