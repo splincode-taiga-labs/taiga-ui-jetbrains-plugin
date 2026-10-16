@@ -1,6 +1,7 @@
 package org.taigaui.designtokens.documentation
 
 import com.intellij.codeInsight.lookup.LookupElement
+import com.intellij.lang.injection.InjectedLanguageManager
 import com.intellij.model.Pointer
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
@@ -11,7 +12,6 @@ import com.intellij.platform.backend.documentation.LookupElementDocumentationTar
 import com.intellij.platform.backend.presentation.TargetPresentation
 import com.intellij.psi.PsiFile
 import java.nio.file.Path
-import java.nio.file.Paths
 
 internal class TaigaQuickDocumentationTargetProvider :
     DocumentationTargetProvider,
@@ -44,9 +44,12 @@ internal class TaigaQuickDocumentationTargetProvider :
         key: String,
     ): DocumentationTarget? {
         val sourceFile =
-            file.virtualFile
+            InjectedLanguageManager
+                .getInstance(file.project)
+                .getTopLevelFile(file)
+                .virtualFile
                 ?.path
-                ?.let { path -> runCatching { Paths.get(path) }.getOrNull() }
+                ?.let { path -> runCatching { Path.of(path) }.getOrNull() }
                 ?: return null
 
         return TaigaQuickDocumentationTarget(
