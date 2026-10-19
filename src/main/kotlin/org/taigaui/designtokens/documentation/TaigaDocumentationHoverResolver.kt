@@ -27,7 +27,7 @@ internal class TaigaDocumentationHoverResolver(
             .expireWhen { isCancelled() || candidate.editor.isDisposed }
             .executeSynchronously()
 
-    suspend fun resolveDocumentation(
+    suspend fun loadDocumentation(
         request: TaigaQuickDocumentationHoverRequest?,
         refreshing: Boolean,
     ): Pair<TaigaDocsSnapshot?, TaigaResolvedDocumentation?> {
