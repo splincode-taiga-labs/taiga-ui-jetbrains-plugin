@@ -36,7 +36,11 @@ class TaigaQuickDocumentationAppearanceTest : TaigaDocumentationPopupTestCase() 
             assertFalse(TaigaDocumentationView(resolved, showExample = true).isCompactHover(false))
         }
 
-        val hover = TaigaQuickDocumentationPopupPanel(owner, compactHover = TaigaDocumentationView(owner).isCompactHover(false))
+        val hover =
+            TaigaQuickDocumentationPopupPanel(
+                owner,
+                compactHover = TaigaDocumentationView(owner).isCompactHover(false),
+            )
         assertTrue(descendants(hover).any { it is JTabbedPane })
         assertFalse(
             descendants(hover)
