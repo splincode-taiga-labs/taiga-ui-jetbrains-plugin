@@ -21,32 +21,39 @@ class TaigaQuickDocumentationAppearanceTest : TaigaDocumentationPopupTestCase() 
         assertTrue(panel.preferredSize.height > baseline)
     }
 
-    fun testDirectiveHoverOpensFullCardWhileMembersAndOtherKindsStayCompact() {
-        val owner = directive()
-        val member = owner.focusedMember(owner.entity.inputs.first(), TaigaApiMemberKind.INPUT)
+    fun testComponentAndDirectiveHoverShowFullApiWhileInputAndPipeStayCompact() {
+        val directive = directive()
+        val component = component()
+        val member = directive.focusedMember(directive.entity.inputs.first(), TaigaApiMemberKind.INPUT)
 
-        assertFalse(TaigaDocumentationView(owner).isCompactHover(false))
-        listOf(member, component(), pipe()).forEach { resolved ->
+        listOf(directive, component).forEach { resolved ->
+            val view = TaigaDocumentationView(resolved)
+            assertFalse(view.isCompactHover(false))
+            val card = TaigaQuickDocumentationPopupPanel(resolved, compactHover = view.isCompactHover(false))
+            assertTrue(descendants(card).any { it is JTabbedPane })
+            assertFalse(
+                descendants(card)
+                    .filterIsInstance<com.intellij.ui.components.labels.LinkLabel<*>>()
+                    .any { it.text == "Open full card →" },
+            )
+        }
+        listOf(member, pipe()).forEach { resolved ->
             assertTrue(TaigaDocumentationView(resolved).isCompactHover(false))
         }
-        listOf(owner, member, component(), pipe()).forEach { resolved ->
+        listOf(directive, component, member, pipe()).forEach { resolved ->
             assertFalse(TaigaDocumentationView(resolved).isCompactHover(true))
             assertFalse(TaigaDocumentationView(resolved, expanded = true).isCompactHover(false))
             assertFalse(TaigaDocumentationView(resolved, fullApi = true).isCompactHover(false))
             assertFalse(TaigaDocumentationView(resolved, showExample = true).isCompactHover(false))
         }
+    }
 
-        val hover =
-            TaigaQuickDocumentationPopupPanel(
-                owner,
-                compactHover = TaigaDocumentationView(owner).isCompactHover(false),
-            )
-        assertTrue(descendants(hover).any { it is JTabbedPane })
-        assertFalse(
-            descendants(hover)
-                .filterIsInstance<com.intellij.ui.components.labels.LinkLabel<*>>()
-                .any { it.text == "Open full card →" },
-        )
+    fun testComponentShowsInstalledInputsWithoutUsageSnippet() {
+        val resolved = component().copy(usage = null)
+        val panel = TaigaQuickDocumentationPopupPanel(resolved)
+        val tabs = descendants(panel).filterIsInstance<JTabbedPane>().single()
+
+        assertTrue(tabs.getTitleAt(0).startsWith("Inputs"))
     }
 
     fun testNativeHtmlAndTypeScriptHighlightingPreservesFormattingAndEscapesMarkup() {

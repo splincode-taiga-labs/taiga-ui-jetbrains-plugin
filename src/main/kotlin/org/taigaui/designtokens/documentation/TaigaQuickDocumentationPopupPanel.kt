@@ -402,6 +402,7 @@ internal class TaigaQuickDocumentationPopupPanel(
         entity.canonicalImport()?.let {
             content.add(documentationRow("Import", documentationCodeBlock(it)))
         }
+        val hasApi = entity.entity.inputs.isNotEmpty() || entity.entity.outputs.isNotEmpty() || entity.entity.example != null
         if (fullApi) {
             val browser =
                 TaigaDocumentationApiBrowser(
@@ -414,7 +415,7 @@ internal class TaigaQuickDocumentationPopupPanel(
                 )
             apiBrowser = browser
             content.add(browser)
-        } else if (entity.usage != null) {
+        } else if (hasApi) {
             content.add(
                 TaigaDocumentationTabs().apply {
                     if (entity.entity.inputs.isNotEmpty()) {
