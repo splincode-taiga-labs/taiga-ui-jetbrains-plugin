@@ -530,7 +530,8 @@ internal class TaigaQuickDocumentationHoverController(
                 },
             togglePin = { togglePin(request, resolved, exampleVisible) },
             openFullCard = {
-                val expanded = (navigation.capture(popupContent?.scrollPosition) ?: TaigaDocumentationView(resolved)).copy(expanded = true)
+                val current = navigation.capture(popupContent?.scrollPosition) ?: TaigaDocumentationView(resolved)
+                val expanded = current.copy(expanded = true)
                 hidePopup(restoreNativeHover = false)
                 showView(request, expanded, requestFocus = true)
             },
