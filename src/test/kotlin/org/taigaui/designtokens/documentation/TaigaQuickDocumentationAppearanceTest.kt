@@ -21,16 +21,28 @@ class TaigaQuickDocumentationAppearanceTest : TaigaDocumentationPopupTestCase() 
         assertTrue(panel.preferredSize.height > baseline)
     }
 
-    fun testAllPassiveHoverKindsAreCompactButExplicitAndExpandedCardsStayFull() {
+    fun testDirectiveHoverOpensFullCardWhileMembersAndOtherKindsStayCompact() {
         val owner = directive()
         val member = owner.focusedMember(owner.entity.inputs.first(), TaigaApiMemberKind.INPUT)
-        listOf(owner, member, pipe()).forEach { resolved ->
+
+        assertFalse(TaigaDocumentationView(owner).isCompactHover(false))
+        listOf(member, component(), pipe()).forEach { resolved ->
             assertTrue(TaigaDocumentationView(resolved).isCompactHover(false))
+        }
+        listOf(owner, member, component(), pipe()).forEach { resolved ->
             assertFalse(TaigaDocumentationView(resolved).isCompactHover(true))
             assertFalse(TaigaDocumentationView(resolved, expanded = true).isCompactHover(false))
             assertFalse(TaigaDocumentationView(resolved, fullApi = true).isCompactHover(false))
             assertFalse(TaigaDocumentationView(resolved, showExample = true).isCompactHover(false))
         }
+
+        val hover = TaigaQuickDocumentationPopupPanel(owner, compactHover = TaigaDocumentationView(owner).isCompactHover(false))
+        assertTrue(descendants(hover).any { it is JTabbedPane })
+        assertFalse(
+            descendants(hover)
+                .filterIsInstance<com.intellij.ui.components.labels.LinkLabel<*>>()
+                .any { it.text == "Open full card →" },
+        )
     }
 
     fun testNativeHtmlAndTypeScriptHighlightingPreservesFormattingAndEscapesMarkup() {

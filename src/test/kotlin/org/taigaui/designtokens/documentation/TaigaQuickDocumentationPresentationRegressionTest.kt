@@ -154,7 +154,7 @@ class TaigaQuickDocumentationPresentationRegressionTest : TaigaDocumentationPopu
         host.stopTransition()
     }
 
-    fun testPassiveHoverPreservesWidthAndHeightAcrossDifferentDocumentationCards() {
+    fun testHoverSwitchResizesForFullDirectiveAndRestoresCompactSize() {
         val small = TaigaQuickDocumentationPopupPanel(pipe(), compactHover = true, hoverPointer = true)
         val large = TaigaQuickDocumentationPopupPanel(directive(), hoverPointer = true)
         val host = TaigaDocumentationPopupHost(small, stabilizesHoverSize = true)
@@ -163,15 +163,28 @@ class TaigaQuickDocumentationPresentationRegressionTest : TaigaDocumentationPopu
         assertTrue(initialSize.width >= JBUI.scale(380))
         assertTrue(initialSize.height in JBUI.scale(220)..JBUI.scale(300))
         host.showCard(large)
-        assertEquals(initialSize, host.preferredSize)
-
-        host.size = initialSize
-        host.doLayout()
-        assertEquals(initialSize, large.size)
+        assertEquals(large.preferredSize, host.preferredSize)
         assertEquals(1, host.componentCount)
+
+        host.size = host.preferredSize
+        host.doLayout()
+        assertEquals(host.preferredSize, large.size)
 
         host.showCard(small)
         assertEquals(initialSize, host.preferredSize)
+        host.stopTransition()
+    }
+
+    fun testDirectiveFirstHoverCanSwitchToCompactInputWithoutKeepingFullHeight() {
+        val directive = TaigaQuickDocumentationPopupPanel(directive(), hoverPointer = true)
+        val compact = TaigaQuickDocumentationPopupPanel(pipe(), compactHover = true, hoverPointer = true)
+        val host = TaigaDocumentationPopupHost(directive, stabilizesHoverSize = true)
+
+        assertEquals(directive.preferredSize, host.preferredSize)
+        host.showCard(compact)
+        assertTrue(host.preferredSize.height in JBUI.scale(220)..JBUI.scale(300))
+        assertTrue(host.preferredSize.width >= JBUI.scale(380))
+        assertSame(compact, host.card)
         host.stopTransition()
     }
 

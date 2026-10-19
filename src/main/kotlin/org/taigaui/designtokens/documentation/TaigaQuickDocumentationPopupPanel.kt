@@ -66,7 +66,7 @@ internal class TaigaQuickDocumentationPopupPanel(
     pinned: Boolean = false,
     private val apiQuery: String? = null,
     private val selectedMember: String? = null,
-    private val compactHover: Boolean = false,
+    internal val compactHover: Boolean = false,
     hoverPointer: Boolean = false,
 ) : JPanel(BorderLayout(0, JBUI.scale(12))) {
     private val pointerBorder = TaigaDocumentationPointerBorder().takeIf { hoverPointer }

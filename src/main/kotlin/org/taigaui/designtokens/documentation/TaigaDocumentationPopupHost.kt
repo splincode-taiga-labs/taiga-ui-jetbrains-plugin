@@ -18,18 +18,22 @@ internal class TaigaDocumentationPopupHost(
     var card: TaigaQuickDocumentationPopupPanel = initial
         private set
 
-    // A passive hover session owns one viewport. New targets change its contents, not its geometry.
-    private val lockedSize =
-        if (stabilizesHoverSize) {
-            Dimension(
-                initial.preferredSize.width.coerceAtLeast(JBUI.scale(380)),
-                initial.preferredSize.height.coerceIn(JBUI.scale(220), JBUI.scale(300)),
-            )
+    // Keep compact hovers stable, but let full directive cards use their natural size.
+    private var lockedSize: Dimension? =
+        initial.takeIf { stabilizesHoverSize && it.compactHover }?.let(::compactHoverSize)
+
+    override fun getPreferredSize(): Dimension =
+        if (stabilizesHoverSize && card.compactHover) {
+            lockedSize?.let(::Dimension) ?: super.getPreferredSize()
         } else {
-            null
+            super.getPreferredSize()
         }
 
-    override fun getPreferredSize(): Dimension = lockedSize?.let(::Dimension) ?: super.getPreferredSize()
+    private fun compactHoverSize(panel: TaigaQuickDocumentationPopupPanel): Dimension =
+        Dimension(
+            panel.preferredSize.width.coerceAtLeast(JBUI.scale(380)),
+            panel.preferredSize.height.coerceIn(JBUI.scale(220), JBUI.scale(300)),
+        )
 
     private var previousFrame: BufferedImage? = null
     private var transitionStart: Long = 0
@@ -65,6 +69,9 @@ internal class TaigaDocumentationPopupHost(
 
         remove(card)
         card = next
+        if (stabilizesHoverSize && next.compactHover && lockedSize == null) {
+            lockedSize = compactHoverSize(next)
+        }
         add(next, BorderLayout.CENTER)
         revalidate()
         repaint()

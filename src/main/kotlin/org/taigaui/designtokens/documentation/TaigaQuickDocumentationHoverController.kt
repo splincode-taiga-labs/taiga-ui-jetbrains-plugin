@@ -431,7 +431,11 @@ internal class TaigaQuickDocumentationHoverController(
                     hoverPointer = !request.explicit && !pinned,
                 )
             if (!reuseHoverPopup(request, panel)) {
-                val host = TaigaDocumentationPopupHost(panel, stabilizesHoverSize = compactHover && !pinned)
+                val host =
+                    TaigaDocumentationPopupHost(
+                        panel,
+                        stabilizesHoverSize = !request.explicit && !pinned,
+                    )
                 val createdPopup =
                     createTaigaDocumentationPopup(
                         project,
@@ -471,9 +475,12 @@ internal class TaigaQuickDocumentationHoverController(
         val existingPopup = popup?.takeIf { it.isVisible && !pinned && !request.explicit }
         val host = popupHost
         if (existingPopup != null && host != null) {
+            val modeChanged = host.card.compactHover != panel.compactHover
             popupContent = panel
             host.showCard(panel)
-            if (!host.stabilizesHoverSize) existingPopup.setSize(host.preferredSize)
+            if (modeChanged || !host.stabilizesHoverSize || !panel.compactHover) {
+                existingPopup.setSize(host.preferredSize)
+            }
             positionTaigaHoverCard(existingPopup, panel, request.documentationTargetScreenBounds())
             return true
         }
@@ -576,7 +583,9 @@ internal class TaigaQuickDocumentationHoverController(
         if (pinned) {
             popup.moveToFitScreen()
         } else {
-            if (popupHost?.stabilizesHoverSize != true) popup.setSize(panel.preferredSize)
+            if (popupHost?.stabilizesHoverSize != true || !panel.compactHover) {
+                popup.setSize(popupHost?.preferredSize ?: panel.preferredSize)
+            }
             val request = currentRequest
             if (request != null && !request.explicit && popup.isVisible) {
                 positionTaigaHoverCard(popup, panel, request.documentationTargetScreenBounds())
