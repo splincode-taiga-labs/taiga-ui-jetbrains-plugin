@@ -154,10 +154,3 @@ private fun cardContentLink(
 private const val MAX_CARD_DESCRIPTION_LENGTH = 240
 private const val MAX_CARD_EXAMPLE_LENGTH = 1_200
 
-internal fun documentationDefaultProviderInfo(default: TaigaInputDefault): JComponent? =
-    default.provider?.let {
-        documentationRow(
-            "Default ${default.name}",
-            wrappedLabel("Read from $it. Project providers may change this value.", 370),
-        )
-    }
