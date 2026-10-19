@@ -153,4 +153,3 @@ private fun cardContentLink(
 
 private const val MAX_CARD_DESCRIPTION_LENGTH = 240
 private const val MAX_CARD_EXAMPLE_LENGTH = 1_200
-
