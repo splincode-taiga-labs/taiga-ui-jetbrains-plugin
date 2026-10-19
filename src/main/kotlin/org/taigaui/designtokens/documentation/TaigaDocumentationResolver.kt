@@ -329,7 +329,7 @@ internal fun documentationMemberUsage(
                     selector == tagName -> ""
                     selector.startsWith("$tagName[") && selector.endsWith(']') ->
                         selector.removePrefix("$tagName[").removeSuffix("]").takeIf(USAGE_ATTRIBUTE::matches)
-                    USAGE_ATTRIBUTE.matches(selector) && selector.startsWith("tui") && selector.getOrNull(3)?.isUpperCase() == true -> selector
+                    USAGE_DIRECTIVE_ATTRIBUTE.matches(selector) -> selector
                     else -> null
                 }
             }?.takeIf(String::isNotEmpty)
@@ -449,7 +449,8 @@ private val MEMBER_BINDING_PATTERNS =
         MemberBindingPattern("on-", "", TaigaApiMemberKind.OUTPUT),
     )
 
-private val USAGE_ATTRIBUTE = Regex("[A-Za-z_$][\\\\w$-]*")
+private val USAGE_ATTRIBUTE = Regex("""[A-Za-z_$][\w$-]*""")
+private val USAGE_DIRECTIVE_ATTRIBUTE = Regex("""tui[A-Z][A-Za-z0-9]*""")
 
 private val PLAIN_INPUT_NAME = Regex("[A-Za-z_$][\\w$]*")
 
