@@ -2,7 +2,6 @@ package org.taigaui.designtokens.documentation
 
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.EDT
-import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.editor.Editor
@@ -56,6 +55,7 @@ internal class TaigaQuickDocumentationHoverController(
     private var refreshInProgress = false
     private var previewJob: Job? = null
     private val icons = TaigaDocumentationIcons(project, coroutineScope)
+    private val hoverResolver = TaigaDocumentationHoverResolver(project)
     private var resolutionJob: Job? = null
     private var pendingKey: TaigaQuickDocumentationHoverKey? = null
     private var currentRequest: TaigaQuickDocumentationHoverRequest? = null
@@ -196,28 +196,13 @@ internal class TaigaQuickDocumentationHoverController(
         target: TaigaDocumentationRefreshTarget? = refreshTarget.takeIf { refreshing },
     ): Job =
         coroutineScope.launch(Dispatchers.Default + CoroutineName("Taiga UI documentation PSI resolution")) {
-            val request =
-                ReadAction
-                    .nonBlocking<TaigaQuickDocumentationHoverRequest?> {
-                        val committed = if (refreshing) target?.let(candidate::withCommittedTarget) else candidate
-                        if (project.isDisposed || !candidate.file.isValid) null else committed?.resolveRequest()
-                    }.withDocumentsCommitted(project)
-                    .inSmartMode(project)
-                    .expireWith(project)
-                    .expireWhen { !isActive || candidate.editor.isDisposed }
-                    .executeSynchronously()
+            val request = hoverResolver.resolveRequest(candidate, refreshing, target) { !isActive }
             withContext(Dispatchers.EDT) {
                 if (refreshing && pendingKey == candidate.key) {
                     popupContent?.showRefreshProgress(false)
                 }
             }
-            val snapshot =
-                request?.let {
-                    val service = project.service<TaigaDocsService>()
-                    if (refreshing) service.snapshotFor(it.sourceFile) else service.cachedSnapshotFor(it.sourceFile)
-                }
-            val resolved = request?.let { resolveDocumentation(it.documentationRequest, snapshot) }
-            if (request != null && snapshot == null) project.service<TaigaDocsService>().warmUp(request.sourceFile)
+            val (snapshot, resolved) = hoverResolver.resolveDocumentation(request, refreshing)
             withContext(Dispatchers.EDT) {
                 if (candidate.explicit) {
                     if (pendingKey == candidate.key) {
