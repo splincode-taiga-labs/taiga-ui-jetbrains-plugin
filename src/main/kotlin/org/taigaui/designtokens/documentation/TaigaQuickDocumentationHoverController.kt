@@ -202,7 +202,7 @@ internal class TaigaQuickDocumentationHoverController(
                     popupContent?.showRefreshProgress(false)
                 }
             }
-            val (snapshot, resolved) = hoverResolver.resolveDocumentation(request, refreshing)
+            val (snapshot, resolved) = hoverResolver.loadDocumentation(request, refreshing)
             withContext(Dispatchers.EDT) {
                 if (candidate.explicit) {
                     if (pendingKey == candidate.key) {
