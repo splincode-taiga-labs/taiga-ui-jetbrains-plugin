@@ -251,6 +251,8 @@ Current source precedence is part of the product contract:
 2. proprietary project with installed `@taiga-ui/tds-icons` → local proprietary icons;
 3. proprietary project without local `tds-icons` → T-Bank CDN fallback.
 
+For proprietary CDN requests, the plugin tries `cdn.tbank.ru` first, then `cdn.tbank-online.com`, then `cdn.t-bank-app.ru`. This order applies to both `data.json` catalog loading and individual SVG previews. Unavailable, unsuccessful, or invalid catalog responses and unreadable SVGs trigger the next CDN; unrelated remote URLs are never rewritten. Local icons and public-project resolution are unchanged.
+
 The icon subsystem is independent from the token-resolution graph.
 
 ## Background loading and caching
