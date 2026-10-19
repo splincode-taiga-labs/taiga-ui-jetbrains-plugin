@@ -227,14 +227,19 @@ internal val ICONS_BASE_URLS =
     )
 
 internal fun IconSvgSource.candidateUris(): List<URI> {
-    if (this !is IconSvgSource.Remote) return listOf(uri)
-
     val url = uri.toString()
-    val sourceBase = ICONS_BASE_URLS.firstOrNull { url.startsWith("$it/") } ?: return listOf(uri)
-    val relativePath = url.removePrefix(sourceBase)
+    val sourceBase =
+        (this as? IconSvgSource.Remote)
+            ?.let { ICONS_BASE_URLS.firstOrNull { baseUrl -> url.startsWith("$baseUrl/") } }
 
-    return listOf(uri) +
-        ICONS_BASE_URLS
-            .filterNot { it == sourceBase }
-            .map { baseUrl -> URI.create("$baseUrl$relativePath") }
+    return if (sourceBase == null) {
+        listOf(uri)
+    } else {
+        val relativePath = url.removePrefix(sourceBase)
+
+        listOf(uri) +
+            ICONS_BASE_URLS
+                .filterNot { it == sourceBase }
+                .map { baseUrl -> URI.create("$baseUrl$relativePath") }
+    }
 }
