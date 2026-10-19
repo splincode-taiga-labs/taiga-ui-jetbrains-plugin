@@ -310,19 +310,38 @@ private fun XmlTag.taigaSubjects(): List<TaigaDocumentationSubject> =
 private fun XmlTag.memberUsage(
     member: MemberBinding,
     ownerSelector: String?,
+): String = documentationMemberUsage(name, ownerSelector, member.name, member.kind)
+
+/** Pick the selector applicable to the actual host tag, never render a CSS selector list as HTML. */
+internal fun documentationMemberUsage(
+    tagName: String,
+    ownerSelector: String?,
+    memberName: String,
+    kind: TaigaApiMemberKind,
 ): String {
-    val selector =
+    val directiveAttribute =
         ownerSelector
-            ?.takeUnless { value -> value == name }
-            ?.let { value -> " $value" }
+            ?.split(',')
+            ?.asSequence()
+            ?.map(String::trim)
+            ?.firstNotNullOfOrNull { selector ->
+                when {
+                    selector == tagName -> ""
+                    selector.startsWith("$tagName[") && selector.endsWith(']') ->
+                        selector.removePrefix("$tagName[").removeSuffix("]").takeIf(USAGE_ATTRIBUTE::matches)
+                    USAGE_ATTRIBUTE.matches(selector) && selector.startsWith("tui") -> selector
+                    else -> null
+                }
+            }?.takeIf(String::isNotEmpty)
+            ?.let { " $it" }
             .orEmpty()
     val binding =
-        when (member.kind) {
-            TaigaApiMemberKind.INPUT -> "[${member.name}]=\"value\""
-            TaigaApiMemberKind.OUTPUT -> "(${member.name})=\"handler(\$event)\""
+        when (kind) {
+            TaigaApiMemberKind.INPUT -> "[$memberName]=\"value\""
+            TaigaApiMemberKind.OUTPUT -> "($memberName)=\"handler(\$event)\""
         }
 
-    return "<$name$selector $binding>...</$name>"
+    return "<$tagName$directiveAttribute $binding>...</$tagName>"
 }
 
 private fun PolySymbol.toLocalSubject(
@@ -429,6 +448,8 @@ private val MEMBER_BINDING_PATTERNS =
         MemberBindingPattern("bind-", "", TaigaApiMemberKind.INPUT),
         MemberBindingPattern("on-", "", TaigaApiMemberKind.OUTPUT),
     )
+
+private val USAGE_ATTRIBUTE = Regex("[A-Za-z_$][\\\\w$-]*")
 
 private val PLAIN_INPUT_NAME = Regex("[A-Za-z_$][\\w$]*")
 
