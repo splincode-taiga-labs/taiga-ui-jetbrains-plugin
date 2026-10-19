@@ -17,7 +17,10 @@ internal data class TaigaDocumentationView(
             !expanded &&
             !fullApi &&
             !showExample &&
-            (resolved !is TaigaResolvedDocumentation.Entity || resolved.badge != "Directive")
+            (
+                resolved !is TaigaResolvedDocumentation.Entity ||
+                    (resolved.badge != "Directive" && resolved.badge != "Component")
+            )
 
     @Suppress("ReturnCount")
     fun refreshed(

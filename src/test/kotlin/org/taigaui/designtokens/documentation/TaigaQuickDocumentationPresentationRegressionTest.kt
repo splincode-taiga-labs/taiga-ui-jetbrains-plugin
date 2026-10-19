@@ -188,6 +188,21 @@ class TaigaQuickDocumentationPresentationRegressionTest : TaigaDocumentationPopu
         host.stopTransition()
     }
 
+    fun testComponentFullHoverRestoresCompactInputViewportWhenSwitching() {
+        val compact = TaigaQuickDocumentationPopupPanel(pipe(), compactHover = true, hoverPointer = true)
+        val component = TaigaQuickDocumentationPopupPanel(component(), hoverPointer = true)
+        val host = TaigaDocumentationPopupHost(compact, stabilizesHoverSize = true)
+        val compactSize = java.awt.Dimension(host.preferredSize)
+
+        host.showCard(component)
+        assertEquals(component.preferredSize, host.preferredSize)
+        assertSame(component, host.card)
+
+        host.showCard(compact)
+        assertEquals(compactSize, host.preferredSize)
+        host.stopTransition()
+    }
+
     fun testShortHoverContentHidesScrollbarWithStableOuterSize() {
         val card = TaigaQuickDocumentationPopupPanel(pipe(), compactHover = true, hoverPointer = true)
         val host = TaigaDocumentationPopupHost(card, stabilizesHoverSize = true)

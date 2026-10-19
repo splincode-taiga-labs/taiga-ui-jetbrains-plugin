@@ -431,11 +431,7 @@ internal class TaigaQuickDocumentationHoverController(
                     hoverPointer = !request.explicit && !pinned,
                 )
             if (!reuseHoverPopup(request, panel)) {
-                val host =
-                    TaigaDocumentationPopupHost(
-                        panel,
-                        stabilizesHoverSize = !request.explicit && !pinned,
-                    )
+                val host = TaigaDocumentationPopupHost(panel, stabilizesHoverSize = !request.explicit && !pinned)
                 val createdPopup =
                     createTaigaDocumentationPopup(
                         project,
