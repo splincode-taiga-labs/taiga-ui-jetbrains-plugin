@@ -329,7 +329,7 @@ internal fun documentationMemberUsage(
                     selector == tagName -> ""
                     selector.startsWith("$tagName[") && selector.endsWith(']') ->
                         selector.removePrefix("$tagName[").removeSuffix("]").takeIf(USAGE_ATTRIBUTE::matches)
-                    USAGE_ATTRIBUTE.matches(selector) && selector.startsWith("tui") -> selector
+                    USAGE_ATTRIBUTE.matches(selector) && selector.startsWith("tui") && selector.getOrNull(3)?.isUpperCase() == true -> selector
                     else -> null
                 }
             }?.takeIf(String::isNotEmpty)
