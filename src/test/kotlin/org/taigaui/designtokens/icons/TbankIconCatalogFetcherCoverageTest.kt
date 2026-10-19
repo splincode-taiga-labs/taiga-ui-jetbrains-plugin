@@ -87,6 +87,7 @@ class TbankIconCatalogFetcherCoverageTest {
         private val responses: List<Pair<Int, String>>,
     ) : HttpClient() {
         val requestedUris = mutableListOf<URI>()
+
         override fun cookieHandler(): Optional<CookieHandler> = Optional.empty()
 
         override fun connectTimeout(): Optional<Duration> = Optional.of(Duration.ofSeconds(1))
