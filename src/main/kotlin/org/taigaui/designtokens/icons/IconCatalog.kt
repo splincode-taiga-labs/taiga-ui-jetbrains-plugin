@@ -191,25 +191,55 @@ private class TbankIconCatalogFetcher : IconCatalogFetcher {
             .build()
 
     override fun fetch(): String? =
-        runCatching {
-            val request =
-                HttpRequest
-                    .newBuilder(URI.create(ICONS_CATALOG_URL))
-                    .timeout(REQUEST_TIMEOUT)
-                    .GET()
-                    .build()
-            val response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
+        ICONS_BASE_URLS.firstNotNullOfOrNull { baseUrl ->
+            runCatching {
+                val request =
+                    HttpRequest
+                        .newBuilder(URI.create("$baseUrl/data.json"))
+                        .timeout(REQUEST_TIMEOUT)
+                        .GET()
+                        .build()
+                val response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
+                val body = response.body()
 
-            response.body().takeIf { response.statusCode() in HTTP_SUCCESS }
-        }.getOrNull()
+                body.takeIf {
+                    response.statusCode() in HTTP_SUCCESS &&
+                        TbankIconCatalogParser.parseEntries(it).isNotEmpty()
+                }
+            }.getOrNull()
+        }
 
     private companion object {
         val CONNECT_TIMEOUT: Duration = Duration.ofSeconds(3)
         val REQUEST_TIMEOUT: Duration = Duration.ofSeconds(8)
         val HTTP_SUCCESS = 200..299
-        const val ICONS_CATALOG_URL = "$ICONS_BASE_URL/data.json"
     }
 }
 
 internal const val ICON_PREFIX = "@tui."
 internal const val ICONS_BASE_URL = "https://cdn.tbank.ru/core/design-tokens/v1/web"
+
+internal val ICONS_BASE_URLS =
+    listOf(
+        ICONS_BASE_URL,
+        "https://cdn.tbank-online.com/core/design-tokens/v1/web",
+        "https://cdn.t-bank-app.ru/core/design-tokens/v1/web",
+    )
+
+internal fun IconSvgSource.candidateUris(): List<URI> {
+    val url = uri.toString()
+    val sourceBase =
+        (this as? IconSvgSource.Remote)
+            ?.let { ICONS_BASE_URLS.firstOrNull { baseUrl -> url.startsWith("$baseUrl/") } }
+
+    return if (sourceBase == null) {
+        listOf(uri)
+    } else {
+        val relativePath = url.removePrefix(sourceBase)
+
+        listOf(uri) +
+            ICONS_BASE_URLS
+                .filterNot { it == sourceBase }
+                .map { baseUrl -> URI.create("$baseUrl$relativePath") }
+    }
+}

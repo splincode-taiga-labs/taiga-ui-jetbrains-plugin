@@ -38,24 +38,56 @@ class TbankIconCatalogFetcherCoverageTest {
         assertNull(fetcher.fetch())
     }
 
+    @Test
+    fun `tries both mirrors after failed or empty catalogs`() {
+        val catalog = """{"icons":{"flags":["ab"]}}"""
+        val (fetcher, client) =
+            newFetcher(
+                listOf(
+                    503 to "unavailable",
+                    200 to "{}",
+                    200 to catalog,
+                ),
+            )
+
+        assertEquals(catalog, fetcher.fetch())
+        assertEquals(
+            ICONS_BASE_URLS.map { URI.create("$it/data.json") },
+            client.requestedUris,
+        )
+    }
+
+    @Test
+    fun `does not access mirrors when primary catalog is valid`() {
+        val catalog = """{"icons":{"flags":["ab"]}}"""
+        val (fetcher, client) = newFetcher(listOf(200 to catalog))
+
+        assertEquals(catalog, fetcher.fetch())
+        assertEquals(listOf(URI.create("$ICONS_BASE_URL/data.json")), client.requestedUris)
+    }
+
     private fun newFetcher(
         status: Int,
         body: String,
-    ): IconCatalogFetcher {
+    ): IconCatalogFetcher = newFetcher(listOf(status to body)).first
+
+    private fun newFetcher(responses: List<Pair<Int, String>>): Pair<IconCatalogFetcher, StubHttpClient> {
         val type = Class.forName("org.taigaui.designtokens.icons.TbankIconCatalogFetcher")
         val constructor = type.getDeclaredConstructor().apply { isAccessible = true }
         val instance = constructor.newInstance()
         val clientField = type.getDeclaredField("client").apply { isAccessible = true }
+        val client = StubHttpClient(responses)
 
-        clientField.set(instance, StubHttpClient(status, body))
+        clientField.set(instance, client)
 
-        return instance as IconCatalogFetcher
+        return (instance as IconCatalogFetcher) to client
     }
 
     private class StubHttpClient(
-        private val status: Int,
-        private val responseBody: String,
+        private val responses: List<Pair<Int, String>>,
     ) : HttpClient() {
+        val requestedUris = mutableListOf<URI>()
+
         override fun cookieHandler(): Optional<CookieHandler> = Optional.empty()
 
         override fun connectTimeout(): Optional<Duration> = Optional.of(Duration.ofSeconds(1))
@@ -78,11 +110,14 @@ class TbankIconCatalogFetcherCoverageTest {
             request: HttpRequest,
             responseBodyHandler: HttpResponse.BodyHandler<T>,
         ): HttpResponse<T> {
+            requestedUris += request.uri()
+            val (status, body) = responses.getOrElse(requestedUris.lastIndex) { responses.last() }
+
             @Suppress("UNCHECKED_CAST")
             return StubResponse(
                 request = request,
                 status = status,
-                body = responseBody as T,
+                body = body as T,
             )
         }
 

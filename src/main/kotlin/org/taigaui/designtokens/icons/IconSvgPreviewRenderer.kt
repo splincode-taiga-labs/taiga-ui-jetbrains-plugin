@@ -3,6 +3,7 @@ package org.taigaui.designtokens.icons
 import com.intellij.util.ImageLoader
 import com.intellij.util.ui.JBImageIcon
 import java.net.URI
+import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 import javax.swing.Icon
@@ -10,6 +11,7 @@ import kotlin.math.roundToInt
 
 internal class IconSvgPreviewRenderer(
     private val maxCacheEntries: Int = DEFAULT_ICON_PREVIEW_CACHE_ENTRIES,
+    private val svgReader: (URI) -> String = ::readSvg,
 ) {
     private val cache = IconPreviewCache(maxCacheEntries)
 
@@ -35,7 +37,12 @@ internal class IconSvgPreviewRenderer(
         logicalSize: Int,
     ): Icon? =
         runCatching {
-            val svg = readSvg(source.uri)
+            val svg =
+                source.candidateUris().firstNotNullOfOrNull { uri ->
+                    runCatching { svgReader(uri) }
+                        .getOrNull()
+                        ?.takeIf { readSvgSize(it) != null }
+                } ?: return@runCatching null
             val sourceSize = readSvgSize(svg) ?: return@runCatching null
             val maxSourceSize = maxOf(sourceSize.width, sourceSize.height)
             val scale = logicalSize / maxSourceSize
@@ -54,12 +61,14 @@ internal class IconSvgPreviewRenderer(
         }.getOrNull()
 }
 
-private fun readSvg(uri: URI): String =
-    uri
-        .toURL()
-        .openStream()
-        .bufferedReader()
-        .use { reader -> reader.readText() }
+private fun readSvg(uri: URI): String {
+    val connection = uri.toURL().openConnection()
+
+    connection.connectTimeout = 3_000
+    connection.readTimeout = 8_000
+
+    return connection.getInputStream().bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
+}
 
 private fun readSvgSize(svg: String): SvgSize? =
     SVG_ROOT

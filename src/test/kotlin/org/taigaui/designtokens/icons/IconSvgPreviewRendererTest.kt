@@ -3,6 +3,7 @@ package org.taigaui.designtokens.icons
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import java.awt.Rectangle
 import java.awt.image.BufferedImage
+import java.net.URI
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.FileTime
@@ -94,6 +95,50 @@ class IconSvgPreviewRendererTest : BasePlatformTestCase() {
             assertEquals(ICON_PREVIEW_LOGICAL_SIZE, icon.iconHeight)
             assertTrue(paint(icon).paintedBounds().width >= 38)
         }
+    }
+
+    fun testProprietaryRemoteSvgUsesMirrorsWhenPrimaryFails() {
+        val requested = mutableListOf<URI>()
+        val remotePath = "/fancy/small/check.svg"
+        val renderer =
+            IconSvgPreviewRenderer(
+                svgReader = { uri ->
+                    requested += uri
+
+                    when (uri.host) {
+                        "cdn.tbank.ru" -> error("Network unavailable")
+                        "cdn.tbank-online.com" -> "<html>Invalid SVG</html>"
+                        else ->
+                            """<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16">
+                                <rect width="16" height="16"/>
+                            </svg>"""
+                    }
+                },
+            )
+
+        val icon = render(IconSvgSource.Remote(URI.create("$ICONS_BASE_URL$remotePath")), renderer)
+
+        assertEquals(ICON_PREVIEW_LOGICAL_SIZE, icon.iconWidth)
+        assertEquals(
+            ICONS_BASE_URLS.map { URI.create("$it$remotePath") },
+            requested,
+        )
+    }
+
+    fun testUnrelatedRemoteSvgDoesNotUseProprietaryMirrors() {
+        val requested = mutableListOf<URI>()
+        val uri = URI.create("https://example.test/clock.svg")
+        val renderer =
+            IconSvgPreviewRenderer(
+                svgReader = { candidate ->
+                    requested += candidate
+                    """<svg width="16" height="16"><rect width="16" height="16"/></svg>"""
+                },
+            )
+
+        render(IconSvgSource.Remote(uri), renderer)
+
+        assertEquals(listOf(uri), requested)
     }
 
     fun testLocalPreviewIsRefreshedWhenTheSameFileChanges() {
