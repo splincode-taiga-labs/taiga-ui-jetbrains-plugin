@@ -68,8 +68,7 @@ internal class TaigaQuickDocumentationHoverController(
             onRefresh = ::refreshCard,
             onRenamed = { refreshTarget?.name = it },
         )
-    private var currentView: TaigaDocumentationView? = null
-    private val history = ArrayDeque<TaigaDocumentationView>()
+    private val navigation = TaigaDocumentationNavigationState()
     private var refreshTarget: TaigaDocumentationRefreshTarget? = null
 
     init {
@@ -272,13 +271,12 @@ internal class TaigaQuickDocumentationHoverController(
         refreshing: Boolean,
         focusEditor: Boolean,
     ) {
-        val view = captureCurrentView().takeIf { refreshing }?.refreshed(resolved, snapshot)
-        val previous = if (refreshing) history.mapNotNull { it.refreshed(resolved, snapshot) } else emptyList()
+        val view = navigation.capture(popupContent?.scrollPosition).takeIf { refreshing }?.refreshed(resolved, snapshot)
+        val previous = if (refreshing) navigation.refreshedHistory(resolved, snapshot) else emptyList()
         val location = popup?.takeIf { it.isVisible }?.locationOnScreen
         hidePopup(restoreNativeHover = false)
         codeActions.dispose()
-        history.clear()
-        history.addAll(previous)
+        navigation.replaceHistory(previous)
         currentRequest = request
         activeKey = request.key
         rememberRefreshTarget(request)
@@ -364,8 +362,7 @@ internal class TaigaQuickDocumentationHoverController(
             rememberRefreshTarget(request)
             hoverJob?.cancel()
             hidePopup(restoreNativeHover = false)
-            history.clear()
-            currentView = null
+            navigation.clear()
             codeActions.dispose()
             activeKey = request.key
             hoverJob = scheduleHover(request, cachedResolved, candidateKey)
@@ -399,8 +396,7 @@ internal class TaigaQuickDocumentationHoverController(
                             previewJob?.cancel()
                             previewJob = null
                             codeActions.dispose()
-                            history.clear()
-                            currentView = null
+                            navigation.clear()
                             currentRequest = request
                             activeKey = request.key
                             rememberRefreshTarget(request)
@@ -423,7 +419,7 @@ internal class TaigaQuickDocumentationHoverController(
     private fun showView(
         request: TaigaQuickDocumentationHoverRequest,
         view: TaigaDocumentationView,
-        requestFocus: Boolean = request.explicit || view.fullApi || view.expanded || history.isNotEmpty(),
+        requestFocus: Boolean = request.explicit || view.fullApi || view.expanded || navigation.canGoBack,
     ) {
         val resolved = view.resolved
         val canShow =
@@ -435,7 +431,7 @@ internal class TaigaQuickDocumentationHoverController(
             if (pinned) nativeHoverSuppression.restore() else nativeHoverSuppression.suppress(request.editor)
             val compactHover = view.isCompactHover(request.explicit)
             codeActions.prepareForView(request, resolved, compactHover)
-            currentView = view
+            navigation.currentView = view
 
             val panel =
                 TaigaQuickDocumentationPopupPanel(
@@ -510,8 +506,7 @@ internal class TaigaQuickDocumentationHoverController(
                         refreshInProgress = false
                         resolutionJob?.cancel()
                         codeActions.dispose()
-                        history.clear()
-                        currentView = null
+                        navigation.clear()
                         popup = null
                         popupContent = null
                         popupHost?.stopTransition()
@@ -550,7 +545,7 @@ internal class TaigaQuickDocumentationHoverController(
                 },
             togglePin = { togglePin(request, resolved, exampleVisible) },
             openFullCard = {
-                val expanded = (captureCurrentView() ?: TaigaDocumentationView(resolved)).copy(expanded = true)
+                val expanded = (navigation.capture(popupContent?.scrollPosition) ?: TaigaDocumentationView(resolved)).copy(expanded = true)
                 hidePopup(restoreNativeHover = false)
                 showView(request, expanded, requestFocus = true)
             },
@@ -564,14 +559,14 @@ internal class TaigaQuickDocumentationHoverController(
                 navigate(request, TaigaDocumentationView(member))
             },
             showExample = {
-                val view = captureCurrentView() ?: TaigaDocumentationView(resolved)
+                val view = navigation.capture(popupContent?.scrollPosition) ?: TaigaDocumentationView(resolved)
                 hidePopup(restoreNativeHover = false)
                 showView(request, view.copy(showExample = true))
             },
             openOwner = { entity -> navigate(request, TaigaDocumentationView(entity, fullApi = true)) },
-            goBack = if (history.isEmpty()) null else ({ goBack(request) }),
-            queryChanged = { query -> currentView = currentView?.copy(query = query) },
-            selectionChanged = { selected -> currentView = currentView?.copy(selectedMember = selected) },
+            goBack = if (!navigation.canGoBack) null else ({ goBack(request) }),
+            queryChanged = navigation::setQuery,
+            selectionChanged = navigation::setSelection,
             showImportFixes = {
                 val offset = refreshTarget?.offset()
                 dismissHover(request.editor, force = true)
@@ -611,7 +606,7 @@ internal class TaigaQuickDocumentationHoverController(
         exampleVisible: Boolean,
     ) {
         val location = popup?.takeIf { it.isVisible }?.locationOnScreen
-        val view = captureCurrentView() ?: TaigaDocumentationView(resolved, exampleVisible)
+        val view = navigation.capture(popupContent?.scrollPosition) ?: TaigaDocumentationView(resolved, exampleVisible)
         pinned = !pinned
         cancelScheduledHide()
         if (!refreshInProgress) resolutionJob?.cancel()
@@ -634,7 +629,7 @@ internal class TaigaQuickDocumentationHoverController(
     }
 
     private fun goBack(request: TaigaQuickDocumentationHoverRequest) {
-        val view = history.removeLastOrNull() ?: return
+        val view = navigation.back() ?: return
         hidePopup(restoreNativeHover = false)
         showView(request, view)
     }
@@ -643,13 +638,10 @@ internal class TaigaQuickDocumentationHoverController(
         request: TaigaQuickDocumentationHoverRequest,
         view: TaigaDocumentationView,
     ) {
-        captureCurrentView()?.let(history::addLast)
+        val next = navigation.visit(view, popupContent?.scrollPosition)
         hidePopup(restoreNativeHover = false)
-        showView(request, view.copy(expanded = true))
+        showView(request, next)
     }
-
-    private fun captureCurrentView(): TaigaDocumentationView? =
-        currentView?.let { it.copy(scrollPosition = popupContent?.scrollPosition ?: it.scrollPosition) }
 
     private fun loadIconPreviews(
         request: TaigaQuickDocumentationHoverRequest,
@@ -712,8 +704,7 @@ internal class TaigaQuickDocumentationHoverController(
         refreshTarget?.dispose()
         refreshTarget = null
         codeActions.dispose()
-        currentView = null
-        history.clear()
+        navigation.clear()
         resolutionJob?.cancel()
         resolutionJob = null
         pendingKey = null
