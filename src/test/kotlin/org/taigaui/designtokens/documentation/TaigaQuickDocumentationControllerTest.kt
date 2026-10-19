@@ -399,7 +399,8 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
         open("<button tuiButton size=\"m\">Save</button>", "size")
         val suppression =
             documentationField<DesignTokenNativeHoverPopupSuppression>(controller, "nativeHoverSuppression")
-        val adapters = documentationField<TaigaDocumentationCardEditors>(controller, "cardEditors")
+        val codeActions = documentationField<TaigaDocumentationCodeActions>(controller, "codeActions")
+        val adapters = documentationField<TaigaDocumentationCardEditors>(codeActions, "editors")
         assertSame(myFixture.editor, documentationField<Editor?>(suppression, "editor"))
         assertNotNull(adapters.binding)
         assertNotNull(adapters.template)
@@ -518,7 +519,10 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
 
     private fun panel(): TaigaQuickDocumentationPopupPanel = requireNotNull(panelOrNull())
 
-    private fun view(): TaigaDocumentationView = documentationField(controller, "currentView")
+    private fun view(): TaigaDocumentationView {
+        val navigation = documentationField<TaigaDocumentationNavigationState>(controller, "navigation")
+        return requireNotNull(navigation.currentView)
+    }
 
     private fun actions(): TaigaDocumentationPopupActions = documentationField(panel(), "actions")
 
