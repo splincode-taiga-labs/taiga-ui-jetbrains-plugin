@@ -17,6 +17,18 @@ class TaigaQuickDocumentationUnionTest : TaigaDocumentationPopupTestCase() {
         assertFalse(labels.any { it.text?.contains("…") == true })
     }
 
+    fun testUnionWithEmptyStringRendersChips() {
+        val type = "\"\" | \"accent\" | \"action-destructive\" | \"action-grayscale\""
+        val panel = requireNotNull(documentationUnionChips(type, width = 180))
+        val labels = descendants(panel).filterIsInstance<JBLabel>().toList()
+
+        assertEquals(
+            listOf("\"\"", "\"accent\"", "\"action-destructive\"", "\"action-grayscale\""),
+            labels.map { it.accessibleContext.accessibleName },
+        )
+        assertEquals(listOf("", "accent", "action-destructive", "action-grayscale"), finiteStringValues(type))
+    }
+
     fun testCompactHoverLimitsRowsAndMakesRemainingCountVisible() {
         val type = (1..18).joinToString(" | ") { "'value$it'" }
         val panel = requireNotNull(documentationUnionChips(type, width = 125, maxRows = 2))
