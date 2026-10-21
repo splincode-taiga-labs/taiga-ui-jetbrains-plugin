@@ -417,7 +417,6 @@ private val MEMBER_BINDING_PATTERNS =
         MemberBindingPattern("on-", "", TaigaApiMemberKind.OUTPUT),
     )
 
-
 private val PLAIN_INPUT_NAME = Regex("[A-Za-z_$][\\w$]*")
 
 private const val MAX_CAPTURED_BINDINGS = 32
