@@ -17,7 +17,7 @@ internal fun documentationUnionChips(
     maxRows: Int = Int.MAX_VALUE,
 ): JComponent? {
     val alternatives = type.trim().split('|').map(String::trim)
-    if (alternatives.size < 2 || finiteStringValues(type).size != alternatives.size) return null
+    if (alternatives.size < 2 || alternatives.any { DISPLAY_LITERAL.matchEntire(it) == null }) return null
 
     val container =
         JPanel().apply {
@@ -88,3 +88,5 @@ private fun documentationUnionChip(value: String): JComponent =
             },
         )
     }
+
+private val DISPLAY_LITERAL = Regex("""(['\"])([^'\"]*)\1""")
