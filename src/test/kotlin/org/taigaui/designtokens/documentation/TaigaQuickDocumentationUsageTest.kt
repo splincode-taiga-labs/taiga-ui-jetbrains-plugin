@@ -3,6 +3,14 @@ package org.taigaui.designtokens.documentation
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 
 class TaigaQuickDocumentationUsageTest : BasePlatformTestCase() {
+    fun testShortFlattenedExampleIsFormattedWithoutChangingMarkup() {
+        val source = "<button tuiButton size=\"m\" appearance=\"primary\">Save</button>"
+        assertEquals(
+            "<button\\n    tuiButton\\n    size=\"m\"\\n    appearance=\"primary\"\\n>\\n    Save\\n</button>",
+            formattedDocumentationExample(source),
+        )
+    }
+
     fun testUsageChoosesOnlyTheSelectorMatchingTheActualHostTag() {
         val selectors = "tui-avatar,button[tuiAvatar],a[tuiAvatar]"
 
