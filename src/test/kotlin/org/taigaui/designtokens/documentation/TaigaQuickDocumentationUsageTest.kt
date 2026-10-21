@@ -2,7 +2,7 @@ package org.taigaui.designtokens.documentation
 
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 
-class TaigaDocumentationUsageTest : BasePlatformTestCase() {
+class TaigaQuickDocumentationUsageTest : BasePlatformTestCase() {
     fun testUsageChoosesOnlyTheSelectorMatchingTheActualHostTag() {
         val selectors = "tui-avatar,button[tuiAvatar],a[tuiAvatar]"
 

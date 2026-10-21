@@ -2,7 +2,7 @@ package org.taigaui.designtokens.documentation
 
 import com.intellij.ui.components.JBLabel
 
-class TaigaDocumentationUnionTest : TaigaDocumentationPopupTestCase() {
+class TaigaQuickDocumentationUnionTest : TaigaDocumentationPopupTestCase() {
     fun testLiteralUnionIsRenderedAsSeparateSyntaxHighlightedAlternatives() {
         val type = "\"m\" | \"s\" | \"xs\" | \"l\" | \"xl\" | \"xxl\""
         val panel = requireNotNull(documentationUnionChips(type, width = 150))
