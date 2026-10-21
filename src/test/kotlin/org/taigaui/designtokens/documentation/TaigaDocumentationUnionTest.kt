@@ -8,9 +8,10 @@ class TaigaDocumentationUnionTest : TaigaDocumentationPopupTestCase() {
         val panel = requireNotNull(documentationUnionChips(type, width = 150))
         val labels = descendants(panel).filterIsInstance<JBLabel>().toList()
 
-        assertEquals(listOf("\"m\"", "\"s\"", "\"xs\"", "\"l\"", "\"xl\"", "\"xxl\""), labels.map {
-            it.accessibleContext.accessibleName
-        })
+        assertEquals(
+            listOf("\"m\"", "\"s\"", "\"xs\"", "\"l\"", "\"xl\"", "\"xxl\""),
+            labels.map { it.accessibleContext.accessibleName },
+        )
         assertTrue("Literal alternatives should wrap across rows", panel.componentCount > 1)
         assertEquals(type, panel.accessibleContext.accessibleName)
         assertFalse(labels.any { it.text?.contains("…") == true })
@@ -21,7 +22,7 @@ class TaigaDocumentationUnionTest : TaigaDocumentationPopupTestCase() {
         val panel = requireNotNull(documentationUnionChips(type, width = 125, maxRows = 2))
         val labels = descendants(panel).filterIsInstance<JBLabel>().toList()
 
-        assertTrue(labels.any { it.text?.matches(Regex("""\\+\\d+ more""")) == true })
+        assertTrue(labels.any { it.text?.matches(Regex("""\+\d+ more""")) == true })
         assertTrue(labels.any { it.accessibleContext.accessibleName == "'value1'" })
         assertEquals(type, panel.accessibleContext.accessibleName)
         assertTrue(panel.componentCount <= 3)
