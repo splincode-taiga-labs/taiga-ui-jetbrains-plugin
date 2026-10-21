@@ -32,7 +32,11 @@ class PsiDesignTokenSourceExtractor(
         val localFileSystem = LocalFileSystem.getInstance()
         val virtualFile =
             localFileSystem.findFileByNioFile(normalizedSourceFile)
-                ?: localFileSystem.refreshAndFindFileByNioFile(normalizedSourceFile)
+                ?: if (project.isInitialized) {
+                    localFileSystem.refreshAndFindFileByNioFile(normalizedSourceFile)
+                } else {
+                    null
+                }
                 ?: return emptyList()
 
         return ReadAction

@@ -3,7 +3,8 @@ package org.taigaui.designtokens.events
 import com.intellij.lang.javascript.psi.JSObjectLiteralExpression
 import com.intellij.lang.javascript.psi.JSProperty
 import com.intellij.lang.javascript.psi.ecma6.ES6Decorator
-import com.intellij.openapi.application.ReadAction
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.util.Computable
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.util.PsiTreeUtil
@@ -50,44 +51,52 @@ internal object AngularHostBindingSupport {
         file: PsiFile,
         offset: Int,
     ): AngularHostEventBinding? =
-        ReadAction.compute<AngularHostEventBinding?, RuntimeException> {
-            val safeOffset = offset.coerceIn(0, maxOf(0, file.textLength - 1))
+        ApplicationManager.getApplication().runReadAction(
+            Computable {
+                val safeOffset = offset.coerceIn(0, maxOf(0, file.textLength - 1))
 
-            file
-                .findElementAt(safeOffset)
-                ?.let(::findContainingInReadAction)
-                ?.takeIf { binding -> offset in binding.startOffset until binding.endOffset }
-        }
+                file
+                    .findElementAt(safeOffset)
+                    ?.let(::findContainingInReadAction)
+                    ?.takeIf { binding -> offset in binding.startOffset until binding.endOffset }
+            },
+        )
 
     fun findContaining(element: PsiElement): AngularHostEventBinding? =
-        ReadAction.compute<AngularHostEventBinding?, RuntimeException> {
-            findContainingInReadAction(element)
-        }
+        ApplicationManager.getApplication().runReadAction(
+            Computable {
+                findContainingInReadAction(element)
+            },
+        )
 
     fun findPropertyContext(
         file: PsiFile,
         offset: Int,
     ): AngularHostPropertyContext? =
-        ReadAction.compute<AngularHostPropertyContext?, RuntimeException> {
-            if (file.textLength == 0) {
-                null
-            } else {
-                val safeOffset = offset.coerceIn(0, file.textLength - 1)
+        ApplicationManager.getApplication().runReadAction(
+            Computable {
+                if (file.textLength == 0) {
+                    null
+                } else {
+                    val safeOffset = offset.coerceIn(0, file.textLength - 1)
 
-                file
-                    .findElementAt(safeOffset)
-                    ?.let { element ->
-                        PsiTreeUtil.getParentOfType(element, JSProperty::class.java, false)
-                    }?.toAngularHostPropertyContext()
-            }
-        }
+                    file
+                        .findElementAt(safeOffset)
+                        ?.let { element ->
+                            PsiTreeUtil.getParentOfType(element, JSProperty::class.java, false)
+                        }?.toAngularHostPropertyContext()
+                }
+            },
+        )
 
     fun isInsideHostProperty(element: PsiElement): Boolean =
-        ReadAction.compute<Boolean, RuntimeException> {
-            PsiTreeUtil
-                .getParentOfType(element, JSProperty::class.java, false)
-                ?.toAngularHostPropertyContext() != null
-        }
+        ApplicationManager.getApplication().runReadAction(
+            Computable {
+                PsiTreeUtil
+                    .getParentOfType(element, JSProperty::class.java, false)
+                    ?.toAngularHostPropertyContext() != null
+            },
+        )
 
     fun isInsideHostProperty(
         file: PsiFile,

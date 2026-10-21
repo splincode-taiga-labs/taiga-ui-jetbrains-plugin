@@ -48,6 +48,34 @@ class TaigaDocsParserTest {
         assertEquals(null, parser.parse(source, "not Taiga UI documentation"))
     }
 
+    @Test
+    fun parsesUnescapedAndEscapedUnionTypesWithoutShiftingDescriptions() {
+        val rows =
+            listOf(
+                "| [size] | `TuiSizeXS | TuiSizeL` | Size of the button |",
+                "| [escaped] | `A \\| B` | An escaped union |",
+                "| [doubled] | `A \\\\| B` | A generated union |",
+                "| [callback] | ``(value: `x` | `y`) => void`` | A callback |",
+                "| [loading] | `boolean` | ) |",
+            )
+        val docs =
+            "# components/Button\n### API - Inputs\n| Property | Type | Description |\n| --- | --- | --- |\n" +
+                rows.joinToString("\n")
+        val inputs =
+            requireNotNull(
+                parser.parse(requireNotNull(TaigaDocsSources.forMajor(4)), docs),
+            ).entities.single().inputs
+        assertEquals("TuiSizeXS | TuiSizeL", inputs[0].documentedType)
+        assertEquals("Size of the button", inputs[0].description)
+        assertEquals("A | B", inputs[1].documentedType)
+        assertEquals("An escaped union", inputs[1].description)
+        assertEquals("A | B", inputs[2].documentedType)
+        assertEquals("A generated union", inputs[2].description)
+        assertEquals("(value: `x` | `y`) => void", inputs[3].documentedType)
+        assertEquals("A callback", inputs[3].description)
+        assertEquals(null, inputs[4].description)
+    }
+
     private fun v5Docs(): String =
         listOf(
             "# Import Map - Package Exports Reference",
