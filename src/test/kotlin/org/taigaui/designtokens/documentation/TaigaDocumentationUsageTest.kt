@@ -15,7 +15,7 @@ class TaigaDocumentationUsageTest : BasePlatformTestCase() {
             documentationMemberUsage("button", selectors, "size", TaigaApiMemberKind.INPUT),
         )
         assertEquals(
-            """<a tuiAvatar (loaded)="handler(${'
+            "<a tuiAvatar (loaded)=\"handler(\$event)\">...</a>",
             documentationMemberUsage("a", selectors, "loaded", TaigaApiMemberKind.OUTPUT),
         )
         assertEquals(
