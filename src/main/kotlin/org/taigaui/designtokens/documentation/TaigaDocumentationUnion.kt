@@ -89,4 +89,4 @@ private fun documentationUnionChip(value: String): JComponent =
         )
     }
 
-private val DISPLAY_LITERAL = Regex("""(['\"])([^'\"]*)\1""")
+private val DISPLAY_LITERAL = Regex("""(["'])([^"']*)\1""")
