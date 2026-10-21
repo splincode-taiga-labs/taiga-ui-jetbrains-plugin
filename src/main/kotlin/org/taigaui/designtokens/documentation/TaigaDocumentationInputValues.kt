@@ -134,7 +134,7 @@ private const val MAX_ALIAS_DEPTH = 4
 private const val MAX_ALIAS_REFERENCES = 16
 private const val MAX_ALIAS_FILE_TEXT = 32_000
 private val TYPE_NAME = Regex("[A-Za-z_$][\\w$]*")
-private val STRING_VALUE = Regex("""(['"])([\w .@/-]+)\1""")
+private val STRING_VALUE = Regex("""(['"])([\w .@/-]*)\1""")
 
 private const val MAX_INPUT_FIELD_TEXT = 8_000
 private val INPUT_FIELD =
