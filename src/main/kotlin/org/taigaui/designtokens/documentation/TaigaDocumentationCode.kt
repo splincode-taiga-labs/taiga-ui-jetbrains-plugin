@@ -78,26 +78,27 @@ internal fun documentationCodeBlock(
     }
 
 internal fun documentationTypePresentation(type: String): JComponent =
-    if (Regex("""[A-Za-z_$][\w$]*""").matches(type)) {
-        JPanel(FlowLayout(FlowLayout.LEFT, 0, 0)).apply {
-            isOpaque = false
-            add(
-                RoundedRowPanel().apply {
-                    layout = BorderLayout()
-                    border = JBUI.Borders.empty(3, 7)
-                    add(
-                        JBLabel(type).apply {
-                            font = taigaDocumentationCodeFont()
-                            foreground = DESIGN_TOKEN_POPUP_LINK_COLOR
-                            getAccessibleContext().accessibleName = type
-                        },
-                    )
-                },
-            )
+    documentationUnionChips(type)
+        ?: if (Regex("""[A-Za-z_$][\w$]*""").matches(type)) {
+            JPanel(FlowLayout(FlowLayout.LEFT, 0, 0)).apply {
+                isOpaque = false
+                add(
+                    RoundedRowPanel().apply {
+                        layout = BorderLayout()
+                        border = JBUI.Borders.empty(3, 7)
+                        add(
+                            JBLabel(type).apply {
+                                font = taigaDocumentationCodeFont()
+                                foreground = DESIGN_TOKEN_POPUP_LINK_COLOR
+                                getAccessibleContext().accessibleName = type
+                            },
+                        )
+                    },
+                )
+            }
+        } else {
+            documentationCodeLabel(type)
         }
-    } else {
-        documentationCodeLabel(type)
-    }
 
 internal fun documentationAcceptedType(
     declared: String,
@@ -116,7 +117,9 @@ internal fun documentationAcceptedType(
             },
         )
         val expanded = expandedType?.takeIf { sameDocumentationType(declared, accepted) } ?: accepted
-        if (!sameDocumentationType(declared, expanded)) add(documentationCodeLabel("= $expanded"))
+        if (!sameDocumentationType(declared, expanded)) {
+            add(documentationUnionChips(expanded) ?: documentationCodeLabel("= $expanded"))
+        }
     }
 
 internal fun documentationRow(

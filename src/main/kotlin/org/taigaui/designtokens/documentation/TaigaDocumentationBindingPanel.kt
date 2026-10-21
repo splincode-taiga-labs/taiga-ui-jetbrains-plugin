@@ -60,7 +60,10 @@ internal class TaigaDocumentationBindingPanel(
             if (!sameDocumentationType(valueType, member.typeText) &&
                 !sameDocumentationType(valueType, member.localMember?.expandedType)
             ) {
-                add(documentationRow("Possible values", documentationCodeLabel(compactDocumentationType(valueType))))
+                val presentation =
+                    documentationUnionChips(valueType)
+                        ?: documentationCodeLabel(compactDocumentationType(valueType))
+                add(documentationRow("Possible values", presentation))
             }
             if (canApply) {
                 editorContent.add(Box.createVerticalStrut(JBUI.scale(6)))

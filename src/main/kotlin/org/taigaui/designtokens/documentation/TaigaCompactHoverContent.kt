@@ -17,7 +17,11 @@ internal fun JPanel.addCompactHoverContent(
     if (resolved is TaigaResolvedDocumentation.Member) {
         resolved.typeText?.takeIf(String::isNotBlank)?.let { type ->
             add(Box.createVerticalStrut(JBUI.scale(8)))
-            add(documentationCodeLabel(type.take(MAX_HOVER_TYPE_LENGTH), COMPACT_CONTENT_WIDTH - 24))
+            val width = COMPACT_CONTENT_WIDTH - 24
+            add(
+                documentationUnionChips(type, width, maxRows = 2)
+                    ?: documentationCodeLabel(type.take(MAX_HOVER_TYPE_LENGTH), width),
+            )
         }
         resolved.binding?.let { binding ->
             add(Box.createVerticalStrut(JBUI.scale(8)))

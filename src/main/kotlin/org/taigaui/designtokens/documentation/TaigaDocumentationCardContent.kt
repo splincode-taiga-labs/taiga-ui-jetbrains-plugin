@@ -51,7 +51,7 @@ private fun documentationApiEntry(
         val type = member.localMember?.declaredAcceptedType ?: member.typeText.orEmpty()
         if (type.isNotBlank()) {
             add(Box.createVerticalStrut(JBUI.scale(4)))
-            add(documentationCodeLabel(compactDocumentationType(type), 470))
+            add(documentationUnionChips(type, 470) ?: documentationCodeLabel(compactDocumentationType(type), 470))
         }
         member.property.description?.takeIf(String::isNotBlank)?.let { description ->
             add(Box.createVerticalStrut(JBUI.scale(5)))
