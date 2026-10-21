@@ -29,6 +29,21 @@ class TaigaQuickDocumentationUnionTest : TaigaDocumentationPopupTestCase() {
         assertEquals(listOf("", "accent", "action-destructive", "action-grayscale"), finiteStringValues(type))
     }
 
+    fun testAppearanceChipsRenderInsideCompactHover() {
+        val type = "\"\" | \"accent\" | \"action-destructive\" | \"action-grayscale\" | \"action\" | \"flat-destructive\""
+        val owner = directive()
+        val input = owner.focusedMember(
+            TaigaApiProperty("appearance", "[appearance]", type, "Visual appearance"),
+            TaigaApiMemberKind.INPUT,
+        )
+        val panel = TaigaQuickDocumentationPopupPanel(input, compactHover = true)
+        val labels = descendants(panel).filterIsInstance<JBLabel>().toList()
+
+        assertTrue(labels.any { it.accessibleContext.accessibleName == "\"\"" })
+        assertTrue(labels.any { it.accessibleContext.accessibleName == "\"accent\"" })
+        assertFalse(labels.any { it.accessibleContext.accessibleName == type })
+    }
+
     fun testDirectionValuesRenderAsChipsInCompactHover() {
         val type = "\"top\" | \"bottom\" | \"bottom-left\" | \"right-bottom\""
         val panel = requireNotNull(documentationUnionChips(type, width = 160, maxRows = 2))
