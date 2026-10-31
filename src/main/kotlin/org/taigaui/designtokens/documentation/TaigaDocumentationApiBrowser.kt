@@ -95,8 +95,27 @@ internal class TaigaDocumentationApiBrowser(
             ListCellRenderer { component, row, index, selected, focused ->
                 val prefix = if (row.kind == TaigaApiMemberKind.INPUT) "Input" else "Output"
                 val state = row.state?.let { "  ·  $it" }.orEmpty()
-                val text = "$prefix  ${row.property.name}: ${row.property.documentedType.orEmpty()}$state"
-                renderer.getListCellRendererComponent(component, text, index, selected, focused)
+                val type = row.property.documentedType.orEmpty()
+                val text = "$prefix  ${row.property.name}: $type$state"
+                val chips = documentationUnionChips(type, 430)
+
+                if (chips == null) {
+                    renderer.getListCellRendererComponent(component, text, index, selected, focused)
+                } else {
+                    JPanel(BorderLayout(0, JBUI.scale(3))).apply {
+                        isOpaque = true
+                        background = if (selected) list.selectionBackground else list.background
+                        border = JBUI.Borders.empty(5, 8)
+                        add(
+                            JBLabel("$prefix  ${row.property.name}$state").apply {
+                                foreground = if (selected) list.selectionForeground else list.foreground
+                            },
+                            BorderLayout.NORTH,
+                        )
+                        add(chips, BorderLayout.CENTER)
+                        getAccessibleContext().accessibleName = text
+                    }
+                }
             }
         list.addMouseListener(
             object : MouseAdapter() {
