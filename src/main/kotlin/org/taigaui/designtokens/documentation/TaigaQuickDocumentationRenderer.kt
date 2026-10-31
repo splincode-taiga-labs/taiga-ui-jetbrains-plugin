@@ -54,7 +54,7 @@ internal object TaigaQuickDocumentationRenderer {
         }
         resolved.localDocumentation.pipe?.let { appendPipeSections(it) }
         resolved.typeText?.takeIf(String::isNotBlank)?.let { type ->
-            addSection("Type:", "<code>${documentationCodeHtml(type)}</code>")
+            addSection("Type:", documentationTypeHtml(type))
         }
 
         resolved.effectiveUsage?.takeIf(String::isNotBlank)?.let { usage ->
@@ -86,13 +86,13 @@ internal object TaigaQuickDocumentationRenderer {
                 parameters.joinToString("<br>") { parameter ->
                     listOf(
                         "<code>${parameter.presentationName.html()}</code>",
-                        parameter.type.orEmpty().html(),
+                        documentationTypeHtml(parameter.type.orEmpty()),
                         parameter.description.orEmpty().html(),
                     ).joinToString("&nbsp;&nbsp;")
                 },
             )
         }
-        pipe.resultType?.let { addSection("Result:", "<code>${it.html()}</code>") }
+        pipe.resultType?.let { addSection("Result:", documentationTypeHtml(it)) }
         pipe.pure?.let { pure ->
             addSection(
                 if (pure) "Pure pipe:" else "Impure pipe:",
@@ -107,18 +107,18 @@ internal object TaigaQuickDocumentationRenderer {
 
     private fun StringBuilder.appendMemberSections(resolved: TaigaResolvedDocumentation.Member) {
         resolved.receivers.forEach { receiver ->
-            addSection("${receiver.ownerName} accepts:", receiver.typeText.orEmpty().html())
+            addSection("${receiver.ownerName} accepts:", documentationTypeHtml(receiver.typeText.orEmpty()))
             receiver.declaration?.publicSymbol?.let { addSection("Declared by:", it.html()) }
         }
         resolved.localMember?.let { member ->
-            member.expandedType?.let { addSection("Expanded type:", it.html()) }
-            member.valueType?.let { addSection("Stored value type:", it.html()) }
+            member.expandedType?.let { addSection("Expanded type:", documentationTypeHtml(it)) }
+            member.valueType?.let { addSection("Stored value type:", documentationTypeHtml(it)) }
             member.transform?.let { addSection("Input transform:", it.html()) }
             member.deprecated?.let { addSection("Deprecated:", it.html()) }
             if (member.required) addSection("Requirement:", "Required input")
         }
         resolved.typeText?.takeIf(String::isNotBlank)?.let { type ->
-            addSection("Type:", "<code>${documentationCodeHtml(type)}</code>")
+            addSection("Type:", documentationTypeHtml(type))
         }
 
         resolved.effectiveUsage?.takeIf(String::isNotBlank)?.let { usage ->
@@ -157,11 +157,11 @@ internal object TaigaQuickDocumentationRenderer {
                         buildString {
                             append("<code>")
                             append(property.name.html())
-                            property.documentedType?.let { type ->
-                                append("</code>&nbsp;&nbsp;<code>")
-                                append(type.html())
-                            }
                             append("</code>")
+                            property.documentedType?.let { type ->
+                                append("&nbsp;&nbsp;")
+                                append(documentationTypeHtml(type))
+                            }
 
                             property.description?.takeIf(String::isNotBlank)?.let { description ->
                                 append("&nbsp;&nbsp;—&nbsp;")
