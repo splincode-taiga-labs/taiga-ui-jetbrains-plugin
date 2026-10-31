@@ -179,6 +179,44 @@ class AngularHostBindingSupportTest : LightPlatformCodeInsightFixture4TestCase()
     }
 
     @Test
+    fun testHtmlEventModifierCompletionPreservesExistingHandler() {
+        configureAngularFile(
+            "proposal.component.html",
+            """<button (click.ca<caret>)="startCreateProposals()">Create</button>""",
+        )
+
+        myFixture.completeBasic()
+        myFixture.lookup?.let { lookup ->
+            lookup.currentItem = lookup.items.first { it.lookupString == "capture" }
+            myFixture.finishLookup('\n')
+        }
+
+        assertEquals(
+            """<button (click.capture)="startCreateProposals()">Create</button>""",
+            myFixture.file.text,
+        )
+    }
+
+    @Test
+    fun testHtmlEventModifierCompletionPreservesHandlerAfterExistingModifier() {
+        configureAngularFile(
+            "proposal-with-modifier.component.html",
+            """<button (click.zoneless.ca<caret>)="startCreateProposals()">Create</button>""",
+        )
+
+        myFixture.completeBasic()
+        myFixture.lookup?.let { lookup ->
+            lookup.currentItem = lookup.items.first { it.lookupString == "capture" }
+            myFixture.finishLookup('\n')
+        }
+
+        assertEquals(
+            """<button (click.zoneless.capture)="startCreateProposals()">Create</button>""",
+            myFixture.file.text,
+        )
+    }
+
+    @Test
     fun `completes native browser events in Angular host metadata`() {
         configureAngularFile(
             "component.ts",
