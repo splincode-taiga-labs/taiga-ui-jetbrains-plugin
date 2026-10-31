@@ -16,8 +16,8 @@ internal fun documentationUnionChips(
     width: Int = 370,
     maxRows: Int = Int.MAX_VALUE,
 ): JComponent? {
-    val alternatives = type.trim().split('|').map(String::trim)
-    if (alternatives.size < 2 || alternatives.any { DISPLAY_LITERAL.matchEntire(it) == null }) return null
+    val alternatives = documentationUnionAlternatives(type)
+    if (alternatives.isEmpty()) return null
 
     val container =
         JPanel().apply {
@@ -47,6 +47,54 @@ internal fun documentationUnionChips(
         )
     }
     return container
+}
+
+/** Split only top-level unions, preserving nested TypeScript expressions and quoted pipes. */
+internal fun documentationUnionAlternatives(type: String): List<String> {
+    val alternatives = mutableListOf<String>()
+    val closing = mutableListOf<Char>()
+    var quote: Char? = null
+    var escaped = false
+    var start = 0
+
+    type.forEachIndexed { index, character ->
+        if (quote != null) {
+            when {
+                escaped -> escaped = false
+                character == '\\' -> escaped = true
+                character == quote -> quote = null
+            }
+        } else {
+            when (character) {
+                '\'', '"', '\u0060' -> quote = character
+                '(' -> closing.add(')')
+                '[' -> closing.add(']')
+                '{' -> closing.add('}')
+                '<' -> closing.add('>')
+                ')', ']', '}', '>' -> {
+                    if (closing.lastOrNull() == character) {
+                        closing.removeAt(closing.lastIndex)
+                    } else if (character != '>') {
+                        return emptyList()
+                    }
+                }
+
+                '|' -> {
+                    if (closing.isNotEmpty()) return@forEachIndexed
+                    if (type.getOrNull(index - 1) == '|' || type.getOrNull(index + 1) == '|') {
+                        return emptyList()
+                    }
+                    val alternative = type.substring(start, index).trim()
+                    if (alternative.isEmpty()) return emptyList()
+                    alternatives.add(alternative)
+                    start = index + 1
+                }
+            }
+        }
+    }
+    if (quote != null || closing.isNotEmpty() || alternatives.isEmpty()) return emptyList()
+    val last = type.substring(start).trim()
+    return if (last.isEmpty()) emptyList() else alternatives + last
 }
 
 private fun documentationUnionRows(
@@ -89,4 +137,3 @@ private fun documentationUnionChip(value: String): JComponent =
         )
     }
 
-private val DISPLAY_LITERAL = Regex("""(["'])([^"']*)\1""")
