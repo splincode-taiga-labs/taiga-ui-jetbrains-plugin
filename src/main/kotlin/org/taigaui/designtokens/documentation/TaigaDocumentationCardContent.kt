@@ -48,10 +48,13 @@ private fun documentationApiEntry(
                 font = taigaDocumentationCodeFont().deriveFont(Font.BOLD)
             },
         )
-        val type = member.localMember?.declaredAcceptedType ?: member.typeText.orEmpty()
+        val type =
+            member.localMember?.expandedType?.takeIf { finiteStringValues(it).isNotEmpty() }
+                ?: member.localMember?.declaredAcceptedType
+                ?: member.typeText.orEmpty()
         if (type.isNotBlank()) {
             add(Box.createVerticalStrut(JBUI.scale(4)))
-            add(documentationUnionChips(type, 470) ?: documentationCodeLabel(compactDocumentationType(type), 470))
+            add(documentationUnionChips(type, 470) ?: documentationCodeLabel(type, 470))
         }
         member.property.description?.takeIf(String::isNotBlank)?.let { description ->
             add(Box.createVerticalStrut(JBUI.scale(5)))
@@ -72,9 +75,6 @@ private fun documentationApiEntry(
             )
         }
     }
-
-internal fun compactDocumentationType(type: String): String =
-    if (type.length <= 65) type else type.take(62).substringBeforeLast(" | ", type.take(62)) + " …"
 
 @Suppress("ReturnCount")
 internal fun documentationSummaryUsage(documentation: TaigaResolvedDocumentation): String? {

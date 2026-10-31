@@ -110,6 +110,59 @@ class TaigaQuickDocumentationUnionTest : TaigaDocumentationPopupTestCase() {
         assertFalse(chips.any { it == "'s' | 'm' | 'l'" })
     }
 
+    fun testSimpleTypesAndLiteralsAppearAsSingleChips() {
+        val types =
+            listOf("Icon", "string", "boolean", "number", "null", "undefined", "true", "false", "\"accent\"", "'s'")
+        types.forEach { type ->
+            val panel = requireNotNull(documentationUnionChips(type))
+            val labels = descendants(panel).filterIsInstance<JBLabel>().toList()
+
+            assertEquals(listOf(type), labels.map { it.accessibleContext.accessibleName })
+            assertEquals(type, panel.accessibleContext.accessibleName)
+        }
+    }
+
+    fun testIncompleteTypeNeverRendersEllipsisAsAnAllowedValue() {
+        val type = "'accent' | 'flat' | ..."
+        val panel = requireNotNull(documentationUnionChips(type))
+        val labels = descendants(panel).filterIsInstance<JBLabel>().toList()
+
+        assertTrue(labels.any { it.accessibleContext.accessibleName == "'accent'" })
+        assertTrue(labels.any { it.accessibleContext.accessibleName == "'flat'" })
+        assertFalse(labels.any { it.accessibleContext.accessibleName == "..." })
+        assertTrue(labels.any { it.text.contains("not specified in the source") })
+        assertNull(documentationUnionChips("..."))
+        assertNull(documentationUnionChips("…"))
+    }
+
+    fun testFullCardDoesNotTruncateLongComplexTypes() {
+        val type = "readonly string[] & Record<string, string> & VeryLongNamedTypeWithManyCharacters"
+        val owner = directive()
+        val property = TaigaApiProperty("iconStart", "[iconStart]", type, "Icon input")
+        val panel =
+            TaigaQuickDocumentationPopupPanel(
+                owner.copy(entity = owner.entity.copy(inputs = listOf(property))),
+            )
+        val labels = descendants(panel).filterIsInstance<JBLabel>().toList()
+
+        assertTrue(labels.any { it.accessibleContext.accessibleName == type })
+        assertFalse(labels.any { it.accessibleContext.accessibleName?.contains(" …") == true })
+    }
+
+    fun testCompleteUnionShowsAllValuesEvenBeyondTwoRows() {
+        val type = (1..24).joinToString(" | ") { "'value$it'" }
+        val panel = requireNotNull(documentationUnionChips(type, width = 155))
+        val chips =
+            descendants(panel)
+                .filterIsInstance<JBLabel>()
+                .mapNotNull { it.accessibleContext.accessibleName }
+                .toList()
+
+        assertEquals(24, chips.size)
+        assertTrue("'value24'" in chips)
+        assertFalse(chips.any { it.contains("more") || it == "..." })
+    }
+
     fun testNestedOrQuotedPipesAreNotSplitIntoIndependentChips() {
         assertEquals(
             listOf("Array<'a' | 'b'>", "undefined"),
@@ -120,8 +173,8 @@ class TaigaQuickDocumentationUnionTest : TaigaDocumentationPopupTestCase() {
             documentationUnionAlternatives("'left|right' | 'center'"),
         )
         assertNull(documentationUnionChips("Map<string, 'left' | 'right'>"))
-        assertNull(documentationUnionChips("TuiSize"))
-        assertNull(documentationUnionChips("'m'"))
+        assertNotNull(documentationUnionChips("TuiSize"))
+        assertNotNull(documentationUnionChips("'m'"))
         assertNull(documentationUnionChips("string || undefined"))
         assertNull(documentationUnionChips("'incomplete | string"))
     }

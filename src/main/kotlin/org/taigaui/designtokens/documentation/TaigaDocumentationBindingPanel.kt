@@ -62,7 +62,7 @@ internal class TaigaDocumentationBindingPanel(
             ) {
                 val presentation =
                     documentationUnionChips(valueType)
-                        ?: documentationCodeLabel(compactDocumentationType(valueType))
+                        ?: documentationCodeLabel(valueType)
                 add(documentationRow("Possible values", presentation))
             }
             if (canApply) {
