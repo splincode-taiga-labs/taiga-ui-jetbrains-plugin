@@ -68,10 +68,30 @@ class TaigaQuickDocumentationUnionTest : TaigaDocumentationPopupTestCase() {
         assertTrue(panel.componentCount <= 3)
     }
 
-    fun testMixedAndComplexTypesKeepTheirOriginalCodePresentation() {
-        assertNull(documentationUnionChips("string | undefined"))
+    fun testMixedTopLevelUnionsAlsoRenderAsChips() {
+        val panel = requireNotNull(documentationUnionChips("'m' | string | undefined"))
+        val labels = descendants(panel).filterIsInstance<JBLabel>().toList()
+
+        assertEquals(
+            listOf("'m'", "string", "undefined"),
+            labels.map { it.accessibleContext.accessibleName },
+        )
+        assertNotNull(documentationUnionChips("TuiSize | null"))
+    }
+
+    fun testNestedOrQuotedPipesAreNotSplitIntoIndependentChips() {
+        assertEquals(
+            listOf("Array<'a' | 'b'>", "undefined"),
+            documentationUnionAlternatives("Array<'a' | 'b'> | undefined"),
+        )
+        assertEquals(
+            listOf("'left|right'", "'center'"),
+            documentationUnionAlternatives("'left|right' | 'center'"),
+        )
+        assertNull(documentationUnionChips("Map<string, 'left' | 'right'>"))
         assertNull(documentationUnionChips("TuiSize"))
-        assertNull(documentationUnionChips("'m' | string | 'l'"))
         assertNull(documentationUnionChips("'m'"))
+        assertNull(documentationUnionChips("string || undefined"))
+        assertNull(documentationUnionChips("'incomplete | string"))
     }
 }
