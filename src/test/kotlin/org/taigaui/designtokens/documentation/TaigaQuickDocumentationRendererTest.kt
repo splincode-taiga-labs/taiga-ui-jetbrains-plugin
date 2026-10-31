@@ -114,6 +114,8 @@ class TaigaQuickDocumentationRendererTest {
         assertTrue(html.contains("Type"))
         assertTrue(html.contains("primary"))
         assertTrue(html.contains("secondary"))
+        assertTrue(html.contains("border-radius:5px"))
+        assertFalse(html.contains("&#39;primary&#39; | &#39;secondary&#39;"))
     }
 
     @Test
