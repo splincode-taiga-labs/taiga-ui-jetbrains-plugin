@@ -50,6 +50,7 @@ internal fun documentationUnionChips(
 }
 
 /** Split only top-level unions, preserving nested TypeScript expressions and quoted pipes. */
+@Suppress("CyclomaticComplexMethod", "ReturnCount")
 internal fun documentationUnionAlternatives(type: String): List<String> {
     val alternatives = mutableListOf<String>()
     val closing = mutableListOf<Char>()
@@ -136,4 +137,3 @@ private fun documentationUnionChip(value: String): JComponent =
             },
         )
     }
-
