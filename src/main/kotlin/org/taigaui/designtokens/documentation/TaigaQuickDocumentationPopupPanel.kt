@@ -385,7 +385,7 @@ internal class TaigaQuickDocumentationPopupPanel(
         verticalPanel().apply {
             when (entity.badge) {
                 "Pipe" -> add(pipeContent(entity.localDocumentation.pipe))
-                "Type" -> entity.typeText?.let { add(documentationRow("Type", documentationCodeBlock(it))) }
+                "Type" -> entity.typeText?.let { add(documentationRow("Type", documentationTypePresentation(it))) }
                 else -> addControlContent(this, entity)
             }
         }
@@ -547,7 +547,7 @@ internal class TaigaQuickDocumentationPopupPanel(
             content.add(documentationRow(label, documentationAcceptedType(declared, type, local?.expandedType)))
         }
         local?.valueType?.takeUnless { sameDocumentationType(it, receiver.typeText) }?.let {
-            secondaryContent.add(detail("Stored value type", it))
+            secondaryContent.add(documentationRow("Stored value type", documentationTypePresentation(it)))
         }
         local?.transform?.let { secondaryContent.add(detail("Input transform", it)) }
         local?.deprecated?.let { content.add(note("Deprecated", it, DEFAULT_COLOR)) }
@@ -608,7 +608,7 @@ internal class TaigaQuickDocumentationPopupPanel(
                         ),
                     )
                 }
-                pipe.resultType?.let { add(detail("Result", it)) }
+                pipe.resultType?.let { add(documentationRow("Result", documentationTypePresentation(it))) }
                 pipe.pure?.let { pure ->
                     add(
                         note(
