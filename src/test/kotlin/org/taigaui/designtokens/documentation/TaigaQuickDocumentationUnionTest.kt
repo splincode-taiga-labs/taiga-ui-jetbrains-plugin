@@ -100,9 +100,11 @@ class TaigaQuickDocumentationUnionTest : TaigaDocumentationPopupTestCase() {
                 true,
                 false,
             )
-        val chips = descendants(component).filterIsInstance<JBLabel>().mapNotNull {
-            it.accessibleContext.accessibleName
-        }.toList()
+        val chips =
+            descendants(component)
+                .filterIsInstance<JBLabel>()
+                .mapNotNull { it.accessibleContext.accessibleName }
+                .toList()
 
         assertTrue(chips.containsAll(listOf("'s'", "'m'", "'l'")))
         assertFalse(chips.any { it == "'s' | 'm' | 'l'" })
