@@ -189,7 +189,7 @@ class TaigaQuickDocumentationAppearanceTest : TaigaDocumentationPopupTestCase() 
                 assertTrue("Code row labels must stay aligned to the left", position.x <= 1)
             }
         assertFalse(descendants(panel).any { it is CopyValueButton })
-        if (name == "typescript") assertFalse(descendants(panel).any { it is JTabbedPane })
+        if (name == "typescript") assertTrue(descendants(panel).any { it is JTabbedPane })
         if (name == "size-input") {
             assertTrue(
                 descendants(panel).filterIsInstance<JBLabel>().any {
