@@ -81,10 +81,11 @@ internal fun documentationTypeHtml(type: String): String {
     val alternatives = documentationTypeTokens(type)
     if (alternatives.isEmpty()) return "<code>${documentationCodeHtml(type)}</code>"
 
-    val chips = alternatives.joinToString("&nbsp;") { alternative ->
-        "<code style='display:inline-block; padding:2px 5px; margin:2px; border:1px solid; border-radius:5px;'>" +
-            documentationCodeHtml(alternative) + "</code>"
-    }
+    val chips =
+        alternatives.joinToString("&nbsp;") { alternative ->
+            "<code style='display:inline-block; padding:2px 5px; margin:2px; border:1px solid; border-radius:5px;'>" +
+                documentationCodeHtml(alternative) + "</code>"
+        }
     return if (documentationHasOmittedValues(type)) {
         "$chips&nbsp;<span>Further values are not specified in the source</span>"
     } else {

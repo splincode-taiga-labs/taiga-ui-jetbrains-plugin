@@ -166,6 +166,68 @@ class TaigaQuickDocumentationUxTest : TaigaDocumentationPopupTestCase() {
         }
     }
 
+    fun testUnknownInputDoesNotShowEmptyFactsOrUnrelatedLinks() {
+        val owner = directive()
+        val member = owner.focusedMember(owner.entity.inputs.first(), TaigaApiMemberKind.INPUT)
+        val panel =
+            TaigaQuickDocumentationPopupPanel(
+                member,
+                actions = TaigaDocumentationPopupActions(openMember = {}),
+            )
+        val labels = descendants(panel).filterIsInstance<JBLabel>().map { it.text.orEmpty() }.toList()
+
+        assertFalse("Unknown defaults must not create placeholder rows", "Default" in labels)
+        assertFalse("Optional inputs need no negative required row", "Required" in labels)
+        assertFalse("Unknown requirements need no placeholder", "Requirement" in labels)
+        assertFalse("Unrelated siblings must not be recommended", "See also" in labels)
+        assertTrue("The input type must remain visible", "Type" in labels)
+    }
+
+    fun testRequiredAndKnownDefaultAppearExactlyOnce() {
+        val owner = directive()
+        val local =
+            owner.subject.localDocumentation.copy(
+                requiredInputs = setOf("size"),
+                defaults = listOf(TaigaInputDefault("size", provider = "TUI_BUTTON_OPTIONS")),
+            )
+        val member =
+            owner.copy(subject = owner.subject.copy(localDocumentation = local))
+                .focusedMember(owner.entity.inputs.first(), TaigaApiMemberKind.INPUT)
+        val panel = TaigaQuickDocumentationPopupPanel(member)
+        val labels = descendants(panel).filterIsInstance<JBLabel>().map { it.text.orEmpty() }.toList()
+
+        assertEquals(1, labels.count { it == "Requirement" })
+        assertEquals(1, labels.count { it.contains("Required input") })
+        assertEquals(1, labels.count { it == "Default" })
+        assertTrue(labelText(panel).contains("TUI_BUTTON_OPTIONS"))
+        assertFalse("Duplicate required status", "Required" in labels)
+    }
+
+    fun testRelatedMembersRequireRelevantDescriptionAndWorkingNavigation() {
+        val owner = directive()
+        val withReference =
+            owner.entity.inputs.first { it.name == "appearance" }
+                .copy(description = "Use size to change the button dimensions.")
+        val entity =
+            owner.copy(entity = owner.entity.copy(inputs = listOf(owner.entity.inputs.first(), withReference)))
+        val member = entity.focusedMember(withReference, TaigaApiMemberKind.INPUT)
+
+        assertNull(documentationRelatedMembers(member, null))
+        val related = requireNotNull(documentationRelatedMembers(member, {}))
+        val links = descendants(related).filterIsInstance<LinkLabel<*>>().toList()
+        assertEquals(listOf("size"), links.map { it.text })
+
+        val unrelated = entity.focusedMember(entity.entity.inputs.first(), TaigaApiMemberKind.INPUT)
+        assertNull(documentationRelatedMembers(unrelated, {}))
+    }
+
+    fun testApiEntryWithoutNavigationHasNoDeadLink() {
+        val panel = TaigaQuickDocumentationPopupPanel(directive())
+        val links = descendants(panel).filterIsInstance<LinkLabel<*>>().map { it.text }.toList()
+        assertFalse("Non-actionable input names must not look like links", "size" in links)
+        assertTrue(labelText(panel).contains("size"))
+    }
+
     fun testRefreshProgressBlocksWritesAndKeepsImportHelp() {
         var refreshed = false
         var quickFixes = false

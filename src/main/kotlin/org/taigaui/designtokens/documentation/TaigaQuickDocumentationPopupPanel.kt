@@ -473,48 +473,24 @@ internal class TaigaQuickDocumentationPopupPanel(
         content: JPanel,
         member: TaigaResolvedDocumentation.Member,
     ) {
-        val declaredRequiredInputs =
-            member.declaration
-                ?.localDocumentation
-                ?.requiredInputs
-                .orEmpty()
-        if (member.property.name in member.subject.localDocumentation.requiredInputs ||
-            member.property.name in declaredRequiredInputs
-        ) {
-            content.add(detail("Requirement", "Required input"))
-        }
-        val default =
-            member.declaration
-                ?.localDocumentation
-                ?.defaults
-                ?.firstOrNull { it.name == member.property.name }
-                ?: member.localDocumentation.defaults.firstOrNull { it.name == member.property.name }
-        if (member.kind == TaigaApiMemberKind.INPUT && member.receivers.size <= 1) {
-            content.add(
-                documentationRow(
-                    "Default",
-                    documentationCodeLabel(default?.value ?: default?.provider ?: "—"),
-                ),
-            )
-            content.add(
-                documentationRow(
-                    "Required",
-                    wrappedLabel(
-                        if (member.localMember?.required == true ||
-                            member.property.name in declaredRequiredInputs
-                        ) {
-                            "Yes"
-                        } else if (member.localMember !=
-                            null
-                        ) {
-                            "No"
-                        } else {
-                            "—"
-                        },
-                        360,
-                    ),
-                ),
-            )
+        if (member.kind != TaigaApiMemberKind.INPUT) return
+        val required =
+            member.localMember?.required == true ||
+                member.property.name in member.subject.localDocumentation.requiredInputs ||
+                member.property.name in member.declaration?.localDocumentation?.requiredInputs.orEmpty()
+        if (required && member.receivers.size <= 1) content.add(detail("Requirement", "Required input"))
+
+        if (member.receivers.size <= 1) {
+            val default =
+                member.declaration
+                    ?.localDocumentation
+                    ?.defaults
+                    ?.firstOrNull { it.name == member.property.name }
+                    ?: member.localDocumentation.defaults.firstOrNull { it.name == member.property.name }
+            val knownDefault = default?.value ?: default?.provider
+            if (knownDefault != null) {
+                content.add(documentationRow("Default", documentationCodeLabel(knownDefault)))
+            }
         }
     }
 

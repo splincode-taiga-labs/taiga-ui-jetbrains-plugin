@@ -43,9 +43,17 @@ private fun documentationApiEntry(
         isOpaque = false
         alignmentX = JComponent.LEFT_ALIGNMENT
         border = JBUI.Borders.empty(10, 0)
+        val openMember = actions.openMember
         add(
-            cardContentLink(member.property.name) { actions.openMember?.invoke(member) }.apply {
-                font = taigaDocumentationCodeFont().deriveFont(Font.BOLD)
+            if (openMember == null) {
+                JBLabel(member.property.name).apply {
+                    font = taigaDocumentationCodeFont().deriveFont(Font.BOLD)
+                    alignmentX = JComponent.LEFT_ALIGNMENT
+                }
+            } else {
+                cardContentLink(member.property.name) { openMember(member) }.apply {
+                    font = taigaDocumentationCodeFont().deriveFont(Font.BOLD)
+                }
             },
         )
         val type =
@@ -111,8 +119,9 @@ internal fun documentationRelatedMembers(
     member: TaigaResolvedDocumentation.Member,
     open: ((TaigaResolvedDocumentation.Member) -> Unit)?,
 ): JComponent? {
+    val navigate = open ?: return null
     val siblings = (member.entity.inputs + member.entity.outputs).filter { it.name != member.property.name }
-    val related = member.relatedMembers().ifEmpty { siblings.take(3).map { it.name } }
+    val related = member.relatedMembers()
     if (related.isEmpty()) return null
     return JPanel(FlowLayout(FlowLayout.LEFT, JBUI.scale(5), 0)).apply {
         isOpaque = false
@@ -130,7 +139,7 @@ internal fun documentationRelatedMembers(
                                 } else {
                                     TaigaApiMemberKind.OUTPUT
                                 }
-                            open?.invoke(member.ownerDocumentation().focusedMember(property, kind))
+                            navigate(member.ownerDocumentation().focusedMember(property, kind))
                         },
                     )
                 },
