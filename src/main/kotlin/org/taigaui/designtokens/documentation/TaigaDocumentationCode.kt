@@ -77,6 +77,17 @@ internal fun documentationCodeBlock(
         add(documentationCodeLabel(formattedDocumentationExample(code), width), BorderLayout.CENTER)
     }
 
+/** Inline counterpart of the Swing chips for native Quick Documentation. */
+internal fun documentationTypeHtml(type: String): String {
+    val alternatives = documentationUnionAlternatives(type)
+    if (alternatives.isEmpty()) return "<code>${documentationCodeHtml(type)}</code>"
+
+    return alternatives.joinToString("&nbsp;") { alternative ->
+        "<code style='display:inline-block; padding:2px 5px; margin:2px; border:1px solid; border-radius:5px;'>" +
+            documentationCodeHtml(alternative) + "</code>"
+    }
+}
+
 internal fun documentationTypePresentation(type: String): JComponent =
     documentationUnionChips(type)
         ?: if (Regex("""[A-Za-z_$][\w$]*""").matches(type)) {
