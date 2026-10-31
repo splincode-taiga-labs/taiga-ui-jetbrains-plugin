@@ -72,13 +72,20 @@ The workspace is an IDE inspection fixture; it has no serving/build target. The 
 
 Card content should answer what this API does, which values are accepted by the installed version, and what action the developer can safely take next. Do not display actions without a working handler.
 
-| Surface | Keep | Suppress |
-| --- | --- | --- |
-| Hover | Description, type, current value, owner and full-card navigation | Editing and redundant full-card actions |
-| Full component card | Usage, import, installed inputs/outputs, actual values, examples | Dead member links |
-| Focused input | Type, known default, required/deprecated warnings and safe editing | Unknown defaults, redundant negative and duplicate required facts |
-| Related parameters | Only explicitly referenced members with working navigation | Arbitrary sibling suggestions |
-| Type display | Complete full-card values; overflow count only in compact hover | Ellipsis treated as a valid option |
+**Hover:** Keep the description, accepted type, current value, owning component and entry to the full card.
+Do not show editing or secondary full-card actions.
+
+**Full component card:** Keep usage, import, installed inputs/outputs, real values and examples.
+Use navigable member links only when a working navigation action exists.
+
+**Focused input:** Show known defaults, required/deprecated warnings and safe editing.
+Suppress unknown defaults, negative required flags and duplicate requirement rows.
+
+**Related parameters:** Link only to members referenced in the current parameter description.
+Do not invent relationships from the first few siblings.
+
+**Type display:** Keep complete values in full cards and overflow counts only in compact hover.
+Never treat an ellipsis as a valid option.
 
 Follow with manual WebStorm UX verification for focus, placement, keyboard navigation and long descriptions. These assertions do not substitute for user testing.
 
