@@ -68,6 +68,20 @@ After the fixture install above, open it in the sandbox:
 
 The workspace is an IDE inspection fixture; it has no serving/build target. The missing-import component is intentional. In its inline template, invoke Angular quick fixes and verify that only `MissingImportDocumentationComponent.imports` receives `TuiCalendar`, even though other components in the same file already import it.
 
+## UX signal-to-noise audit (31 October 2026)
+
+Card content should answer what this API does, which values are accepted by the installed version, and what action the developer can safely take next. Do not display actions without a working handler.
+
+| Surface | Keep | Suppress |
+| --- | --- | --- |
+| Hover | Description, type, current value, owner and full-card navigation | Editing and redundant full-card actions |
+| Full component card | Usage, import, installed inputs/outputs, actual values, examples | Dead member links |
+| Focused input | Type, known default, required/deprecated warnings and safe editing | Unknown defaults, redundant negative and duplicate required facts |
+| Related parameters | Only explicitly referenced members with working navigation | Arbitrary sibling suggestions |
+| Type display | Complete full-card values; overflow count only in compact hover | Ellipsis treated as a valid option |
+
+Follow with manual WebStorm UX verification for focus, placement, keyboard navigation and long descriptions. These assertions do not substitute for user testing.
+
 ## Manual WebStorm/macOS checklist
 
 Record IDE build, macOS version, keymap, theme and scale for each pass. Follow the sandbox setup in [local-debugging.md](local-debugging.md).
