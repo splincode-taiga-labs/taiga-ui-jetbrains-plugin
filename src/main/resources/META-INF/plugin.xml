@@ -129,6 +129,12 @@
             implementationClass="org.taigaui.designtokens.completion.DesignTokenCompletionContributor"
         />
         <completion.contributor
+            id="TaigaUIEventPluginHtmlCompletionContributor"
+            language="HTML"
+            order="first"
+            implementationClass="org.taigaui.designtokens.events.HtmlEventPluginCompletionContributor"
+        />
+        <completion.contributor
             id="TaigaUIEventPluginHostCompletionContributor"
             language="TypeScript"
             order="first, before JSPatternBasedCompletionContributor, before JSCompletionContributor"
