@@ -6,7 +6,7 @@ class TaigaQuickDocumentationUsageTest : BasePlatformTestCase() {
     fun testShortFlattenedExampleIsFormattedWithoutChangingMarkup() {
         val source = "<button tuiButton size=\"m\" appearance=\"primary\">Save</button>"
         assertEquals(
-            "<button\\n    tuiButton\\n    size=\"m\"\\n    appearance=\"primary\"\\n>\\n    Save\\n</button>",
+            "<button\n    tuiButton\n    size=\"m\"\n    appearance=\"primary\"\n>\n    Save\n</button>",
             formattedDocumentationExample(source),
         )
     }
