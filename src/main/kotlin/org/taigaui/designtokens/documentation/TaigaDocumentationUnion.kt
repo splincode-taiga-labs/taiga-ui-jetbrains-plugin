@@ -8,15 +8,15 @@ import javax.swing.JComponent
 import javax.swing.JPanel
 
 /**
- * Display finite literal unions as readable, wrapping alternatives.
- * Unknown, mixed and expression types keep the original syntax-highlighted code.
+ * Render simple types and top-level unions as wrapping chips.
+ * Complex standalone types retain their original code presentation.
  */
 internal fun documentationUnionChips(
     type: String,
     width: Int = 370,
     maxRows: Int = Int.MAX_VALUE,
 ): JComponent? {
-    val alternatives = documentationUnionAlternatives(type)
+    val alternatives = documentationTypeTokens(type)
     if (alternatives.isEmpty()) return null
 
     val container =
@@ -46,8 +46,37 @@ internal fun documentationUnionChips(
             },
         )
     }
+    if (documentationHasOmittedValues(type)) {
+        container.add(
+            JBLabel("Further values are not specified in the source").apply {
+                foreground = CARD_MUTED_FOREGROUND
+                alignmentX = JComponent.LEFT_ALIGNMENT
+                toolTipText = type
+            },
+        )
+    }
     return container
 }
+
+internal fun documentationTypeTokens(type: String): List<String> {
+    val alternatives = documentationUnionAlternatives(type)
+    if (alternatives.isNotEmpty()) return alternatives.filterNot(::isDocumentationOmission)
+
+    val single = type.trim()
+    return if (!isDocumentationOmission(single) && SIMPLE_DOCUMENTATION_TYPE.matches(single)) {
+        listOf(single)
+    } else {
+        emptyList()
+    }
+}
+
+internal fun documentationHasOmittedValues(type: String): Boolean =
+    documentationUnionAlternatives(type).any(::isDocumentationOmission)
+
+private fun isDocumentationOmission(value: String): Boolean = value == "..." || value == "…"
+
+private val SIMPLE_DOCUMENTATION_TYPE =
+    Regex("""(?:[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*|["'][^"']*["']|-?\d+(?:\.\d+)?)""")
 
 /** Split only top-level unions, preserving nested TypeScript expressions and quoted pipes. */
 @Suppress("CyclomaticComplexMethod", "ReturnCount")

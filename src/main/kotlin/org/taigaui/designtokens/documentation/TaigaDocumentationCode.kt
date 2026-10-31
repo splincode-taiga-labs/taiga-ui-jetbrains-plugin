@@ -11,7 +11,6 @@ import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Dimension
-import java.awt.FlowLayout
 import java.awt.Font
 import javax.swing.JComponent
 import javax.swing.JPanel
@@ -79,37 +78,22 @@ internal fun documentationCodeBlock(
 
 /** Inline counterpart of the Swing chips for native Quick Documentation. */
 internal fun documentationTypeHtml(type: String): String {
-    val alternatives = documentationUnionAlternatives(type)
+    val alternatives = documentationTypeTokens(type)
     if (alternatives.isEmpty()) return "<code>${documentationCodeHtml(type)}</code>"
 
-    return alternatives.joinToString("&nbsp;") { alternative ->
+    val chips = alternatives.joinToString("&nbsp;") { alternative ->
         "<code style='display:inline-block; padding:2px 5px; margin:2px; border:1px solid; border-radius:5px;'>" +
             documentationCodeHtml(alternative) + "</code>"
+    }
+    return if (documentationHasOmittedValues(type)) {
+        "$chips&nbsp;<span>Further values are not specified in the source</span>"
+    } else {
+        chips
     }
 }
 
 internal fun documentationTypePresentation(type: String): JComponent =
-    documentationUnionChips(type)
-        ?: if (Regex("""[A-Za-z_$][\w$]*""").matches(type)) {
-            JPanel(FlowLayout(FlowLayout.LEFT, 0, 0)).apply {
-                isOpaque = false
-                add(
-                    RoundedRowPanel().apply {
-                        layout = BorderLayout()
-                        border = JBUI.Borders.empty(3, 7)
-                        add(
-                            JBLabel(type).apply {
-                                font = taigaDocumentationCodeFont()
-                                foreground = DESIGN_TOKEN_POPUP_LINK_COLOR
-                                getAccessibleContext().accessibleName = type
-                            },
-                        )
-                    },
-                )
-            }
-        } else {
-            documentationCodeLabel(type)
-        }
+    documentationUnionChips(type) ?: documentationCodeLabel(type)
 
 internal fun documentationAcceptedType(
     declared: String,
