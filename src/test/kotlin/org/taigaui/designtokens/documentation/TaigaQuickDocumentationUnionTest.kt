@@ -1,6 +1,7 @@
 package org.taigaui.designtokens.documentation
 
 import com.intellij.ui.components.JBLabel
+import com.intellij.ui.components.JBList
 
 class TaigaQuickDocumentationUnionTest : TaigaDocumentationPopupTestCase() {
     fun testLiteralUnionIsRenderedAsSeparateSyntaxHighlightedAlternatives() {
@@ -77,6 +78,34 @@ class TaigaQuickDocumentationUnionTest : TaigaDocumentationPopupTestCase() {
             labels.map { it.accessibleContext.accessibleName },
         )
         assertNotNull(documentationUnionChips("TuiSize | null"))
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    fun testSearchableApiBrowserUsesChipsInsteadOfPipeSeparatedText() {
+        val owner = directive()
+        val entity =
+            owner.copy(
+                entity =
+                    owner.entity.copy(
+                        inputs = listOf(TaigaApiProperty("size", "[size]", "'s' | 'm' | 'l'", "Button size")),
+                    ),
+            )
+        val browser = TaigaDocumentationApiBrowser(entity, "", {})
+        val list = descendants(browser).filterIsInstance<JBList<*>>().single() as JBList<TaigaDocumentationApiRow>
+        val component =
+            list.cellRenderer.getListCellRendererComponent(
+                list,
+                list.model.getElementAt(0),
+                0,
+                true,
+                false,
+            )
+        val chips = descendants(component).filterIsInstance<JBLabel>().mapNotNull {
+            it.accessibleContext.accessibleName
+        }.toList()
+
+        assertTrue(chips.containsAll(listOf("'s'", "'m'", "'l'")))
+        assertFalse(chips.any { it == "'s' | 'm' | 'l'" })
     }
 
     fun testNestedOrQuotedPipesAreNotSplitIntoIndependentChips() {
