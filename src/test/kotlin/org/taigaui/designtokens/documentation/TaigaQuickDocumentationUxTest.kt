@@ -191,7 +191,8 @@ class TaigaQuickDocumentationUxTest : TaigaDocumentationPopupTestCase() {
                 defaults = listOf(TaigaInputDefault("size", provider = "TUI_BUTTON_OPTIONS")),
             )
         val member =
-            owner.copy(subject = owner.subject.copy(localDocumentation = local))
+            owner
+                .copy(subject = owner.subject.copy(localDocumentation = local))
                 .focusedMember(owner.entity.inputs.first(), TaigaApiMemberKind.INPUT)
         val panel = TaigaQuickDocumentationPopupPanel(member)
         val labels = descendants(panel).filterIsInstance<JBLabel>().map { it.text.orEmpty() }.toList()
@@ -206,7 +207,8 @@ class TaigaQuickDocumentationUxTest : TaigaDocumentationPopupTestCase() {
     fun testRelatedMembersRequireRelevantDescriptionAndWorkingNavigation() {
         val owner = directive()
         val withReference =
-            owner.entity.inputs.first { it.name == "appearance" }
+            owner.entity.inputs
+                .first { it.name == "appearance" }
                 .copy(description = "Use size to change the button dimensions.")
         val entity =
             owner.copy(entity = owner.entity.copy(inputs = listOf(owner.entity.inputs.first(), withReference)))

@@ -474,10 +474,15 @@ internal class TaigaQuickDocumentationPopupPanel(
         member: TaigaResolvedDocumentation.Member,
     ) {
         if (member.kind != TaigaApiMemberKind.INPUT) return
+        val declaredRequiredInputs =
+            member.declaration
+                ?.localDocumentation
+                ?.requiredInputs
+                .orEmpty()
         val required =
             member.localMember?.required == true ||
                 member.property.name in member.subject.localDocumentation.requiredInputs ||
-                member.property.name in member.declaration?.localDocumentation?.requiredInputs.orEmpty()
+                member.property.name in declaredRequiredInputs
         if (required && member.receivers.size <= 1) content.add(detail("Requirement", "Required input"))
 
         if (member.receivers.size <= 1) {

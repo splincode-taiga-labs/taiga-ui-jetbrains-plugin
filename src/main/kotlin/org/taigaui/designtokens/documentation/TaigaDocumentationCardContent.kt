@@ -43,19 +43,7 @@ private fun documentationApiEntry(
         isOpaque = false
         alignmentX = JComponent.LEFT_ALIGNMENT
         border = JBUI.Borders.empty(10, 0)
-        val openMember = actions.openMember
-        add(
-            if (openMember == null) {
-                JBLabel(member.property.name).apply {
-                    font = taigaDocumentationCodeFont().deriveFont(Font.BOLD)
-                    alignmentX = JComponent.LEFT_ALIGNMENT
-                }
-            } else {
-                cardContentLink(member.property.name) { openMember(member) }.apply {
-                    font = taigaDocumentationCodeFont().deriveFont(Font.BOLD)
-                }
-            },
-        )
+        add(documentationApiEntryName(member, actions.openMember))
         val type =
             member.localMember?.expandedType?.takeIf { finiteStringValues(it).isNotEmpty() }
                 ?: member.localMember?.declaredAcceptedType
@@ -81,6 +69,21 @@ private fun documentationApiEntry(
                     alignmentX = JComponent.LEFT_ALIGNMENT
                 },
             )
+        }
+    }
+
+private fun documentationApiEntryName(
+    member: TaigaResolvedDocumentation.Member,
+    openMember: ((TaigaResolvedDocumentation.Member) -> Unit)?,
+): JComponent =
+    if (openMember == null) {
+        JBLabel(member.property.name).apply {
+            font = taigaDocumentationCodeFont().deriveFont(Font.BOLD)
+            alignmentX = JComponent.LEFT_ALIGNMENT
+        }
+    } else {
+        cardContentLink(member.property.name) { openMember(member) }.apply {
+            font = taigaDocumentationCodeFont().deriveFont(Font.BOLD)
         }
     }
 
@@ -119,31 +122,31 @@ internal fun documentationRelatedMembers(
     member: TaigaResolvedDocumentation.Member,
     open: ((TaigaResolvedDocumentation.Member) -> Unit)?,
 ): JComponent? {
-    val navigate = open ?: return null
     val siblings = (member.entity.inputs + member.entity.outputs).filter { it.name != member.property.name }
     val related = member.relatedMembers()
-    if (related.isEmpty()) return null
-    return JPanel(FlowLayout(FlowLayout.LEFT, JBUI.scale(5), 0)).apply {
-        isOpaque = false
-        siblings.filter { it.name in related }.forEach { property ->
-            add(
-                RoundedRowPanel().apply {
-                    border = JBUI.Borders.empty(3, 7)
-                    add(
-                        cardContentLink(property.name) {
-                            val kind =
-                                if (property in
-                                    member.entity.inputs
-                                ) {
-                                    TaigaApiMemberKind.INPUT
-                                } else {
-                                    TaigaApiMemberKind.OUTPUT
-                                }
-                            navigate(member.ownerDocumentation().focusedMember(property, kind))
-                        },
-                    )
-                },
-            )
+    return if (open == null || related.isEmpty()) {
+        null
+    } else {
+        JPanel(FlowLayout(FlowLayout.LEFT, JBUI.scale(5), 0)).apply {
+            isOpaque = false
+            siblings.filter { it.name in related }.forEach { property ->
+                add(
+                    RoundedRowPanel().apply {
+                        border = JBUI.Borders.empty(3, 7)
+                        add(
+                            cardContentLink(property.name) {
+                                val kind =
+                                    if (property in member.entity.inputs) {
+                                        TaigaApiMemberKind.INPUT
+                                    } else {
+                                        TaigaApiMemberKind.OUTPUT
+                                    }
+                                open(member.ownerDocumentation().focusedMember(property, kind))
+                            },
+                        )
+                    },
+                )
+            }
         }
     }
 }
