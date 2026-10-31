@@ -10,6 +10,7 @@ import com.intellij.codeInsight.completion.CompletionResultSet
  * the handler that follows an already present closing parenthesis.
  */
 class HtmlEventPluginCompletionContributor : CompletionContributor() {
+    @Suppress("ReturnCount")
     override fun fillCompletionVariants(
         parameters: CompletionParameters,
         result: CompletionResultSet,
