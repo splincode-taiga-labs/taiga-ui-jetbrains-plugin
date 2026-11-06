@@ -1,0 +1,170 @@
+name: Publish to JetBrains Marketplace
+
+on:
+    release:
+        types:
+            - published
+    workflow_dispatch:
+        inputs:
+            tag:
+                description: Existing published GitHub Release tag (for recovery)
+                required: true
+                type: string
+
+permissions:
+    contents: write
+
+concurrency:
+    group: publish-${{ github.event.release.tag_name || inputs.tag }}
+    cancel-in-progress: false
+
+jobs:
+    publish:
+        name: Verify, sign, and publish released tag
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Resolve published release
+              id: release
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  TAG: ${{ github.event.release.tag_name || inputs.tag }}
+              run: |
+                  if [[ ! "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+                      echo "::error::Expected a version tag such as v0.1.4, got ${TAG}"
+                      exit 1
+                  fi
+
+                  release="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}")"
+
+                  if ! jq -e '.draft == false and .published_at != null' <<<"${release}" > /dev/null; then
+                      echo "::error::${TAG} must have an existing published GitHub Release"
+                      exit 1
+                  fi
+
+                  if jq -e '.prerelease == true' <<<"${release}" > /dev/null; then
+                      channel=beta
+                  else
+                      channel=default
+                  fi
+
+                  echo "tag=${TAG}" >> "${GITHUB_OUTPUT}"
+                  echo "version=${TAG#v}" >> "${GITHUB_OUTPUT}"
+                  echo "channel=${channel}" >> "${GITHUB_OUTPUT}"
+
+            - name: Checkout release tag
+              uses: actions/checkout@v6
+              with:
+                  ref: ${{ steps.release.outputs.tag }}
+                  fetch-depth: 0
+                  persist-credentials: false
+
+            - name: Verify release commit belongs to main
+              run: |
+                  git fetch origin main
+                  if ! git merge-base --is-ancestor HEAD origin/main; then
+                      echo "::error::Release tag must point to a commit in main"
+                      exit 1
+                  fi
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v6
+              with:
+                  node-version: 22
+                  cache: npm
+                  cache-dependency-path: |
+                      package-lock.json
+                      test-fixtures/package-lock.json
+
+            - name: Install root npm fixture
+              run: npm ci
+
+            - name: Install Taiga UI version workspaces
+              run: npm run install:fixtures --prefix test-fixtures
+
+            - name: Set up Java
+              uses: actions/setup-java@v5
+              with:
+                  distribution: temurin
+                  java-version: 21
+
+            - name: Set up Gradle
+              uses: gradle/actions/setup-gradle@v6
+              with:
+                  cache-read-only: true
+
+            - name: Cache IntelliJ Platform IDEs
+              uses: actions/cache@v4
+              with:
+                  path: .intellijPlatform/ides
+                  key: intellij-platform-${{ runner.os }}-${{ hashFiles('gradle.properties') }}
+                  restore-keys: |
+                      intellij-platform-${{ runner.os }}-
+
+            - name: Check, build, and verify release candidate
+              env:
+                  JAVA_TOOL_OPTIONS: -Djava.io.tmpdir=${{ runner.temp }}
+              run: >-
+                  ./gradlew
+                  check
+                  buildPlugin
+                  verifyPluginStructure
+                  verifyPluginProjectConfiguration
+                  verifyPlugin
+                  -PpluginVersion=${{ steps.release.outputs.version }}
+                  -PmarketplaceChannel=${{ steps.release.outputs.channel }}
+                  -Djava.net.useSystemProxies=false
+                  --stacktrace
+
+            - name: Verify packaged plugin icons
+              run: bash scripts/verify-plugin-icons.sh
+
+            - name: Sign and verify release candidate
+              env:
+                  CERTIFICATE_CHAIN: ${{ secrets.CERTIFICATE_CHAIN }}
+                  PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+                  PRIVATE_KEY_PASSWORD: ${{ secrets.PRIVATE_KEY_PASSWORD }}
+              run: >-
+                  ./gradlew
+                  signPlugin
+                  verifyPluginSignature
+                  -PpluginVersion=${{ steps.release.outputs.version }}
+                  -PmarketplaceChannel=${{ steps.release.outputs.channel }}
+                  -Djava.net.useSystemProxies=false
+                  --stacktrace
+
+            - name: Upload workflow artifacts
+              if: ${{ always() }}
+              uses: actions/upload-artifact@v7
+              with:
+                  name: plugin-release-${{ steps.release.outputs.version }}
+                  path: build/distributions/*.zip
+                  if-no-files-found: warn
+
+            - name: Publish to JetBrains Marketplace
+              env:
+                  PUBLISH_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
+                  CERTIFICATE_CHAIN: ${{ secrets.CERTIFICATE_CHAIN }}
+                  PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+                  PRIVATE_KEY_PASSWORD: ${{ secrets.PRIVATE_KEY_PASSWORD }}
+              run: >-
+                  ./gradlew
+                  publishPlugin
+                  -PpluginVersion=${{ steps.release.outputs.version }}
+                  -PmarketplaceChannel=${{ steps.release.outputs.channel }}
+                  -Djava.net.useSystemProxies=false
+                  --stacktrace
+
+            - name: Attach signed ZIP to GitHub Release
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  TAG: ${{ steps.release.outputs.tag }}
+              run: |
+                  artifacts=(build/distributions/*-signed.zip)
+
+                  if [[ ! -f "${artifacts[0]}" ]]; then
+                      echo "::error::Signed release artifact was not found"
+                      exit 1
+                  fi
+
+                  gh release upload "${TAG}" "${artifacts[@]}" --clobber
