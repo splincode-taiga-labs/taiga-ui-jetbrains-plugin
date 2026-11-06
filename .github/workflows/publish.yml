@@ -30,6 +30,11 @@ jobs:
                   GH_TOKEN: ${{ github.token }}
                   TAG: ${{ github.event.release.tag_name || inputs.tag }}
               run: |
+                  if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${GITHUB_REF}" != "refs/heads/main" ]]; then
+                      echo "::error::Manual publication must be started from main"
+                      exit 1
+                  fi
+
                   if [[ ! "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
                       echo "::error::Expected a version tag such as v0.1.4, got ${TAG}"
                       exit 1
