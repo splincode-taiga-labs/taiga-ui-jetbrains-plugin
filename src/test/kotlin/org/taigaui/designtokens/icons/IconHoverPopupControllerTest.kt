@@ -318,6 +318,11 @@ class IconHoverPopupControllerTest : BasePlatformTestCase() {
 
         listener.mouseDragged(event)
         assertNull(readPrivateField(controller, "activeKey"))
+
+        listener.mouseMoved(event)
+        assertNotNull(readPrivateField(controller, "activeKey"))
+        listener.mouseExited(event)
+        assertNull(readPrivateField(controller, "activeKey"))
     }
 
     private fun configureHtml(content: String) {
