@@ -4,8 +4,8 @@ import com.intellij.openapi.editor.colors.EditorColorsManager
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
-import javax.swing.JTabbedPane
 import javax.swing.JScrollPane
+import javax.swing.JTabbedPane
 import javax.swing.JViewport
 import javax.swing.SwingUtilities
 
