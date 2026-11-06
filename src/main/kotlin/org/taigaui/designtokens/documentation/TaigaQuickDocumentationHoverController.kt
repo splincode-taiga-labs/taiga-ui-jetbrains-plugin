@@ -54,6 +54,7 @@ internal class TaigaQuickDocumentationHoverController(
     private var pinnedLocation: Point? = null
     private var refreshInProgress = false
     private var previewJob: Job? = null
+    private var exampleJob: Job? = null
     private val icons = TaigaDocumentationIcons(project, coroutineScope)
     private val hoverResolver = TaigaDocumentationHoverResolver(project)
     private var resolutionJob: Job? = null
@@ -370,11 +371,10 @@ internal class TaigaQuickDocumentationHoverController(
                         .snapshotFor(request.sourceFile)
                         ?.resolve(request.documentationRequest)
 
-            val formatted = resolved?.let { hoverResolver.formatExample(it, request.sourceFile) }
             withContext(Dispatchers.EDT) {
                 when {
                     pendingKey != candidateKey || !request.isStillCurrent(project) -> Unit
-                    formatted == null -> clearHover()
+                    resolved == null -> clearHover()
                     else -> {
                         hoverJob = null
                         if (switching) {
@@ -396,7 +396,7 @@ internal class TaigaQuickDocumentationHoverController(
                         } else {
                             underline.clear()
                         }
-                        showView(request, TaigaDocumentationView(formatted))
+                        showView(request, TaigaDocumentationView(resolved))
                     }
                 }
             }
@@ -418,6 +418,10 @@ internal class TaigaQuickDocumentationHoverController(
             val compactHover = view.isCompactHover(request.explicit)
             codeActions.prepareForView(request, resolved, compactHover)
             navigation.currentView = view
+            val exampleLoading =
+                !compactHover &&
+                    !view.fullApi &&
+                    resolved.entity.example?.language?.lowercase() == "html"
 
             val panel =
                 TaigaQuickDocumentationPopupPanel(
@@ -430,6 +434,7 @@ internal class TaigaQuickDocumentationHoverController(
                     selectedMember = view.selectedMember,
                     compactHover = compactHover,
                     hoverPointer = !request.explicit && !pinned,
+                    exampleLoading = exampleLoading,
                 )
             if (!reuseHoverPopup(request, panel)) {
                 val host = TaigaDocumentationPopupHost(panel, stabilizesHoverSize = !request.explicit && !pinned)
@@ -462,6 +467,7 @@ internal class TaigaQuickDocumentationHoverController(
             panel.restoreScrollPosition(view.scrollPosition)
             request.completePresentation(panel, refreshInProgress)
             loadIconPreviews(request, resolved, panel)
+            startExampleFormatting(request, resolved, panel, exampleLoading)
         }
     }
 
@@ -635,6 +641,31 @@ internal class TaigaQuickDocumentationHoverController(
         showView(request, next)
     }
 
+    private fun startExampleFormatting(
+        request: TaigaQuickDocumentationHoverRequest,
+        resolved: TaigaResolvedDocumentation,
+        panel: TaigaQuickDocumentationPopupPanel,
+        loading: Boolean,
+    ) {
+        exampleJob?.cancel()
+        exampleJob = null
+        if (!loading) return
+
+        exampleJob =
+            coroutineScope.launch(Dispatchers.Default + CoroutineName("Taiga UI documentation example formatting")) {
+                val formatted = hoverResolver.formatExample(resolved, request.sourceFile)
+                withContext(Dispatchers.EDT) {
+                    if (popupContent === panel && activeKey == request.key && request.isStillCurrent(project)) {
+                        panel.finishExampleFormatting(formatted.entity.example?.code.orEmpty())
+                        navigation.currentView?.takeIf { it.resolved === resolved }?.let {
+                            navigation.currentView = it.copy(resolved = formatted)
+                        }
+                        resizePopup()
+                    }
+                }
+            }
+    }
+
     private fun loadIconPreviews(
         request: TaigaQuickDocumentationHoverRequest,
         resolved: TaigaResolvedDocumentation,
@@ -709,6 +740,8 @@ internal class TaigaQuickDocumentationHoverController(
     }
 
     private fun hidePopup(restoreNativeHover: Boolean) {
+        exampleJob?.cancel()
+        exampleJob = null
         previewJob?.cancel()
         previewJob = null
         val currentPopup = popup

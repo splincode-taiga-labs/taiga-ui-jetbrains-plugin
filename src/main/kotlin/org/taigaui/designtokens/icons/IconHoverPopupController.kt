@@ -22,6 +22,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.taigaui.designtokens.documentation.DesignTokenReferenceHitTester
+import org.taigaui.designtokens.documentation.TaigaQuickDocumentationUnderline
 import java.awt.Point
 import java.nio.file.Path
 import javax.swing.Icon
@@ -34,6 +35,7 @@ internal class IconHoverPopupController(
     private val coroutineScope: CoroutineScope,
 ) {
     private val renderer = IconSvgPreviewRenderer()
+    private val hoverHighlight = TaigaQuickDocumentationUnderline()
     private var activeKey: IconHoverKey? = null
     private var hoverJob: Job? = null
     private var popup: JBPopup? = null
@@ -46,6 +48,7 @@ internal class IconHoverPopupController(
         if (requestKey == null) {
             dismissHover(event.editor)
         } else {
+            hoverHighlight.show(request.editor, request.reference.startOffset, request.reference.endOffset)
             suppressNativeHover(request.editor)
 
             if (requestKey != activeKey) {
@@ -63,6 +66,7 @@ internal class IconHoverPopupController(
             hoverJob?.cancel()
             hoverJob = null
             hidePopup()
+            hoverHighlight.clear()
             restoreNativeHover()
         }
     }
@@ -123,6 +127,7 @@ internal class IconHoverPopupController(
                         popup = null
                         activeKey = null
                         hoverJob = null
+                        hoverHighlight.clear()
                         restoreNativeHover()
                     }
                 }
@@ -141,6 +146,7 @@ internal class IconHoverPopupController(
             activeKey = null
             hoverJob = null
             hidePopup()
+            hoverHighlight.clear()
             restoreNativeHover()
         }
     }
