@@ -418,10 +418,7 @@ internal class TaigaQuickDocumentationHoverController(
             val compactHover = view.isCompactHover(request.explicit)
             codeActions.prepareForView(request, resolved, compactHover)
             navigation.currentView = view
-            val exampleLoading =
-                !compactHover &&
-                    !view.fullApi &&
-                    resolved.entity.example?.language?.lowercase() == "html"
+            val exampleLoading = view.needsExampleFormatting(compactHover)
 
             val panel =
                 TaigaQuickDocumentationPopupPanel(
@@ -657,9 +654,9 @@ internal class TaigaQuickDocumentationHoverController(
                 withContext(Dispatchers.EDT) {
                     if (popupContent === panel && activeKey == request.key && request.isStillCurrent(project)) {
                         panel.finishExampleFormatting(formatted.entity.example?.code.orEmpty())
-                        navigation.currentView?.takeIf { it.resolved === resolved }?.let {
-                            navigation.currentView = it.copy(resolved = formatted)
-                        }
+                        navigation.currentView
+                            ?.takeIf { it.resolved === resolved }
+                            ?.let { navigation.currentView = it.copy(resolved = formatted) }
                         resizePopup()
                     }
                 }
@@ -761,3 +758,10 @@ internal class TaigaQuickDocumentationHoverController(
         }
     }
 }
+
+private fun TaigaDocumentationView.needsExampleFormatting(compactHover: Boolean): Boolean =
+    !compactHover &&
+        !fullApi &&
+        resolved.entity.example
+            ?.language
+            ?.lowercase() == "html"

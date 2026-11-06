@@ -26,7 +26,6 @@ import javax.swing.Icon
 import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JPanel
-import javax.swing.JProgressBar
 import javax.swing.JScrollPane
 import javax.swing.LayoutFocusTraversalPolicy
 import javax.swing.SwingUtilities
@@ -69,7 +68,7 @@ internal class TaigaQuickDocumentationPopupPanel(
     private val selectedMember: String? = null,
     internal val compactHover: Boolean = false,
     hoverPointer: Boolean = false,
-    private var exampleLoading: Boolean = false,
+    exampleLoading: Boolean = false,
 ) : JPanel(BorderLayout(0, JBUI.scale(12))) {
     private val pointerBorder = TaigaDocumentationPointerBorder().takeIf { hoverPointer }
     private val content = verticalPanel()
@@ -77,9 +76,7 @@ internal class TaigaQuickDocumentationPopupPanel(
     private val previewContent = verticalPanel()
     private val scroll: JBScrollPane
     private var apiBrowser: TaigaDocumentationApiBrowser? = null
-    private var exampleTabs: TaigaDocumentationTabs? = null
-    private var exampleTabIndex = -1
-    private var standaloneExample: JPanel? = null
+    private val exampleState = TaigaDocumentationExampleState(exampleLoading, ::updateContentSize)
     private var backButton: JButton? = null
     private var pinButton: JButton? = null
     private val sourceButtons = mutableListOf<JButton>()
@@ -130,21 +127,7 @@ internal class TaigaQuickDocumentationPopupPanel(
             if (showExample) {
                 resolved.entity.example?.let { example ->
                     content.add(sectionTitle("Example"))
-                    content.add(
-                        JPanel(BorderLayout()).apply {
-                            isOpaque = false
-                            alignmentX = JComponent.LEFT_ALIGNMENT
-                            add(
-                                if (exampleLoading) {
-                                    formattingExampleProgress()
-                                } else {
-                                    codeRow(example.code.take(MAX_EXAMPLE_LENGTH))
-                                },
-                                BorderLayout.CENTER,
-                            )
-                            standaloneExample = this
-                        },
-                    )
+                    content.add(exampleState.standalone(example.code.take(MAX_EXAMPLE_LENGTH)))
                 }
             }
             addSecondaryActions(showExample)
@@ -453,21 +436,7 @@ internal class TaigaQuickDocumentationPopupPanel(
                         )
                     }
                     entity.entity.example?.let {
-                        val index = tabCount
-                        addTab(
-                            "Examples",
-                            if (exampleLoading) {
-                                formattingExampleProgress()
-                            } else {
-                                codeRow(it.code.take(MAX_EXAMPLE_LENGTH))
-                            },
-                        )
-                        exampleTabs = this
-                        exampleTabIndex = index
-                        if (exampleLoading) {
-                            setEnabledAt(index, false)
-                            setTabComponentAt(index, formattingExampleTab())
-                        }
+                        exampleState.addTab(this, it.code.take(MAX_EXAMPLE_LENGTH))
                     }
                     addChangeListener { updateContentSize() }
                 },
@@ -476,45 +445,8 @@ internal class TaigaQuickDocumentationPopupPanel(
         addTemplateActions(secondaryContent, entity)
     }
 
-    /** Complete the current tab on EDT without rebuilding the popup or resetting selected inputs. */
-    internal fun finishExampleFormatting(code: String) {
-        if (!exampleLoading) return
-        exampleLoading = false
-        exampleTabs?.takeIf { exampleTabIndex in 0 until it.tabCount }?.let { tabs ->
-            tabs.setComponentAt(exampleTabIndex, codeRow(code.take(MAX_EXAMPLE_LENGTH)))
-            tabs.setEnabledAt(exampleTabIndex, true)
-            tabs.setTabComponentAt(exampleTabIndex, null)
-        }
-        standaloneExample?.let { container ->
-            container.removeAll()
-            container.add(codeRow(code.take(MAX_EXAMPLE_LENGTH)), BorderLayout.CENTER)
-        }
-        updateContentSize()
-    }
-
-    private fun formattingExampleTab(): JPanel =
-        JPanel(java.awt.FlowLayout(java.awt.FlowLayout.LEFT, JBUI.scale(6), 0)).apply {
-            isOpaque = false
-            add(JBLabel("Examples").apply { foreground = CARD_MUTED_FOREGROUND })
-            add(exampleProgressBar())
-            getAccessibleContext().accessibleName = "Formatting Examples"
-        }
-
-    private fun formattingExampleProgress(): JComponent =
-        JPanel(BorderLayout(JBUI.scale(8), 0)).apply {
-            isOpaque = false
-            add(JBLabel("Formatting example…"), BorderLayout.WEST)
-            add(exampleProgressBar(), BorderLayout.CENTER)
-        }
-
-    private fun exampleProgressBar(): JProgressBar =
-        JProgressBar().apply {
-            isIndeterminate = true
-            isOpaque = false
-            isFocusable = false
-            preferredSize = JBUI.size(28, 6)
-            getAccessibleContext().accessibleName = "Formatting example"
-        }
+    /** Complete current tab on EDT without rebuilding the popup or resetting selected inputs. */
+    internal fun finishExampleFormatting(code: String) = exampleState.finish(code.take(MAX_EXAMPLE_LENGTH))
 
     private fun memberContent(member: TaigaResolvedDocumentation.Member): JComponent =
         verticalPanel().apply {
