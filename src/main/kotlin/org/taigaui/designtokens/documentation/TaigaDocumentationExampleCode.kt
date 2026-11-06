@@ -38,4 +38,3 @@ internal fun documentationExampleCodeBlock(
             BorderLayout.CENTER,
         )
     }
-

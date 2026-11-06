@@ -51,7 +51,11 @@ class TaigaQuickDocumentationPresentationRegressionTest : TaigaDocumentationPopu
     }
 
     fun testApiNameTypeAndDefaultShareTheSameLeftEdge() {
-        val panel = TaigaQuickDocumentationPopupPanel(directive(), actions = TaigaDocumentationPopupActions(openMember = {}))
+        val panel =
+            TaigaQuickDocumentationPopupPanel(
+                directive(),
+                actions = TaigaDocumentationPopupActions(openMember = {}),
+            )
         renderAndSave(panel, "vertical-default-alignment")
         val name = descendants(panel).filterIsInstance<LinkLabel<*>>().first { it.text == "size" }
         val type =
