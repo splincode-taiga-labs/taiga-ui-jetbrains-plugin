@@ -5,9 +5,9 @@ import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.labels.LinkLabel
 import com.intellij.util.ui.JBUI
 import javax.swing.JPanel
+import javax.swing.JProgressBar
 import javax.swing.JScrollPane
 import javax.swing.JTabbedPane
-import javax.swing.JProgressBar
 import kotlin.time.Duration.Companion.milliseconds
 
 class TaigaQuickDocumentationPresentationRegressionTest : TaigaDocumentationPopupTestCase() {
