@@ -23,6 +23,7 @@ import com.intellij.openapi.vfs.newvfs.BulkFileListener
 import com.intellij.openapi.vfs.newvfs.events.VFileEvent
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.util.PsiModificationTracker
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -653,17 +654,25 @@ internal class TaigaQuickDocumentationHoverController(
 
         exampleJob =
             coroutineScope.launch(Dispatchers.Default + CoroutineName("Taiga UI documentation example formatting")) {
-                val updated =
-                    if (resolved.entity.example == null) {
-                        project
-                            .service<TaigaDocsService>()
-                            .snapshotFor(request.sourceFile)
-                            ?.resolve(request.documentationRequest)
-                            ?: resolved
-                    } else {
+                val formatted =
+                    try {
+                        val updated =
+                            if (resolved.entity.example == null) {
+                                project
+                                    .service<TaigaDocsService>()
+                                    .snapshotFor(request.sourceFile)
+                                    ?.resolve(request.documentationRequest)
+                                    ?: resolved
+                            } else {
+                                resolved
+                            }
+                        hoverResolver.formatExample(updated, request.sourceFile)
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        // Prettier and remote documentation are optional; never strand the loading state.
                         resolved
                     }
-                val formatted = hoverResolver.formatExample(updated, request.sourceFile)
                 withContext(Dispatchers.EDT) {
                     if (popupContent === panel && activeKey == request.key && request.isStillCurrent(project)) {
                         panel.finishExampleFormatting(formatted.entity.example?.code)
