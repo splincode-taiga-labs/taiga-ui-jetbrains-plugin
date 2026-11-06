@@ -67,6 +67,8 @@ class IconHoverPopupControllerTest : BasePlatformTestCase() {
         assertEquals(search, first.startOffset)
         assertEquals(search + "@tui.search".length, first.endOffset)
         assertNotNull(first.textAttributes?.backgroundColor)
+        assertNotNull(first.textAttributes?.effectColor)
+        assertEquals(com.intellij.openapi.editor.markup.EffectType.BOXED, first.textAttributes?.effectType)
 
         controller.mouseMoved(editorMouseEvent(add + 3))
         val second = (editor.markupModel.allHighlighters.toSet() - initial).single()
