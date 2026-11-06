@@ -1,6 +1,7 @@
 package org.taigaui.designtokens.completion
 
 import com.intellij.codeInsight.lookup.LookupElementPresentation
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
@@ -9,6 +10,7 @@ import org.taigaui.designtokens.documentation.DesignTokenHoverPopupModel
 import org.taigaui.designtokens.project.DesignTokenIndexService
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.concurrent.atomic.AtomicInteger
 
 class DeprecatedDesignTokenIntegrationTest : BasePlatformTestCase() {
     private lateinit var tempRoot: Path
@@ -39,22 +41,36 @@ class DeprecatedDesignTokenIntegrationTest : BasePlatformTestCase() {
         myFixture.configureFromExistingVirtualFile(sourceFile)
         indexService.clear()
 
-        myFixture.doHighlighting()
+        val file = myFixture.file
+        val restarts = AtomicInteger()
+
+        assertNull(
+            file.designTokenCatalogForInspection { updatedFile ->
+                assertSame(file, updatedFile)
+                assertTrue(ApplicationManager.getApplication().isDispatchThread)
+                restartDesignTokenInspection(updatedFile)
+                restarts.incrementAndGet()
+            },
+        )
 
         repeat(500) {
             UIUtil.dispatchAllInvocationEvents()
 
-            if (!indexService.isIndexCached(sourcePath)) {
-                Thread.sleep(10)
+            if (restarts.get() == 1) {
+                assertTrue(indexService.isIndexCached(sourcePath))
+                assertTrue(
+                    myFixture
+                        .doHighlighting()
+                        .any { info -> info.description?.startsWith(DEPRECATED_TOKEN_MESSAGE) == true },
+                )
+                assertEquals(1, restarts.get())
+                return
             }
+
+            Thread.sleep(10)
         }
 
-        assertTrue(indexService.isIndexCached(sourcePath))
-        assertTrue(
-            myFixture
-                .doHighlighting()
-                .any { info -> info.description?.startsWith(DEPRECATED_TOKEN_MESSAGE) == true },
-        )
+        fail("Cold catalog warmup did not restart the inspection on the EDT")
     }
 
     fun testKeepsDeprecatedTokenInCompletionAndMarksIt() {

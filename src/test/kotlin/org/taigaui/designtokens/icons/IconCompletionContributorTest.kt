@@ -2,8 +2,9 @@ package org.taigaui.designtokens.icons
 
 import com.intellij.codeInsight.lookup.LookupManager
 import com.intellij.lang.documentation.ide.IdeDocumentationTargetProvider
-import com.intellij.openapi.application.runReadAction
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
+import com.intellij.openapi.util.Computable
 import com.intellij.openapi.util.Key
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
@@ -167,11 +168,13 @@ class IconCompletionContributorTest : BasePlatformTestCase() {
             requireNotNull(myFixture.completeBasic())
                 .first { element -> element.lookupString == "@tui.a-arrow-down" }
         val targets =
-            runReadAction {
-                IdeDocumentationTargetProvider
-                    .getInstance(project)
-                    .documentationTargets(myFixture.editor, myFixture.file, item)
-            }
+            ApplicationManager.getApplication().runReadAction(
+                Computable {
+                    IdeDocumentationTargetProvider
+                        .getInstance(project)
+                        .documentationTargets(myFixture.editor, myFixture.file, item)
+                },
+            )
 
         assertEmpty(targets)
     }

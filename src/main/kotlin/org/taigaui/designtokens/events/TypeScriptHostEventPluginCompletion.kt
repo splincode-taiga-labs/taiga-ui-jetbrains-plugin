@@ -332,7 +332,7 @@ private data class EventPluginCompletion(
     val description: String? = null,
 )
 
-private fun HostEventPluginCompletionContext.toLookupElements(closingDelimiter: Char?): List<LookupElement> =
+internal fun HostEventPluginCompletionContext.toLookupElements(closingDelimiter: Char?): List<LookupElement> =
     when (kind) {
         HostEventPluginCompletionContext.Kind.EVENT -> EVENT_PLUGIN_EVENT_COMPLETIONS
         HostEventPluginCompletionContext.Kind.MODIFIER ->

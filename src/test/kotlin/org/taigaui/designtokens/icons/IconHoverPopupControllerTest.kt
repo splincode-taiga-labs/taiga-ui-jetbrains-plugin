@@ -54,6 +54,29 @@ class IconHoverPopupControllerTest : BasePlatformTestCase() {
         assertNull(readPrivateField(controller, "nativeHoverSuppressedEditor"))
     }
 
+    fun testIconHoverHighlightsOnlyItsReferenceAndClearsOnDismiss() {
+        configureHtml("""<button iconStart="@tui.search" iconEnd="@tui.add"></button>""")
+        val editor = myFixture.editor
+        val controller = project.service<IconHoverPopupController>()
+        val initial = editor.markupModel.allHighlighters.toSet()
+        val search = editor.document.text.indexOf("@tui.search")
+        val add = editor.document.text.indexOf("@tui.add")
+
+        controller.mouseMoved(editorMouseEvent(search + 3))
+        val first = (editor.markupModel.allHighlighters.toSet() - initial).single()
+        assertEquals(search, first.startOffset)
+        assertEquals(search + "@tui.search".length, first.endOffset)
+        assertNotNull(first.textAttributes?.backgroundColor)
+
+        controller.mouseMoved(editorMouseEvent(add + 3))
+        val second = (editor.markupModel.allHighlighters.toSet() - initial).single()
+        assertEquals(add, second.startOffset)
+        assertEquals(add + "@tui.add".length, second.endOffset)
+
+        controller.dismissHover(editor)
+        assertEquals(initial, editor.markupModel.allHighlighters.toSet())
+    }
+
     fun testMissingIconClearsHoverAfterAsyncResolution() {
         configureHtml("""<button iconStart="@tui.search"></button>""")
         val editor = myFixture.editor

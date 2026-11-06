@@ -6,24 +6,27 @@ import com.intellij.json.psi.JsonFile
 import com.intellij.json.psi.JsonObject
 import com.intellij.json.psi.JsonStringLiteral
 import com.intellij.json.psi.JsonValue
-import com.intellij.openapi.application.ReadAction
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Computable
 import com.intellij.psi.PsiFileFactory
 
 internal class ProjectStylesheetJsonPsiParser(
     private val project: Project,
 ) {
     fun parseStyleGroups(content: String): List<List<String>> =
-        ReadAction.compute<List<List<String>>, RuntimeException> {
-            val jsonFile =
-                PsiFileFactory
-                    .getInstance(project)
-                    .createFileFromText(CONFIG_FILE_NAME, JsonFileType.INSTANCE, content) as JsonFile
+        ApplicationManager.getApplication().runReadAction(
+            Computable {
+                val jsonFile =
+                    PsiFileFactory
+                        .getInstance(project)
+                        .createFileFromText(CONFIG_FILE_NAME, JsonFileType.INSTANCE, content) as JsonFile
 
-            buildList {
-                jsonFile.topLevelValue?.collectStyleGroups(this)
-            }
-        }
+                buildList {
+                    jsonFile.topLevelValue?.collectStyleGroups(this)
+                }
+            },
+        )
 
     private fun JsonValue.collectStyleGroups(groups: MutableList<List<String>>) {
         when (this) {
