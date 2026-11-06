@@ -129,7 +129,7 @@ class TaigaQuickDocumentationAppearanceTest : TaigaDocumentationPopupTestCase() 
         val first = formatter.format(original, Path.of("/project/src/example.html"))
         val second = formatter.format(original, Path.of("/project/src/example.html"))
         assertEquals(1, calls)
-        assertEquals("<div>\\n    <b>Save</b>\\n</div>", first.entity.example?.code)
+        assertEquals("<div>\n    <b>Save</b>\n</div>", first.entity.example?.code)
         assertEquals(first.entity.example, second.entity.example)
         assertEquals(code, original.entity.example?.code)
     }
