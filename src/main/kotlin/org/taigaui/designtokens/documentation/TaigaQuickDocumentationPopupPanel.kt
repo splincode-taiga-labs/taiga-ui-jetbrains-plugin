@@ -454,7 +454,14 @@ internal class TaigaQuickDocumentationPopupPanel(
                     }
                     entity.entity.example?.let {
                         val index = tabCount
-                        addTab("Examples", codeRow(it.code.take(MAX_EXAMPLE_LENGTH)))
+                        addTab(
+                            "Examples",
+                            if (exampleLoading) {
+                                formattingExampleProgress()
+                            } else {
+                                codeRow(it.code.take(MAX_EXAMPLE_LENGTH))
+                            },
+                        )
                         exampleTabs = this
                         exampleTabIndex = index
                         if (exampleLoading) {
