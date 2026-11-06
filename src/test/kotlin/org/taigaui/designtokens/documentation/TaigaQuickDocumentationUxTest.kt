@@ -168,7 +168,7 @@ class TaigaQuickDocumentationUxTest : TaigaDocumentationPopupTestCase() {
 
     fun testUnknownInputDoesNotShowEmptyFactsOrUnrelatedLinks() {
         val owner = directive()
-        val member = owner.focusedMember(owner.entity.inputs.first(), TaigaApiMemberKind.INPUT)
+        val member = owner.focusedMember(owner.entity.inputs.first { it.name == "appearance" }, TaigaApiMemberKind.INPUT)
         val panel =
             TaigaQuickDocumentationPopupPanel(
                 member,
@@ -198,7 +198,12 @@ class TaigaQuickDocumentationUxTest : TaigaDocumentationPopupTestCase() {
         val labels = descendants(panel).filterIsInstance<JBLabel>().map { it.text.orEmpty() }.toList()
 
         assertEquals(1, labels.count { it == "Requirement" })
-        assertEquals(1, labels.count { it.contains("Required input") })
+        assertEquals(
+            1,
+            descendants(panel).filterIsInstance<JBLabel>().count {
+                it.accessibleContext.accessibleName == "Required input"
+            },
+        )
         assertEquals(1, labels.count { it == "Default" })
         assertTrue(labelText(panel).contains("TUI_BUTTON_OPTIONS"))
         assertFalse("Duplicate required status", "Required" in labels)

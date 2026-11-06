@@ -36,6 +36,7 @@ class TaigaQuickDocumentationPresentationRegressionTest : TaigaDocumentationPopu
         val panel =
             TaigaQuickDocumentationPopupPanel(
                 owner.copy(entity = owner.entity.copy(inputs = inputs, outputs = emptyList())),
+                actions = TaigaDocumentationPopupActions(openMember = {}),
             )
         renderAndSave(panel, "vertical-inputs")
         val tabs = descendants(panel).filterIsInstance<JTabbedPane>().single()
@@ -50,7 +51,7 @@ class TaigaQuickDocumentationPresentationRegressionTest : TaigaDocumentationPopu
     }
 
     fun testApiNameTypeAndDefaultShareTheSameLeftEdge() {
-        val panel = TaigaQuickDocumentationPopupPanel(directive())
+        val panel = TaigaQuickDocumentationPopupPanel(directive(), actions = TaigaDocumentationPopupActions(openMember = {}))
         renderAndSave(panel, "vertical-default-alignment")
         val name = descendants(panel).filterIsInstance<LinkLabel<*>>().first { it.text == "size" }
         val type =
