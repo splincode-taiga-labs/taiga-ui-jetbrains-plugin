@@ -4,6 +4,7 @@ import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.labels.LinkLabel
 import com.intellij.util.ui.JBUI
+import javax.swing.JPanel
 import javax.swing.JScrollPane
 import javax.swing.JTabbedPane
 import kotlin.time.Duration.Companion.milliseconds
@@ -58,10 +59,10 @@ class TaigaQuickDocumentationPresentationRegressionTest : TaigaDocumentationPopu
             )
         renderAndSave(panel, "vertical-default-alignment")
         val name = descendants(panel).filterIsInstance<LinkLabel<*>>().first { it.text == "size" }
+        // Align the chip group, not the padded text inside its first chip.
         val type =
-            descendants(panel).filterIsInstance<JBLabel>().first {
-                it.accessibleContext.accessibleName ==
-                    "TuiSize"
+            descendants(panel).filterIsInstance<JPanel>().first {
+                it.accessibleContext.accessibleName == "TuiSize"
             }
         val default =
             descendants(panel).filterIsInstance<JBLabel>().first {
