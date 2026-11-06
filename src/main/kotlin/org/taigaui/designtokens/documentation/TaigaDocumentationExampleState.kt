@@ -73,7 +73,8 @@ internal class TaigaDocumentationExampleState(
             isOpaque = false
             add(JBLabel("Examples").apply { foreground = CARD_MUTED_FOREGROUND })
             add(progressBar())
-            getAccessibleContext().accessibleName = "Formatting Examples"
+            add(JBLabel("Formatting…").apply { foreground = CARD_MUTED_FOREGROUND })
+            getAccessibleContext().accessibleName = "Examples: formatting in progress"
         }
 
     private fun progressContent(): JComponent =
@@ -88,7 +89,7 @@ internal class TaigaDocumentationExampleState(
             isIndeterminate = true
             isOpaque = false
             isFocusable = false
-            preferredSize = JBUI.size(28, 6)
+            preferredSize = JBUI.size(36, 8)
             getAccessibleContext().accessibleName = "Formatting example"
         }
 }
