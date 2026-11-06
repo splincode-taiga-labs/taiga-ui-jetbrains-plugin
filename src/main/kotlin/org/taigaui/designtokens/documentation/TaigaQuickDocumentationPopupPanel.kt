@@ -135,7 +135,11 @@ internal class TaigaQuickDocumentationPopupPanel(
                             isOpaque = false
                             alignmentX = JComponent.LEFT_ALIGNMENT
                             add(
-                                if (exampleLoading) formattingExampleProgress() else codeRow(example.code.take(MAX_EXAMPLE_LENGTH)),
+                                if (exampleLoading) {
+                                    formattingExampleProgress()
+                                } else {
+                                    codeRow(example.code.take(MAX_EXAMPLE_LENGTH))
+                                },
                                 BorderLayout.CENTER,
                             )
                             standaloneExample = this
