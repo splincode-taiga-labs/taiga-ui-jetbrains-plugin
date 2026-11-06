@@ -7,6 +7,7 @@ import com.intellij.ui.components.JBScrollPane
 import java.nio.file.Path
 import javax.swing.JScrollPane
 import javax.swing.JTabbedPane
+import javax.swing.JProgressBar
 import javax.swing.JViewport
 import javax.swing.SwingUtilities
 
@@ -22,6 +23,38 @@ class TaigaQuickDocumentationAppearanceTest : TaigaDocumentationPopupTestCase() 
         val tabs = descendants(panel).filterIsInstance<JTabbedPane>().single()
         tabs.selectedIndex = tabs.indexOfTab("Examples")
         assertTrue(panel.preferredSize.height > baseline)
+    }
+
+    fun testExamplesStayDisabledWithProgressUntilFormattingCompletes() {
+        val owner = directive()
+        val original = "<div><span>Hello</span></div>"
+        val documented = owner.copy(entity = owner.entity.copy(example = TaigaExample("html", original)))
+        val panel = TaigaQuickDocumentationPopupPanel(documented, exampleLoading = true)
+        val tabs = descendants(panel).filterIsInstance<JTabbedPane>().single()
+        val index = tabs.indexOfTab("Examples")
+
+        assertTrue(index >= 0)
+        assertFalse(tabs.isEnabledAt(index))
+        assertEquals("Formatting Examples", tabs.getTabComponentAt(index).accessibleContext.accessibleName)
+        assertTrue(descendants(panel).filterIsInstance<JProgressBar>().any { it.isIndeterminate })
+
+        val formatted =
+            """
+            <div>
+                <span>Hello</span>
+            </div>
+            """.trimIndent()
+        panel.finishExampleFormatting(formatted)
+
+        assertTrue(tabs.isEnabledAt(index))
+        assertNull(tabs.getTabComponentAt(index))
+        assertFalse(descendants(panel).filterIsInstance<JProgressBar>().any { it.isIndeterminate })
+        tabs.selectedIndex = index
+        assertTrue(
+            descendants(tabs.getComponentAt(index)).filterIsInstance<JBLabel>().any {
+                it.accessibleContext.accessibleName == formatted
+            },
+        )
     }
 
     fun testComponentAndDirectiveHoverShowFullApiWhileInputAndPipeStayCompact() {
