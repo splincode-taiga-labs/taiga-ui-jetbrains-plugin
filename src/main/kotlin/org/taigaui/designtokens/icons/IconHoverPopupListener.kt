@@ -17,6 +17,10 @@ internal class IconHoverPopupListener :
         event.dismissIconHoverPopup()
     }
 
+    override fun mouseExited(event: EditorMouseEvent) {
+        event.dismissIconHoverPopup()
+    }
+
     override fun mouseMoved(event: EditorMouseEvent) {
         val editor = event.editor
         val project = editor.project ?: return
