@@ -168,7 +168,11 @@ class TaigaQuickDocumentationUxTest : TaigaDocumentationPopupTestCase() {
 
     fun testUnknownInputDoesNotShowEmptyFactsOrUnrelatedLinks() {
         val owner = directive()
-        val member = owner.focusedMember(owner.entity.inputs.first { it.name == "appearance" }, TaigaApiMemberKind.INPUT)
+        val member =
+            owner.focusedMember(
+                owner.entity.inputs.first { it.name == "appearance" },
+                TaigaApiMemberKind.INPUT,
+            )
         val panel =
             TaigaQuickDocumentationPopupPanel(
                 member,
