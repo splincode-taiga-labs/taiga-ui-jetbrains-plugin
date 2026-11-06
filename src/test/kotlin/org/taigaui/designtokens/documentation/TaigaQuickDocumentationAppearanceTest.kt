@@ -5,6 +5,7 @@ import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
 import javax.swing.JScrollPane
+import java.nio.file.Path
 import javax.swing.JTabbedPane
 import javax.swing.JViewport
 import javax.swing.SwingUtilities
@@ -109,6 +110,46 @@ class TaigaQuickDocumentationAppearanceTest : TaigaDocumentationPopupTestCase() 
         assertTrue(label.preferredSize.width > codeScroll.preferredSize.width)
         assertEquals(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED, codeScroll.horizontalScrollBarPolicy)
         assertEquals(JScrollPane.VERTICAL_SCROLLBAR_NEVER, codeScroll.verticalScrollBarPolicy)
+    }
+
+    fun testProjectPrettierFormatsHtmlPreviewOnceWithoutMutatingSnapshot() {
+        val code = "<div><b>Save</b></div>"
+        val owner = directive()
+        val original = owner.copy(entity = owner.entity.copy(example = TaigaExample("html", code)))
+        var calls = 0
+        val formatter =
+            TaigaDocumentationExamplePrettier(
+                commandFor = { listOf("prettier") },
+                run = { _, _ ->
+                    calls++
+                    "<div>\\n    <b>Save</b>\\n</div>\\n".replace("\\\\n", "\\n")
+                },
+            )
+
+        val first = formatter.format(original, Path.of("/project/src/example.html"))
+        val second = formatter.format(original, Path.of("/project/src/example.html"))
+        assertEquals(1, calls)
+        assertEquals("<div>\\n    <b>Save</b>\\n</div>", first.entity.example?.code)
+        assertEquals(first.entity.example, second.entity.example)
+        assertEquals(code, original.entity.example?.code)
+    }
+
+    fun testMissingPrettierFallsBackAndOtherLanguagesAreUntouched() {
+        var calls = 0
+        val formatter =
+            TaigaDocumentationExamplePrettier(
+                commandFor = { null },
+                run = { _, _ ->
+                    calls++
+                    "formatted"
+                },
+            )
+        val original = directive()
+        val html = original.copy(entity = original.entity.copy(example = TaigaExample("html", "<div></div>")))
+        val typescript = original.copy(entity = original.entity.copy(example = TaigaExample("ts", "const n=1")))
+        assertSame(html, formatter.format(html, Path.of("/project/src/file.html")))
+        assertSame(typescript, formatter.format(typescript, Path.of("/project/src/file.ts")))
+        assertEquals(0, calls)
     }
 
     fun testReferenceCardsInBothThemesKeepEditingSecondaryAndTsApiExplicit() {

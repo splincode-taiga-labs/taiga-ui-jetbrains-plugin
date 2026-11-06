@@ -27,6 +27,16 @@ internal class TaigaDocumentationHoverResolver(
             .expireWhen { isCancelled() || candidate.editor.isDisposed }
             .executeSynchronously()
 
+    private val examplePrettier = TaigaDocumentationExamplePrettier()
+
+    suspend fun formatExample(
+        resolved: TaigaResolvedDocumentation,
+        sourceFile: java.nio.file.Path,
+    ): TaigaResolvedDocumentation =
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            examplePrettier.format(resolved, sourceFile)
+        }
+
     suspend fun loadDocumentation(
         request: TaigaQuickDocumentationHoverRequest?,
         refreshing: Boolean,
@@ -36,7 +46,12 @@ internal class TaigaDocumentationHoverResolver(
                 val service = project.service<TaigaDocsService>()
                 if (refreshing) service.snapshotFor(it.sourceFile) else service.cachedSnapshotFor(it.sourceFile)
             }
-        val resolved = request?.let { resolveDocumentation(it.documentationRequest, snapshot) }
+        val resolved =
+            request?.let { current ->
+                resolveDocumentation(current.documentationRequest, snapshot)?.let {
+                    formatExample(it, current.sourceFile)
+                }
+            }
         if (request != null && snapshot == null) project.service<TaigaDocsService>().warmUp(request.sourceFile)
         return snapshot to resolved
     }

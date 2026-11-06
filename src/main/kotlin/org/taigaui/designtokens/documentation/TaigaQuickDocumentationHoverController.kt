@@ -370,10 +370,11 @@ internal class TaigaQuickDocumentationHoverController(
                         .snapshotFor(request.sourceFile)
                         ?.resolve(request.documentationRequest)
 
+            val formatted = resolved?.let { hoverResolver.formatExample(it, request.sourceFile) }
             withContext(Dispatchers.EDT) {
                 when {
                     pendingKey != candidateKey || !request.isStillCurrent(project) -> Unit
-                    resolved == null -> clearHover()
+                    formatted == null -> clearHover()
                     else -> {
                         hoverJob = null
                         if (switching) {
@@ -395,7 +396,7 @@ internal class TaigaQuickDocumentationHoverController(
                         } else {
                             underline.clear()
                         }
-                        showView(request, TaigaDocumentationView(resolved))
+                        showView(request, TaigaDocumentationView(formatted))
                     }
                 }
             }
