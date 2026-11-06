@@ -16,6 +16,7 @@ internal class TaigaDocumentationExamplePrettier(
 ) {
     private val cache = ConcurrentHashMap<Pair<Path, String>, String>()
 
+    @Suppress("ReturnCount")
     fun format(
         resolved: TaigaResolvedDocumentation,
         sourceFile: Path,
@@ -80,7 +81,8 @@ private fun runDocumentationPrettier(
             if (!process.waitFor(PRETTIER_TIMEOUT_SECONDS, TimeUnit.SECONDS) || process.exitValue() != 0) {
                 null
             } else {
-                process.inputStream.readNBytes(MAX_PRETTIER_OUTPUT + 1)
+                process.inputStream
+                    .readNBytes(MAX_PRETTIER_OUTPUT + 1)
                     .toString(StandardCharsets.UTF_8)
                     .takeIf { it.length <= MAX_PRETTIER_OUTPUT }
             }
