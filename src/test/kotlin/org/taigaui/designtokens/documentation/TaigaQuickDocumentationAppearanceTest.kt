@@ -122,7 +122,7 @@ class TaigaQuickDocumentationAppearanceTest : TaigaDocumentationPopupTestCase() 
                 commandFor = { listOf("prettier") },
                 run = { _, _ ->
                     calls++
-                    "<div>\\n    <b>Save</b>\\n</div>\\n".replace("\\\\n", "\\n")
+                    "<div>\n    <b>Save</b>\n</div>\n"
                 },
             )
 

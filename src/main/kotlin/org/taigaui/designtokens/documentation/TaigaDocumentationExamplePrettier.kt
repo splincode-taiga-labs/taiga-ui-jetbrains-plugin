@@ -24,9 +24,9 @@ internal class TaigaDocumentationExamplePrettier(
         if (example.language?.lowercase() != "html" || example.code.length > MAX_PRETTIER_INPUT) return resolved
 
         val key = sourceFile.toAbsolutePath().normalize().parent to example.code
+        if (cache.size >= MAX_FORMATTED_EXAMPLES) cache.clear()
         val formatted =
             cache.computeIfAbsent(key) {
-                if (cache.size >= MAX_FORMATTED_EXAMPLES) cache.clear()
                 commandFor(sourceFile)
                     ?.let { command -> run(command, example.code) }
                     ?.trimEnd()
