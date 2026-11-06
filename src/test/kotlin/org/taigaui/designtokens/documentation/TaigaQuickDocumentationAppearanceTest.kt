@@ -5,9 +5,9 @@ import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
 import java.nio.file.Path
+import javax.swing.JProgressBar
 import javax.swing.JScrollPane
 import javax.swing.JTabbedPane
-import javax.swing.JProgressBar
 import javax.swing.JViewport
 import javax.swing.SwingUtilities
 

@@ -653,7 +653,11 @@ internal class TaigaQuickDocumentationHoverController(
                 val formatted = hoverResolver.formatExample(resolved, request.sourceFile)
                 withContext(Dispatchers.EDT) {
                     if (popupContent === panel && activeKey == request.key && request.isStillCurrent(project)) {
-                        panel.finishExampleFormatting(formatted.entity.example?.code.orEmpty())
+                        val code =
+                            formatted.entity.example
+                                ?.code
+                                .orEmpty()
+                        panel.finishExampleFormatting(code)
                         navigation.currentView
                             ?.takeIf { it.resolved === resolved }
                             ?.let { navigation.currentView = it.copy(resolved = formatted) }
