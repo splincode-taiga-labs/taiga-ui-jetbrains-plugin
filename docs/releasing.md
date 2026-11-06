@@ -2,18 +2,14 @@
 
 Release automation is tracked by [#53](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/issues/53).
 
-The release workflow is intentionally explicit and single-entry:
+Publishing is supported through two entry points:
 
-- pull requests and ordinary pushes never publish;
-- a release starts only from **Actions → Release → Run workflow** on `main`;
-- the workflow generates GitHub release notes from commits/PRs since the previous tag;
-- those notes are inserted into `CHANGELOG.md`;
-- the workflow creates a local `chore(release): <version>` commit and verifies that exact commit;
-- only after build, tests, Plugin Verifier, signing, and signature verification succeed does the workflow atomically push the release commit and tag;
-- the verified signed artifact is published to JetBrains Marketplace;
-- after Marketplace publishing succeeds, the workflow creates the GitHub Release and attaches the same signed ZIP.
+- **Recommended:** publish a GitHub Release with an existing `vX.Y.Z` tag. The `Publish to JetBrains Marketplace` workflow automatically checks out that tag, builds, verifies, signs, and publishes the plugin, then attaches the signed ZIP to the GitHub Release.
+- **Legacy/manual:** run **Actions → Release → Run workflow** on `main`. This workflow generates changelog/release notes, commits and tags the release, verifies and publishes the plugin, and creates the GitHub Release with a signed ZIP.
 
-This keeps `main`, the release tag, `CHANGELOG.md`, the Marketplace version, and the GitHub Release aligned to the same release commit.
+Pull requests and ordinary pushes never publish. GitHub Releases created using the manual workflow's `GITHUB_TOKEN` do not trigger a second publication workflow, per GitHub Actions event rules.
+
+The automatic publish workflow builds the exact tagged commit, requires that commit to be reachable from `main`, and does not change `main`, tags, or `CHANGELOG.md`.
 
 ## Marketplace prerequisite
 
@@ -39,13 +35,42 @@ Configure these repository or protected-environment secrets:
 
 The certificate chain and private key must never be committed. The IntelliJ Platform Gradle Plugin accepts the signing values through environment variables; Base64-encoded values are also supported and are convenient for multiline CI secrets.
 
-## Publish a release
+## Automatic publish from a GitHub Release (recommended)
+
+1. Merge and verify the changes on `main`.
+2. Create a unique version tag on a commit in `main`, for example `v0.1.5`.
+3. On GitHub, select **Releases → Draft a new release**, choose that tag, and click **Publish release**.
+
+The `release: published` event triggers [`publish.yml`](../.github/workflows/publish.yml). The workflow:
+
+- requires a published, non-draft GitHub Release and a valid `vX.Y.Z` version tag;
+- checks out the release tag, not the current `main` HEAD;
+- verifies that the tagged commit belongs to `main`;
+- runs tests, Plugin Verifier, plugin packaging/icon checks, and signature verification;
+- publishes with `publishPlugin`, then attaches the signed ZIP to the GitHub Release.
+
+The GitHub Release type selects the JetBrains Marketplace channel automatically:
+
+| GitHub Release | Marketplace channel |
+| -------------- | ------------------- |
+| Prerelease     | `beta`              |
+| Normal release | `default`           |
+
+A tag push alone is **not** sufficient: the GitHub Release must be published. GitHub Releases published before this workflow was enabled are not processed retroactively.
+
+### Retry an existing published release
+
+For a release that was created before automation was enabled (such as `v0.1.4`) or whose publication failed, run **Actions → Publish to JetBrains Marketplace → Run workflow** on `main` and enter its existing tag. The workflow reads the channel from the published GitHub Release.
+
+Only retry after verifying the version was **not already published** to JetBrains Marketplace: publishing the same plugin version twice may be rejected. A manually triggered run must not be used for a new release without a published GitHub Release.
+
+## Manual end-to-end release workflow (legacy)
 
 Run **Actions → Release → Run workflow** from the `main` branch.
 
 Provide:
 
-- an explicit non-SNAPSHOT version, for example `0.1.4` or `0.2.0-beta.1`;
+- an explicit non-SNAPSHOT version, for example `0.1.5` or `0.2.0-beta.1`;
 - the Marketplace channel:
     - `beta` creates a GitHub prerelease;
     - `default` creates a normal GitHub release.
@@ -59,7 +84,7 @@ The workflow refuses to continue when:
 - there are no commits since the previous tag;
 - `main` changes while the release candidate is being verified.
 
-If `main` changes during verification, rerun the release workflow so the release is built from the latest `main`.
+If `main` changes during verification, rerun the manual release workflow so it builds from the latest `main`.
 
 ## Generated changelog
 
