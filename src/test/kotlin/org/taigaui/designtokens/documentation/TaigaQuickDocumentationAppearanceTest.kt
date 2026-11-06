@@ -3,7 +3,9 @@ package org.taigaui.designtokens.documentation
 import com.intellij.openapi.editor.colors.EditorColorsManager
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
+import com.intellij.ui.components.JBScrollPane
 import javax.swing.JTabbedPane
+import javax.swing.JScrollPane
 import javax.swing.JViewport
 import javax.swing.SwingUtilities
 
@@ -76,6 +78,37 @@ class TaigaQuickDocumentationAppearanceTest : TaigaDocumentationPopupTestCase() 
                 showExample = true,
             )
         assertFalse(descendants(panel).any { it is CopyValueButton })
+    }
+
+    fun testNestedExamplePreservesIndentationWithoutSoftWrappingCode() {
+        val code =
+            """
+            <div class="example">
+                <tui-loader [showLoader]="showLoader" [textContent]="template">
+                    <div>Loading</div>
+                    <div [attr.title]="'a long HTML attribute should remain on the same code line in this preview'">
+                        <b>Message:</b> Text
+                    </div>
+                </tui-loader>
+            </div>
+            """.trimIndent()
+        val original = directive()
+        val documented = original.copy(entity = original.entity.copy(example = TaigaExample("html", code)))
+        val card = TaigaQuickDocumentationPopupPanel(documented)
+        val tabs = descendants(card).filterIsInstance<JTabbedPane>().single()
+        tabs.selectedIndex = tabs.indexOfTab("Examples")
+
+        val codeScroll =
+            descendants(card)
+                .filterIsInstance<JBScrollPane>()
+                .first { (it.viewport.view as? JBLabel)?.text?.contains("<pre>") == true }
+        val label = codeScroll.viewport.view as JBLabel
+        assertEquals(code, label.accessibleContext.accessibleName)
+        assertTrue(label.text.contains("<pre>"))
+        assertTrue(label.text.contains("&nbsp;"))
+        assertTrue(label.preferredSize.width > codeScroll.preferredSize.width)
+        assertEquals(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED, codeScroll.horizontalScrollBarPolicy)
+        assertEquals(JScrollPane.VERTICAL_SCROLLBAR_NEVER, codeScroll.verticalScrollBarPolicy)
     }
 
     fun testReferenceCardsInBothThemesKeepEditingSecondaryAndTsApiExplicit() {
