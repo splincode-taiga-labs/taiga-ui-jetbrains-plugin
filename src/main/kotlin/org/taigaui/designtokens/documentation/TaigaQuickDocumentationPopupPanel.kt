@@ -746,7 +746,7 @@ private fun detail(
     value: String,
 ): JComponent = documentationRow(title, documentationCodeLabel(value))
 
-private fun codeRow(code: String): JComponent = documentationCodeBlock(code, 450)
+private fun codeRow(code: String): JComponent = documentationExampleCodeBlock(code, 450)
 
 private fun sectionTitle(title: String): JComponent =
     JBLabel(title).apply {
