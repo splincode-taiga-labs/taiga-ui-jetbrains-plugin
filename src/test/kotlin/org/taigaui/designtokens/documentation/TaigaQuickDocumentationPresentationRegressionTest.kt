@@ -7,6 +7,7 @@ import com.intellij.util.ui.JBUI
 import javax.swing.JPanel
 import javax.swing.JScrollPane
 import javax.swing.JTabbedPane
+import javax.swing.JProgressBar
 import kotlin.time.Duration.Companion.milliseconds
 
 class TaigaQuickDocumentationPresentationRegressionTest : TaigaDocumentationPopupTestCase() {
@@ -29,6 +30,46 @@ class TaigaQuickDocumentationPresentationRegressionTest : TaigaDocumentationPopu
         val tabs = descendants(panel).filterIsInstance<JTabbedPane>().single()
         tabs.selectedIndex = tabs.indexOfTab("Examples")
         renderAndSave(panel, "formatted-button-example")
+    }
+
+    fun testExamplesTabShowsFormattingProgressUntilExampleIsReady() {
+        val original = "<button tuiButton>Save</button>"
+        val owner = directive()
+        val panel =
+            TaigaQuickDocumentationPopupPanel(
+                owner.copy(entity = owner.entity.copy(example = TaigaExample("html", original))),
+                exampleLoading = true,
+            )
+        val tabs = descendants(panel).filterIsInstance<JTabbedPane>().single()
+        val index = tabs.indexOfTab("Examples")
+
+        assertTrue(index >= 0)
+        assertFalse(tabs.isEnabledAt(index))
+        val loadingTab = requireNotNull(tabs.getTabComponentAt(index))
+        assertTrue(descendants(loadingTab).filterIsInstance<JProgressBar>().any { it.isIndeterminate })
+        assertTrue(labelText(loadingTab).contains("Formatting"))
+
+        val formatted = "<button tuiButton>Ready</button>"
+        panel.finishExampleFormatting(formatted)
+
+        assertTrue(tabs.isEnabledAt(index))
+        assertNull(tabs.getTabComponentAt(index))
+        tabs.selectedIndex = index
+        assertTrue(labelText(tabs.getComponentAt(index)).contains("Ready"))
+        assertFalse(labelText(tabs.getComponentAt(index)).contains("Formatting"))
+    }
+
+    fun testExamplesPlaceholderDisappearsIfDocumentationHasNoExample() {
+        val panel = TaigaQuickDocumentationPopupPanel(directive(), exampleLoading = true)
+        val tabs = descendants(panel).filterIsInstance<JTabbedPane>().single()
+        val index = tabs.indexOfTab("Examples")
+        assertTrue(index >= 0)
+        assertFalse(tabs.isEnabledAt(index))
+
+        panel.finishExampleFormatting(null)
+
+        assertEquals(-1, tabs.indexOfTab("Examples"))
+        assertTrue(tabs.tabCount > 0)
     }
 
     fun testAllInputsUseVerticalRowsAndEmptyOutputTabIsHidden() {
@@ -99,7 +140,8 @@ class TaigaQuickDocumentationPresentationRegressionTest : TaigaDocumentationPopu
         assertEquals(start, applied.startOffset)
         assertEquals(start + 9, applied.endOffset)
         assertNotNull(applied.textAttributes?.backgroundColor)
-        assertFalse(applied.textAttributes?.effectType == com.intellij.openapi.editor.markup.EffectType.LINE_UNDERSCORE)
+        assertNotNull(applied.textAttributes?.effectColor)
+        assertEquals(com.intellij.openapi.editor.markup.EffectType.BOXED, applied.textAttributes?.effectType)
         highlight.show(editor, start, start + 9)
         assertEquals(initial.size + 1, editor.markupModel.allHighlighters.size)
         highlight.clear()
