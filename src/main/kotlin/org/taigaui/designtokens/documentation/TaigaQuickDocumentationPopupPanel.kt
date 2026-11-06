@@ -407,7 +407,8 @@ internal class TaigaQuickDocumentationPopupPanel(
         val hasApi =
             entity.entity.inputs.isNotEmpty() ||
                 entity.entity.outputs.isNotEmpty() ||
-                entity.entity.example != null
+                entity.entity.example != null ||
+                exampleState.isLoading
         if (fullApi) {
             val browser =
                 TaigaDocumentationApiBrowser(
@@ -435,8 +436,8 @@ internal class TaigaQuickDocumentationPopupPanel(
                             documentationApiList(entity, entity.entity.outputs, TaigaApiMemberKind.OUTPUT, actions),
                         )
                     }
-                    entity.entity.example?.let {
-                        exampleState.addTab(this, it.code.take(MAX_EXAMPLE_LENGTH))
+                    if (entity.entity.example != null || exampleState.isLoading) {
+                        exampleState.addTab(this, entity.entity.example?.code?.take(MAX_EXAMPLE_LENGTH).orEmpty())
                     }
                     addChangeListener { updateContentSize() }
                 },
@@ -446,7 +447,7 @@ internal class TaigaQuickDocumentationPopupPanel(
     }
 
     /** Complete current tab on EDT without rebuilding the popup or resetting selected inputs. */
-    internal fun finishExampleFormatting(code: String) = exampleState.finish(code.take(MAX_EXAMPLE_LENGTH))
+    internal fun finishExampleFormatting(code: String?) = exampleState.finish(code?.take(MAX_EXAMPLE_LENGTH))
 
     private fun memberContent(member: TaigaResolvedDocumentation.Member): JComponent =
         verticalPanel().apply {

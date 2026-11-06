@@ -13,6 +13,8 @@ internal class TaigaDocumentationExampleState(
     private var loading: Boolean,
     private val onSizeChanged: () -> Unit,
 ) {
+    val isLoading: Boolean get() = loading
+
     private var tabs: TaigaDocumentationTabs? = null
     private var tabIndex = -1
     private var standalone: JPanel? = null
@@ -39,17 +41,26 @@ internal class TaigaDocumentationExampleState(
             standalone = this
         }
 
-    fun finish(code: String) {
+    fun finish(code: String?) {
         if (!loading) return
         loading = false
         tabs?.takeIf { tabIndex in 0 until it.tabCount }?.let { owner ->
-            owner.setComponentAt(tabIndex, documentationExampleCodeBlock(code, 450))
-            owner.setEnabledAt(tabIndex, true)
-            owner.setTabComponentAt(tabIndex, null)
+            if (code.isNullOrBlank()) {
+                owner.removeTabAt(tabIndex)
+                if (owner.tabCount == 0) owner.isVisible = false
+            } else {
+                owner.setComponentAt(tabIndex, documentationExampleCodeBlock(code, 450))
+                owner.setEnabledAt(tabIndex, true)
+                owner.setTabComponentAt(tabIndex, null)
+            }
         }
         standalone?.let { container ->
             container.removeAll()
-            container.add(documentationExampleCodeBlock(code, 450), BorderLayout.CENTER)
+            if (code.isNullOrBlank()) {
+                container.isVisible = false
+            } else {
+                container.add(documentationExampleCodeBlock(code, 450), BorderLayout.CENTER)
+            }
         }
         onSizeChanged()
     }

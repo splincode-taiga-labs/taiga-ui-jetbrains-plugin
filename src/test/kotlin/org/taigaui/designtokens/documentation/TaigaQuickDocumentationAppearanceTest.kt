@@ -57,6 +57,40 @@ class TaigaQuickDocumentationAppearanceTest : TaigaDocumentationPopupTestCase() 
         )
     }
 
+    fun testFirstHoverShowsPendingExamplesUntilDocumentationArrives() {
+        val owner = directive()
+        val panel = TaigaQuickDocumentationPopupPanel(owner, exampleLoading = true)
+        val tabs = descendants(panel).filterIsInstance<JTabbedPane>().single()
+        val exampleIndex = tabs.indexOfTab("Examples")
+
+        assertTrue(exampleIndex >= 0)
+        assertFalse(tabs.isEnabledAt(exampleIndex))
+        assertTrue(descendants(panel).filterIsInstance<JProgressBar>().any { it.isIndeterminate })
+
+        panel.finishExampleFormatting("<button tuiButton>Save</button>")
+
+        assertTrue(tabs.isEnabledAt(exampleIndex))
+        tabs.selectedIndex = exampleIndex
+        assertTrue(
+            descendants(tabs.getComponentAt(exampleIndex)).filterIsInstance<JBLabel>().any {
+                it.accessibleContext.accessibleName == "<button tuiButton>Save</button>"
+            },
+        )
+    }
+
+    fun testAbsentExampleRemovesPendingTabWithoutBreakingInputs() {
+        val panel = TaigaQuickDocumentationPopupPanel(directive(), exampleLoading = true)
+        val tabs = descendants(panel).filterIsInstance<JTabbedPane>().single()
+        val selected = tabs.selectedIndex
+        assertTrue(tabs.indexOfTab("Examples") >= 0)
+
+        panel.finishExampleFormatting(null)
+
+        assertEquals(-1, tabs.indexOfTab("Examples"))
+        assertEquals(selected, tabs.selectedIndex)
+        assertTrue(tabs.getTitleAt(0).startsWith("Inputs"))
+    }
+
     fun testComponentAndDirectiveHoverShowFullApiWhileInputAndPipeStayCompact() {
         val directive = directive()
         val component = component()

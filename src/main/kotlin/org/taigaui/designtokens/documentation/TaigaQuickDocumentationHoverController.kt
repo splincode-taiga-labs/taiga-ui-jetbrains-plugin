@@ -418,7 +418,10 @@ internal class TaigaQuickDocumentationHoverController(
             val compactHover = view.isCompactHover(request.explicit)
             codeActions.prepareForView(request, resolved, compactHover)
             navigation.currentView = view
-            val exampleLoading = view.needsExampleFormatting(compactHover)
+            val awaitingDocumentation =
+                resolved is TaigaResolvedDocumentation.Entity &&
+                    project.service<TaigaDocsService>().cachedSnapshotFor(request.sourceFile) == null
+            val exampleLoading = view.needsExampleFormatting(compactHover, awaitingDocumentation)
 
             val panel =
                 TaigaQuickDocumentationPopupPanel(
@@ -650,14 +653,20 @@ internal class TaigaQuickDocumentationHoverController(
 
         exampleJob =
             coroutineScope.launch(Dispatchers.Default + CoroutineName("Taiga UI documentation example formatting")) {
-                val formatted = hoverResolver.formatExample(resolved, request.sourceFile)
+                val updated =
+                    if (resolved.entity.example == null) {
+                        project
+                            .service<TaigaDocsService>()
+                            .snapshotFor(request.sourceFile)
+                            ?.resolve(request.documentationRequest)
+                            ?: resolved
+                    } else {
+                        resolved
+                    }
+                val formatted = hoverResolver.formatExample(updated, request.sourceFile)
                 withContext(Dispatchers.EDT) {
                     if (popupContent === panel && activeKey == request.key && request.isStillCurrent(project)) {
-                        val code =
-                            formatted.entity.example
-                                ?.code
-                                .orEmpty()
-                        panel.finishExampleFormatting(code)
+                        panel.finishExampleFormatting(formatted.entity.example?.code)
                         navigation.currentView
                             ?.takeIf { it.resolved === resolved }
                             ?.let { navigation.currentView = it.copy(resolved = formatted) }
@@ -763,9 +772,15 @@ internal class TaigaQuickDocumentationHoverController(
     }
 }
 
-private fun TaigaDocumentationView.needsExampleFormatting(compactHover: Boolean): Boolean =
+private fun TaigaDocumentationView.needsExampleFormatting(
+    compactHover: Boolean,
+    awaitingDocumentation: Boolean,
+): Boolean =
     !compactHover &&
         !fullApi &&
-        resolved.entity.example
-            ?.language
-            ?.lowercase() == "html"
+        (
+            awaitingDocumentation ||
+                resolved.entity.example
+                    ?.language
+                    ?.lowercase() == "html"
+        )
