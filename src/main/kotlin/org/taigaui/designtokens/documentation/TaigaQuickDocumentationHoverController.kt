@@ -35,6 +35,7 @@ import kotlinx.coroutines.withContext
 import java.awt.Dimension
 import java.awt.Point
 import javax.swing.SwingUtilities
+import kotlin.time.Duration.Companion.milliseconds
 
 @Service(Service.Level.PROJECT)
 @Suppress("TooManyFunctions", "LargeClass")
@@ -654,33 +655,45 @@ internal class TaigaQuickDocumentationHoverController(
 
         exampleJob =
             coroutineScope.launch(Dispatchers.Default + CoroutineName("Taiga UI documentation example formatting")) {
-                val formatted =
-                    try {
-                        val updated =
-                            if (resolved.entity.example == null) {
-                                project
-                                    .service<TaigaDocsService>()
-                                    .snapshotFor(request.sourceFile)
-                                    ?.resolve(request.documentationRequest)
-                                    ?: resolved
-                            } else {
-                                resolved
-                            }
-                        hoverResolver.formatExample(updated, request.sourceFile)
-                    } catch (cancelled: CancellationException) {
-                        throw cancelled
-                    } catch (_: Exception) {
-                        // Prettier and remote documentation are optional; never strand the loading state.
-                        resolved
+                val progressJob =
+                    launch(Dispatchers.EDT) {
+                        delay(150.milliseconds)
+                        if (popupContent === panel && activeKey == request.key && request.isStillCurrent(project)) {
+                            panel.showExampleFormattingProgress()
+                        }
                     }
-                withContext(Dispatchers.EDT) {
-                    if (popupContent === panel && activeKey == request.key && request.isStillCurrent(project)) {
-                        panel.finishExampleFormatting(formatted.entity.example?.code)
-                        navigation.currentView
-                            ?.takeIf { it.resolved === resolved }
-                            ?.let { navigation.currentView = it.copy(resolved = formatted) }
-                        resizePopup()
+                try {
+                    val formatted =
+                        try {
+                            val updated =
+                                if (resolved.entity.example == null) {
+                                    project
+                                        .service<TaigaDocsService>()
+                                        .snapshotFor(request.sourceFile)
+                                        ?.resolve(request.documentationRequest)
+                                        ?: resolved
+                                } else {
+                                    resolved
+                                }
+                            hoverResolver.formatExample(updated)
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (_: Exception) {
+                            // Documentation formatting is optional. Always unblock the Examples tab.
+                            resolved
+                        }
+                    progressJob.cancel()
+                    withContext(Dispatchers.EDT) {
+                        if (popupContent === panel && activeKey == request.key && request.isStillCurrent(project)) {
+                            panel.finishExampleFormatting(formatted.entity.example?.code)
+                            navigation.currentView
+                                ?.takeIf { it.resolved === resolved }
+                                ?.let { navigation.currentView = it.copy(resolved = formatted) }
+                            resizePopup()
+                        }
                     }
+                } finally {
+                    progressJob.cancel()
                 }
             }
     }
