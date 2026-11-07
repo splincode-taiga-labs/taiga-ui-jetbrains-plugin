@@ -19,25 +19,28 @@ internal class TaigaDocumentationExampleFormatter(
     private val project: Project,
 ) {
     suspend fun format(resolved: TaigaResolvedDocumentation): TaigaResolvedDocumentation {
-        val example = resolved.entity.example ?: return resolved
-        if (example.language?.lowercase() != "html" || example.code.length > MAX_EXAMPLE_FORMAT_LENGTH) {
-            return resolved
-        }
-
-        val formatted =
-            withContext(Dispatchers.EDT) {
-                var result = example.code
-                WriteCommandAction.runWriteCommandAction(project) {
-                    result = formatInWriteAction(example.code)
-                }
-                result
+        val example =
+            resolved.entity.example?.takeIf {
+                it.language?.lowercase() == "html" && it.code.length <= MAX_EXAMPLE_FORMAT_LENGTH
             }
-        if (formatted == example.code) return resolved
-
-        val entity = resolved.entity.copy(example = example.copy(code = formatted))
-        return when (resolved) {
-            is TaigaResolvedDocumentation.Entity -> resolved.copy(entity = entity)
-            is TaigaResolvedDocumentation.Member -> resolved.copy(entity = entity)
+        val formatted =
+            example?.let {
+                withContext(Dispatchers.EDT) {
+                    var result = it.code
+                    WriteCommandAction.runWriteCommandAction(project) {
+                        result = formatInWriteAction(it.code)
+                    }
+                    result
+                }
+            }
+        return if (example == null || formatted == null || formatted == example.code) {
+            resolved
+        } else {
+            val entity = resolved.entity.copy(example = example.copy(code = formatted))
+            when (resolved) {
+                is TaigaResolvedDocumentation.Entity -> resolved.copy(entity = entity)
+                is TaigaResolvedDocumentation.Member -> resolved.copy(entity = entity)
+            }
         }
     }
 
@@ -78,11 +81,14 @@ internal class TaigaDocumentationExampleFormatter(
 internal fun documentationExamplePreservesContent(
     original: String,
     formatted: String,
-): Boolean {
-    if (original == formatted) return true
-    if (original.contains("<!--") || original.contains("<pre") || original.contains("<textarea")) return false
-    return documentationExampleTokens(original)?.let { it == documentationExampleTokens(formatted) } == true
-}
+): Boolean =
+    original == formatted ||
+        (
+            !original.contains("<!--") &&
+                !original.contains("<pre") &&
+                !original.contains("<textarea") &&
+                documentationExampleTokens(original)?.let { it == documentationExampleTokens(formatted) } == true
+        )
 
 private fun documentationExampleTokens(code: String): List<String>? {
     val tokens = mutableListOf<String>()
@@ -96,34 +102,41 @@ private fun documentationExampleTokens(code: String): List<String>? {
             continue
         }
 
-        val tag = StringBuilder()
-        var quote: Char? = null
-        var end = -1
-        for (position in index until code.length) {
-            val char = code[position]
-            when {
-                quote != null -> {
-                    tag.append(char)
-                    if (char == quote) quote = null
-                }
-                char == '"' || char == '\'' -> {
-                    quote = char
-                    tag.append(char)
-                }
-                char == '>' -> {
-                    tag.append(char)
-                    end = position
-                    break
-                }
-                !char.isWhitespace() -> tag.append(char)
-            }
-        }
-        if (end == -1) return null
-        tokens.add("tag:" + tag)
-        index = end + 1
+        val tag = documentationExampleTag(code, index) ?: return null
+        tokens.add(tag.first)
+        index = tag.second + 1
     }
 
     return tokens
+}
+
+private fun documentationExampleTag(
+    code: String,
+    start: Int,
+): Pair<String, Int>? {
+    val tag = StringBuilder()
+    var quote: Char? = null
+    var end = -1
+    for (position in start until code.length) {
+        val char = code[position]
+        when {
+            quote != null -> {
+                tag.append(char)
+                if (char == quote) quote = null
+            }
+            char == '"' || char == '\'' -> {
+                quote = char
+                tag.append(char)
+            }
+            char == '>' -> {
+                tag.append(char)
+                end = position
+                break
+            }
+            !char.isWhitespace() -> tag.append(char)
+        }
+    }
+    return if (end < 0) null else ("tag:" + tag) to end
 }
 
 private const val MAX_EXAMPLE_FORMAT_LENGTH = 4_000
