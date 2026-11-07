@@ -439,32 +439,7 @@ internal class TaigaQuickDocumentationHoverController(
                     exampleLoading = exampleLoading,
                 )
             if (!reuseHoverPopup(request, panel)) {
-                val host = TaigaDocumentationPopupHost(panel, stabilizesHoverSize = !request.explicit && !pinned)
-                val createdPopup =
-                    createTaigaDocumentationPopup(
-                        project,
-                        host,
-                        panel.preferredFocus,
-                        requestFocus,
-                        request.explicit,
-                        pinned,
-                    ) {
-                        currentRequest?.documentationTargetScreenBounds() ?: request.documentationTargetScreenBounds()
-                    }
-                registerPopupCleanup(createdPopup)
-                popup = createdPopup
-                popupContent = panel
-                popupHost = host
-                createdPopup.showTaigaDocumentationPopup(
-                    panel,
-                    request.editor,
-                    request.documentationTargetScreenBounds(),
-                    request.popupPlacement(host.preferredSize),
-                    pinnedSize,
-                    pinnedLocation,
-                    pinned,
-                    request.explicit,
-                )
+                showNewDocumentationPopup(request, panel, requestFocus)
             }
             panel.restoreScrollPosition(view.scrollPosition)
             request.completePresentation(panel, refreshInProgress)
@@ -641,6 +616,39 @@ internal class TaigaQuickDocumentationHoverController(
         val next = navigation.visit(view, popupContent?.scrollPosition)
         hidePopup(restoreNativeHover = false)
         showView(request, next)
+    }
+
+    private fun showNewDocumentationPopup(
+        request: TaigaQuickDocumentationHoverRequest,
+        panel: TaigaQuickDocumentationPopupPanel,
+        requestFocus: Boolean,
+    ) {
+        val host = TaigaDocumentationPopupHost(panel, stabilizesHoverSize = !request.explicit && !pinned)
+        val createdPopup =
+            createTaigaDocumentationPopup(
+                project,
+                host,
+                panel.preferredFocus,
+                requestFocus,
+                request.explicit,
+                pinned,
+            ) {
+                currentRequest?.documentationTargetScreenBounds() ?: request.documentationTargetScreenBounds()
+            }
+        registerPopupCleanup(createdPopup)
+        popup = createdPopup
+        popupContent = panel
+        popupHost = host
+        createdPopup.showTaigaDocumentationPopup(
+            panel,
+            request.editor,
+            request.documentationTargetScreenBounds(),
+            request.popupPlacement(host.preferredSize),
+            pinnedSize,
+            pinnedLocation,
+            pinned,
+            request.explicit,
+        )
     }
 
     private fun startExampleFormatting(
