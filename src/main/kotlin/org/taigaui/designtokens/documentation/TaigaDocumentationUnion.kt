@@ -81,7 +81,7 @@ internal fun cleanDocumentationType(type: String): String {
     return STRAY_SIMPLE_TYPE_PARENTHESIS.matchEntire(trimmed)?.groupValues?.get(1) ?: trimmed
 }
 
-private val STRAY_SIMPLE_TYPE_PARENTHESIS = Regex("""^([A-Za-z_$][\\w$]*(?:\\.[A-Za-z_$][\\w$]*)*)\\)+$""")
+private val STRAY_SIMPLE_TYPE_PARENTHESIS = Regex("""^([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\)+$""")
 
 private val SIMPLE_DOCUMENTATION_TYPE =
     Regex("""(?:[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*|["'][^"']*["']|-?\d+(?:\.\d+)?)""")
