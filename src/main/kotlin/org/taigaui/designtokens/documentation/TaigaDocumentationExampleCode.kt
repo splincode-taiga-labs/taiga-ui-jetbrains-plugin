@@ -17,7 +17,7 @@ internal fun documentationExampleCodeBlock(
         layout = BorderLayout(JBUI.scale(8), 0)
         border = JBUI.Borders.empty(9, 10)
         alignmentX = JComponent.LEFT_ALIGNMENT
-        val formatted = formattedDocumentationExample(code)
+        val formatted = code
         val label =
             JBLabel("<html><pre>${documentationCodeHtml(formatted)}</pre></html>").apply {
                 font = taigaDocumentationCodeFont()
