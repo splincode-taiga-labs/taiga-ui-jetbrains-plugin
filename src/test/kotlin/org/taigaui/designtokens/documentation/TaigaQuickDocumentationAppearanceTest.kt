@@ -4,7 +4,7 @@ import com.intellij.openapi.editor.colors.EditorColorsManager
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
-import java.nio.file.Path
+import com.intellij.openapi.command.WriteCommandAction
 import javax.swing.JProgressBar
 import javax.swing.JScrollPane
 import javax.swing.JTabbedPane
@@ -35,7 +35,10 @@ class TaigaQuickDocumentationAppearanceTest : TaigaDocumentationPopupTestCase() 
 
         assertTrue(index >= 0)
         assertFalse(tabs.isEnabledAt(index))
-        assertEquals("Formatting Examples", tabs.getTabComponentAt(index).accessibleContext.accessibleName)
+        assertNull(tabs.getTabComponentAt(index))
+        assertFalse(descendants(panel).filterIsInstance<JProgressBar>().any { it.isIndeterminate })
+        panel.showExampleFormattingProgress()
+        assertEquals("Examples: formatting in progress", tabs.getTabComponentAt(index).accessibleContext.accessibleName)
         assertTrue(descendants(panel).filterIsInstance<JProgressBar>().any { it.isIndeterminate })
 
         val formatted =
@@ -65,6 +68,8 @@ class TaigaQuickDocumentationAppearanceTest : TaigaDocumentationPopupTestCase() 
 
         assertTrue(exampleIndex >= 0)
         assertFalse(tabs.isEnabledAt(exampleIndex))
+        assertNull(tabs.getTabComponentAt(exampleIndex))
+        panel.showExampleFormattingProgress()
         assertTrue(descendants(panel).filterIsInstance<JProgressBar>().any { it.isIndeterminate })
 
         panel.finishExampleFormatting("<button tuiButton>Save</button>")
@@ -179,44 +184,30 @@ class TaigaQuickDocumentationAppearanceTest : TaigaDocumentationPopupTestCase() 
         assertEquals(JScrollPane.VERTICAL_SCROLLBAR_NEVER, codeScroll.verticalScrollBarPolicy)
     }
 
-    fun testProjectPrettierFormatsHtmlPreviewOnceWithoutMutatingSnapshot() {
+    fun testNativeFormatterFormatsInMemoryWithoutMutatingEditorOrDocumentation() {
         val code = "<div><b>Save</b></div>"
         val owner = directive()
         val original = owner.copy(entity = owner.entity.copy(example = TaigaExample("html", code)))
-        var calls = 0
-        val formatter =
-            TaigaDocumentationExamplePrettier(
-                commandFor = { listOf("prettier") },
-                run = { _, _ ->
-                    calls++
-                    "<div>\n    <b>Save</b>\n</div>\n"
-                },
-            )
+        myFixture.configureByText("example.component.html", code)
+        val originalDocument = myFixture.editor.document.text
+        var formatted = ""
+        WriteCommandAction.runWriteCommandAction(project) {
+            formatted = TaigaDocumentationExampleFormatter(project).formatInWriteAction(code)
+        }
 
-        val first = formatter.format(original, Path.of("/project/src/example.html"))
-        val second = formatter.format(original, Path.of("/project/src/example.html"))
-        assertEquals(1, calls)
-        assertEquals("<div>\n    <b>Save</b>\n</div>", first.entity.example?.code)
-        assertEquals(first.entity.example, second.entity.example)
+        assertEquals(originalDocument, myFixture.editor.document.text)
         assertEquals(code, original.entity.example?.code)
+        assertTrue(documentationExamplePreservesContent(code, formatted))
     }
 
-    fun testMissingPrettierFallsBackAndOtherLanguagesAreUntouched() {
-        var calls = 0
-        val formatter =
-            TaigaDocumentationExamplePrettier(
-                commandFor = { null },
-                run = { _, _ ->
-                    calls++
-                    "formatted"
-                },
-            )
-        val original = directive()
-        val html = original.copy(entity = original.entity.copy(example = TaigaExample("html", "<div></div>")))
-        val typescript = original.copy(entity = original.entity.copy(example = TaigaExample("ts", "const n=1")))
-        assertSame(html, formatter.format(html, Path.of("/project/src/file.html")))
-        assertSame(typescript, formatter.format(typescript, Path.of("/project/src/file.ts")))
-        assertEquals(0, calls)
+    fun testNativeFormatterFallsBackWhenAngularMarkupIsIncomplete() {
+        val source = "<button tuiButton [disabled]=\"count > 2\""
+        var formatted = ""
+        WriteCommandAction.runWriteCommandAction(project) {
+            formatted = TaigaDocumentationExampleFormatter(project).formatInWriteAction(source)
+        }
+
+        assertEquals(source, formatted)
     }
 
     fun testReferenceCardsInBothThemesKeepEditingSecondaryAndTsApiExplicit() {
