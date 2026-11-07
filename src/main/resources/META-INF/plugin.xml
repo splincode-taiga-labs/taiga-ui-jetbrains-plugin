@@ -3,68 +3,7 @@
     <name>Taiga xUI Community</name>
     <vendor url="https://github.com/splincode">splincode</vendor>
 
-    <description><![CDATA[
-        <p>
-            <strong>Taiga xUI Community</strong> is an independent community plugin for Taiga UI projects.
-            It brings project-aware design tokens, icons, CSS units, and event-plugin tooling directly into the editor.
-        </p>
-
-        <p>
-            Instead of shipping a fixed catalog, the plugin reads the Taiga UI packages installed in the current project
-            and combines them with reachable project styles. Completion and previews therefore match the version and overrides
-            that the project actually uses.
-        </p>
-
-        <h3>Features</h3>
-        <ul>
-            <li>
-                <strong>Design token completion</strong> for CSS, Less, and SCSS <code>var(--tui-...)</code> references,
-                with resolved values, color previews, reference chains, and source navigation.
-            </li>
-            <li>
-                <strong>Project-aware overrides</strong> so local token declarations are shown alongside installed-package values
-                and the effective value is easy to understand.
-            </li>
-            <li>
-                <strong>Token inspections and quick fixes</strong> for unknown and explicitly deprecated Taiga UI tokens.
-            </li>
-            <li>
-                <strong><code>@tui.*</code> icon completion and preview</strong> in JavaScript, TypeScript, HTML, and Angular templates,
-                using the icon packages available in the current project.
-            </li>
-            <li>
-                <strong><code>rem</code> to <code>px</code> inlay hints</strong> for CSS, Less, SCSS, Angular component styles,
-                and numeric Angular <code>.rem</code> style bindings.
-            </li>
-            <li>
-                <strong>Taiga UI event-plugin support</strong> in Angular templates and TypeScript host metadata,
-                including completion, validation, duplicate/unknown modifier inspections, and hover documentation.
-            </li>
-        </ul>
-
-        <h3>Getting started</h3>
-        <p>
-            Install the plugin, open a project that uses Taiga UI, and let WebStorm finish indexing.
-            No separate token catalog or manual synchronization is required.
-        </p>
-        <ul>
-            <li>Type <code>var(--tui-</code> in CSS, Less, or SCSS to explore available design tokens.</li>
-            <li>Hover a complete token reference to inspect resolved values and where they come from.</li>
-            <li>Type <code>@tui.</code> in supported JavaScript, TypeScript, HTML, or Angular contexts to browse icons.</li>
-            <li>Open <strong>Settings → Tools → Taiga UI</strong> to configure editor presentation features.</li>
-        </ul>
-
-        <h3>About the project</h3>
-        <p>
-            The plugin is developed in the open by <strong>splincode-taiga-labs</strong> as an independent community project
-            focused on improving the developer experience around Taiga UI in JetBrains IDEs.
-        </p>
-        <p>
-            This is an independent community project, not affiliated with or endorsed by Taiga UI, Pineopticone, or T-Bank.
-            Source code, issue tracking, and contributions are available on
-            <a href="https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin">GitHub</a>.
-        </p>
-    ]]></description>
+    <!-- The description is generated from README.md by Gradle patchPluginXml. -->
 
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.json</depends>

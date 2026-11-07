@@ -84,6 +84,9 @@ jobs:
             - name: Install root npm fixture
               run: npm ci
 
+            - name: Check repository formatting (Prettier)
+              run: npm run format:check
+
             - name: Install Taiga UI version workspaces
               run: npm run install:fixtures --prefix test-fixtures
 
