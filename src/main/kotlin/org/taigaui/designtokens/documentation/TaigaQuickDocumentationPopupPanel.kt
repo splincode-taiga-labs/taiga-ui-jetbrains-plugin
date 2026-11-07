@@ -81,6 +81,7 @@ internal class TaigaQuickDocumentationPopupPanel(
     private var pinButton: JButton? = null
     private val sourceButtons = mutableListOf<JButton>()
     private var bindingPanel: TaigaDocumentationBindingPanel? = null
+    private var usageRow: JPanel? = null
     private val contextStatus = verticalPanel()
     private var contextMessage: String? = null
     private var refreshButton: JButton? = null
@@ -400,7 +401,7 @@ internal class TaigaQuickDocumentationPopupPanel(
             addIconPreviews(previewContent, previews)
             content.add(previewContent)
         }
-        documentationSummaryUsage(entity)?.let { content.add(documentationRow("Usage", documentationCodeBlock(it))) }
+        if (entity.entity.example == null) addUsage(content, entity)
         entity.canonicalImport()?.let {
             content.add(documentationRow("Import", documentationCodeBlock(it)))
         }
@@ -452,6 +453,33 @@ internal class TaigaQuickDocumentationPopupPanel(
         addTemplateActions(secondaryContent, entity)
     }
 
+    private fun addUsage(
+        target: JPanel,
+        documentation: TaigaResolvedDocumentation,
+    ) {
+        documentationSummaryUsage(documentation)?.let { usage ->
+            usageRow =
+                documentationRow("Usage", documentationExampleCodeBlock(formattedDocumentationExample(usage), 450))
+                    .also(target::add)
+        }
+    }
+
+    internal fun finishUsageFormatting(
+        code: String?,
+        suppress: Boolean = false,
+    ) {
+        val row = usageRow ?: return
+        if (suppress) {
+            row.parent?.remove(row)
+            usageRow = null
+        } else {
+            code?.takeIf(String::isNotBlank)?.let { formatted ->
+                row.add(documentationExampleCodeBlock(formatted.take(MAX_EXAMPLE_LENGTH), 450), BorderLayout.CENTER)
+            }
+        }
+        updateContentSize()
+    }
+
     /** Complete current tab on EDT without rebuilding the popup or resetting selected inputs. */
     internal fun showExampleFormattingProgress() = exampleState.showProgress()
 
@@ -467,7 +495,7 @@ internal class TaigaQuickDocumentationPopupPanel(
             bindingPanel =
                 TaigaDocumentationBindingPanel(member, actions.applyValue, actions.currentValue, ::updateContentSize)
             addMemberFacts(this, member)
-            documentationSummaryUsage(member)?.let { add(documentationRow("Usage", documentationCodeBlock(it))) }
+            addUsage(this, member)
             bindingPanel?.let {
                 add(it)
                 if (it.editorContent.componentCount > 0) secondaryContent.add(it.editorContent)
