@@ -62,7 +62,7 @@ internal fun documentationTypeTokens(type: String): List<String> {
     val alternatives = documentationUnionAlternatives(type)
     if (alternatives.isNotEmpty()) return alternatives.filterNot(::isDocumentationOmission)
 
-    val single = type.trim()
+    val single = cleanDocumentationType(type)
     return if (!isDocumentationOmission(single) && SIMPLE_DOCUMENTATION_TYPE.matches(single)) {
         listOf(single)
     } else {
@@ -74,6 +74,14 @@ internal fun documentationHasOmittedValues(type: String): Boolean =
     documentationUnionAlternatives(type).any(::isDocumentationOmission)
 
 private fun isDocumentationOmission(value: String): Boolean = value == "..." || value == "…"
+
+/** Strip a stray closing parenthesis from a simple IDE-extracted type, never from a function type. */
+internal fun cleanDocumentationType(type: String): String {
+    val trimmed = type.trim()
+    return STRAY_SIMPLE_TYPE_PARENTHESIS.matchEntire(trimmed)?.groupValues?.get(1) ?: trimmed
+}
+
+private val STRAY_SIMPLE_TYPE_PARENTHESIS = Regex("""^([A-Za-z_$][\\w$]*(?:\\.[A-Za-z_$][\\w$]*)*)\\)+$""")
 
 private val SIMPLE_DOCUMENTATION_TYPE =
     Regex("""(?:[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*|["'][^"']*["']|-?\d+(?:\.\d+)?)""")
