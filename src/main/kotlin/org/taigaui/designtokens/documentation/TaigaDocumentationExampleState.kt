@@ -18,6 +18,7 @@ internal class TaigaDocumentationExampleState(
     private var tabs: TaigaDocumentationTabs? = null
     private var tabIndex = -1
     private var standalone: JPanel? = null
+    private var progressVisible = false
 
     fun addTab(
         owner: TaigaDocumentationTabs,
@@ -27,10 +28,7 @@ internal class TaigaDocumentationExampleState(
         owner.addTab("Examples", content(code))
         tabs = owner
         tabIndex = index
-        if (loading) {
-            owner.setEnabledAt(index, false)
-            owner.setTabComponentAt(index, progressTab())
-        }
+        if (loading) owner.setEnabledAt(index, false)
     }
 
     fun standalone(code: String): JPanel =
@@ -40,6 +38,17 @@ internal class TaigaDocumentationExampleState(
             add(content(code), BorderLayout.CENTER)
             standalone = this
         }
+
+    fun showProgress() {
+        if (!loading || progressVisible) return
+        progressVisible = true
+        tabs?.takeIf { tabIndex in 0 until it.tabCount }?.setTabComponentAt(tabIndex, progressTab())
+        standalone?.let { container ->
+            container.removeAll()
+            container.add(progressContent(), BorderLayout.CENTER)
+        }
+        onSizeChanged()
+    }
 
     fun finish(code: String?) {
         if (!loading) return
@@ -66,7 +75,11 @@ internal class TaigaDocumentationExampleState(
     }
 
     private fun content(code: String): JComponent =
-        if (loading) progressContent() else documentationExampleCodeBlock(code, 450)
+        if (loading) {
+            JPanel().apply { isOpaque = false }
+        } else {
+            documentationExampleCodeBlock(code, 450)
+        }
 
     private fun progressTab(): JPanel =
         JPanel(FlowLayout(FlowLayout.LEFT, JBUI.scale(6), 0)).apply {
