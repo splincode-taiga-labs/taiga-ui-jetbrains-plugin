@@ -1,76 +1,45 @@
 package org.taigaui.designtokens.documentation
 
-import com.intellij.ide.highlighter.HtmlFileType
-import com.intellij.openapi.application.EDT
-import com.intellij.openapi.command.WriteCommandAction
-import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.project.Project
-import com.intellij.psi.PsiFileFactory
-import com.intellij.psi.codeStyle.CodeStyleManager
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.nio.file.Path
 
 /**
- * Formats an isolated HTML PSI copy using WebStorm's own code style.
- * Never creates a physical file, runs a Node process, or modifies the user's template.
+ * Presentation-only HTML formatter. Uses project-local Prettier when available,
+ * otherwise wraps attributes using a safe, deterministic fallback.
  */
 internal class TaigaDocumentationExampleFormatter(
-    private val project: Project,
+    @Suppress("UNUSED_PARAMETER") project: Project,
+    private val prettier: TaigaDocumentationExamplePrettier = TaigaDocumentationExamplePrettier(),
 ) {
-    suspend fun format(resolved: TaigaResolvedDocumentation): TaigaResolvedDocumentation {
-        val example =
-            resolved.entity.example?.takeIf {
-                it.language?.lowercase() == "html" && it.code.length <= MAX_EXAMPLE_FORMAT_LENGTH
-            }
-        val formatted =
-            example?.let {
-                withContext(Dispatchers.EDT) {
-                    var result = it.code
-                    WriteCommandAction.runWriteCommandAction(project) {
-                        result = formatInWriteAction(it.code)
-                    }
-                    result
+    suspend fun format(
+        resolved: TaigaResolvedDocumentation,
+        sourceFile: Path,
+    ): TaigaResolvedDocumentation =
+        withContext(Dispatchers.IO) {
+            val example = resolved.entity.example
+            val nextExample =
+                example?.takeIf { it.language?.lowercase() == "html" }
+                    ?.let { it.copy(code = prettier.format(it.code, sourceFile)) }
+                    ?: example
+            val nextUsage =
+                resolved.usage?.takeIf { it.trimStart().startsWith('<') }
+                    ?.let { prettier.format(it, sourceFile) }
+                    ?: resolved.usage
+            if (example == nextExample && resolved.usage == nextUsage) {
+                resolved
+            } else {
+                val entity = resolved.entity.copy(example = nextExample)
+                when (resolved) {
+                    is TaigaResolvedDocumentation.Entity -> resolved.copy(entity = entity, usage = nextUsage)
+                    is TaigaResolvedDocumentation.Member -> resolved.copy(entity = entity, usage = nextUsage)
                 }
             }
-        return if (example == null || formatted == null || formatted == example.code) {
-            resolved
-        } else {
-            val entity = resolved.entity.copy(example = example.copy(code = formatted))
-            when (resolved) {
-                is TaigaResolvedDocumentation.Entity -> resolved.copy(entity = entity)
-                is TaigaResolvedDocumentation.Member -> resolved.copy(entity = entity)
-            }
         }
-    }
 
-    /** Call only inside a write command on EDT; exposed for real WebStorm formatter tests. */
-    internal fun formatInWriteAction(source: String): String {
-        if (source.isBlank() || source.length > MAX_EXAMPLE_FORMAT_LENGTH) return source
-
-        return try {
-            val copy =
-                PsiFileFactory.getInstance(project).createFileFromText(
-                    "TaigaExample.component.html",
-                    HtmlFileType.INSTANCE,
-                    source,
-                )
-            val candidate = CodeStyleManager.getInstance(project).reformat(copy, true).text
-
-            candidate.takeIf { text ->
-                text.isNotBlank() &&
-                    text.length <= MAX_FORMATTED_EXAMPLE_LENGTH &&
-                    documentationExamplePreservesContent(source, text)
-            } ?: source
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (cancelled: ProcessCanceledException) {
-            throw cancelled
-        } catch (_: Exception) {
-            // A documentation preview must remain available even if native formatting fails.
-            source
-        }
-    }
+    /** Synchronous fallback for initial preview before optional background Prettier finishes. */
+    internal fun formatInWriteAction(source: String): String = formattedDocumentationExample(source)
 }
 
 /**
