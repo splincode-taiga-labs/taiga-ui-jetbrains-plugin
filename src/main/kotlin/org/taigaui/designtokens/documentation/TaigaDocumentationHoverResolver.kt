@@ -27,15 +27,10 @@ internal class TaigaDocumentationHoverResolver(
             .expireWhen { isCancelled() || candidate.editor.isDisposed }
             .executeSynchronously()
 
-    private val examplePrettier = TaigaDocumentationExamplePrettier()
+    private val exampleFormatter = TaigaDocumentationExampleFormatter(project)
 
-    suspend fun formatExample(
-        resolved: TaigaResolvedDocumentation,
-        sourceFile: java.nio.file.Path,
-    ): TaigaResolvedDocumentation =
-        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            examplePrettier.format(resolved, sourceFile)
-        }
+    suspend fun formatExample(resolved: TaigaResolvedDocumentation): TaigaResolvedDocumentation =
+        exampleFormatter.format(resolved)
 
     suspend fun loadDocumentation(
         request: TaigaQuickDocumentationHoverRequest?,
