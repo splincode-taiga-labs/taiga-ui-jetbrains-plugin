@@ -11,17 +11,10 @@ import javax.swing.JTabbedPane
 import kotlin.time.Duration.Companion.milliseconds
 
 class TaigaQuickDocumentationPresentationRegressionTest : TaigaDocumentationPopupTestCase() {
-    fun testFlattenedButtonExampleGetsAttributeIndentationWithoutSplittingQuotedExpressions() {
+    fun testExamplesPreviewPreservesTheProvidedSource() {
         val code =
             """<button tuiButton type="button" [disabled]="count > 2" """ +
                 """[size]="size" [iconEnd]="icons.iconEnd"> Button </button>"""
-        val formatted = formattedDocumentationExample(code)
-        assertTrue(formatted.startsWith("<button\n    tuiButton\n    type=\"button\""))
-        assertTrue(formatted.contains("    [disabled]=\"count > 2\"\n"))
-        assertTrue(formatted.endsWith(">\n    Button\n</button>"))
-        assertEquals(formatted, formattedDocumentationExample(formatted))
-        val nested = """<button tuiButton [size]="size"><span>Save</span></button>"""
-        assertEquals(nested, formattedDocumentationExample(nested))
         val owner = directive()
         val panel =
             TaigaQuickDocumentationPopupPanel(
@@ -29,7 +22,9 @@ class TaigaQuickDocumentationPresentationRegressionTest : TaigaDocumentationPopu
             )
         val tabs = descendants(panel).filterIsInstance<JTabbedPane>().single()
         tabs.selectedIndex = tabs.indexOfTab("Examples")
-        renderAndSave(panel, "formatted-button-example")
+
+        assertTrue(descendants(panel).any { it.accessibleContext?.accessibleName == code })
+        renderAndSave(panel, "native-button-example")
     }
 
     fun testExamplesTabShowsFormattingProgressUntilExampleIsReady() {
@@ -45,6 +40,8 @@ class TaigaQuickDocumentationPresentationRegressionTest : TaigaDocumentationPopu
 
         assertTrue(index >= 0)
         assertFalse(tabs.isEnabledAt(index))
+        assertNull("Short formatting should not flash a progress bar", tabs.getTabComponentAt(index))
+        panel.showExampleFormattingProgress()
         val loadingTab = requireNotNull(tabs.getTabComponentAt(index))
         assertTrue(descendants(loadingTab).filterIsInstance<JProgressBar>().any { it.isIndeterminate })
         assertTrue(labelText(loadingTab).contains("Formatting"))
@@ -57,6 +54,8 @@ class TaigaQuickDocumentationPresentationRegressionTest : TaigaDocumentationPopu
         tabs.selectedIndex = index
         assertTrue(labelText(tabs.getComponentAt(index)).contains("Ready"))
         assertFalse(labelText(tabs.getComponentAt(index)).contains("Formatting"))
+        panel.showExampleFormattingProgress()
+        assertNull(tabs.getTabComponentAt(index))
     }
 
     fun testExamplesPlaceholderDisappearsIfDocumentationHasNoExample() {
