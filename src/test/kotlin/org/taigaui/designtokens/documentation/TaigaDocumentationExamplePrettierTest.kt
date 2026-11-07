@@ -38,7 +38,6 @@ class TaigaDocumentationExamplePrettierTest {
         assertEquals(expected, prettier.format(icon, sourceFile))
         assertEquals(expected, prettier.format(icon, sourceFile))
         assertEquals(1, calls)
-        assertEquals(icon, icon)
     }
 
     @Test
@@ -78,7 +77,10 @@ class TaigaDocumentationExamplePrettierTest {
         assertTrue(result.contains("[title]=\"'a > b'\""))
         assertTrue(result.contains("(click)=\"save('a b')\""))
         assertTrue(result.endsWith(">Save</button>"))
-        assertEquals("@if (ready) { <span>Ready</span> }", formattedDocumentationExample("@if (ready) { <span>Ready</span> }"))
+        assertEquals(
+            "@if (ready) { <span>Ready</span> }",
+            formattedDocumentationExample("@if (ready) { <span>Ready</span> }"),
+        )
         assertEquals("<button [size]=\"size\"", formattedDocumentationExample("<button [size]=\"size\""))
     }
 
