@@ -4,6 +4,7 @@ package org.taigaui.designtokens.documentation
  * Deterministic fallback when project-local Prettier is absent or cannot format an example.
  * Wraps attributes of one opening HTML tag without modifying bindings, text nodes or nesting.
  */
+@Suppress("ReturnCount")
 internal fun formattedDocumentationExample(code: String): String {
     if (code.length > MAX_CUSTOM_EXAMPLE_LENGTH || '\n' in code) return code
     val match = OPENING_TAG.find(code) ?: return code
