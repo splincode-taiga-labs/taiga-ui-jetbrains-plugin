@@ -1,10 +1,10 @@
 package org.taigaui.designtokens.documentation
 
+import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.colors.EditorColorsManager
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
-import com.intellij.openapi.command.WriteCommandAction
 import javax.swing.JProgressBar
 import javax.swing.JScrollPane
 import javax.swing.JTabbedPane
