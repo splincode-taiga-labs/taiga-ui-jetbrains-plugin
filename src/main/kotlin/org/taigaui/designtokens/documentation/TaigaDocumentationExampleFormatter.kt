@@ -108,5 +108,3 @@ private fun documentationExampleTag(
     return if (end < 0) null else ("tag:" + tag) to end
 }
 
-private const val MAX_EXAMPLE_FORMAT_LENGTH = 4_000
-private const val MAX_FORMATTED_EXAMPLE_LENGTH = 12_000
