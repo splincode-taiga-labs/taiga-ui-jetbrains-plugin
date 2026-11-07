@@ -1,14 +1,15 @@
 package org.taigaui.designtokens.documentation
 
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import com.intellij.ui.components.JBLabel
 
 class TaigaQuickDocumentationUsageTest : BasePlatformTestCase() {
-    fun testShortFlattenedExampleIsFormattedWithoutChangingMarkup() {
+    fun testUsageCodeBlockPreservesMarkupWithoutReformatting() {
         val source = "<button tuiButton size=\"m\" appearance=\"primary\">Save</button>"
-        assertEquals(
-            "<button\n    tuiButton\n    size=\"m\"\n    appearance=\"primary\"\n>\n    Save\n</button>",
-            formattedDocumentationExample(source),
-        )
+        val codeBlock = documentationCodeBlock(source)
+        val label = codeBlock.components.filterIsInstance<JBLabel>().single()
+
+        assertEquals(source, label.accessibleContext.accessibleName)
     }
 
     fun testUsageChoosesOnlyTheSelectorMatchingTheActualHostTag() {
