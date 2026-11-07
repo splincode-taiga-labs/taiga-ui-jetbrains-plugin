@@ -73,7 +73,7 @@ internal fun documentationCodeBlock(
         layout = BorderLayout(JBUI.scale(8), 0)
         border = JBUI.Borders.empty(9, 10)
         alignmentX = JComponent.LEFT_ALIGNMENT
-        add(documentationCodeLabel(formattedDocumentationExample(code), width), BorderLayout.CENTER)
+        add(documentationCodeLabel(code, width), BorderLayout.CENTER)
     }
 
 /** Inline counterpart of the Swing chips for native Quick Documentation. */
