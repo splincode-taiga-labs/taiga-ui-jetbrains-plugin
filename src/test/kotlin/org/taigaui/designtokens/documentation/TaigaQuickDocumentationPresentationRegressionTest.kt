@@ -46,26 +46,46 @@ class TaigaQuickDocumentationPresentationRegressionTest : TaigaDocumentationPopu
         val tabs = descendants(panel).filterIsInstance<JTabbedPane>().single()
 
         assertFalse(descendants(panel).filterIsInstance<JBLabel>().any { it.text == "Usage" })
-        assertEquals(2, descendants(panel).filterIsInstance<JBLabel>().count { it.accessibleContext.accessibleName == "string" })
+        assertEquals(
+            2,
+            descendants(panel)
+                .filterIsInstance<JBLabel>()
+                .count { label ->
+                    label.accessibleContext.accessibleName == "string"
+                },
+        )
         assertTrue(tabs.indexOfTab("Examples") >= 0)
 
         panel.finishExampleFormatting(formattedDocumentationExample(code))
         tabs.selectedIndex = tabs.indexOfTab("Examples")
         val expected = formattedDocumentationExample(code)
-        assertTrue(descendants(tabs).filterIsInstance<JBLabel>().any { it.accessibleContext.accessibleName == expected })
+        assertTrue(
+            descendants(tabs)
+                .filterIsInstance<JBLabel>()
+                .any { label ->
+                    label.accessibleContext.accessibleName == expected
+                },
+        )
     }
 
     fun testMemberUsageUsesSameFormattedCodeBlockAsExamples() {
         val owner = directive()
         val source = """<button tuiButton [size]="size" [appearance]="appearance">Save</button>"""
         val member =
-            owner.focusedMember(owner.entity.inputs.first(), TaigaApiMemberKind.INPUT)
+            owner
+                .focusedMember(owner.entity.inputs.first(), TaigaApiMemberKind.INPUT)
                 .copy(usage = source)
         val panel = TaigaQuickDocumentationPopupPanel(member)
         val expected = formattedDocumentationExample(source)
 
         assertTrue(descendants(panel).filterIsInstance<JBLabel>().any { it.text == "Usage" })
-        assertTrue(descendants(panel).filterIsInstance<JBLabel>().any { it.accessibleContext.accessibleName == expected })
+        assertTrue(
+            descendants(panel)
+                .filterIsInstance<JBLabel>()
+                .any { label ->
+                    label.accessibleContext.accessibleName == expected
+                },
+        )
         assertTrue(descendants(panel).filterIsInstance<JBLabel>().any { it.text?.contains("<pre>") == true })
     }
 
