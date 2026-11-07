@@ -29,8 +29,10 @@ internal class TaigaDocumentationHoverResolver(
 
     private val exampleFormatter = TaigaDocumentationExampleFormatter(project)
 
-    suspend fun formatExample(resolved: TaigaResolvedDocumentation): TaigaResolvedDocumentation =
-        exampleFormatter.format(resolved)
+    suspend fun formatExample(
+        resolved: TaigaResolvedDocumentation,
+        sourceFile: java.nio.file.Path,
+    ): TaigaResolvedDocumentation = exampleFormatter.format(resolved, sourceFile)
 
     suspend fun loadDocumentation(
         request: TaigaQuickDocumentationHoverRequest?,
