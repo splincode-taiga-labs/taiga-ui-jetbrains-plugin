@@ -437,7 +437,13 @@ internal class TaigaQuickDocumentationPopupPanel(
                         )
                     }
                     if (entity.entity.example != null || exampleState.isLoading) {
-                        exampleState.addTab(this, entity.entity.example?.code?.take(MAX_EXAMPLE_LENGTH).orEmpty())
+                        exampleState.addTab(
+                            this,
+                            entity.entity.example
+                                ?.code
+                                ?.take(MAX_EXAMPLE_LENGTH)
+                                .orEmpty(),
+                        )
                     }
                     addChangeListener { updateContentSize() }
                 },
