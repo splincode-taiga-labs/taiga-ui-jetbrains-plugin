@@ -78,7 +78,7 @@ internal class TaigaDocumentationExampleState(
         if (loading) {
             JPanel().apply { isOpaque = false }
         } else {
-            documentationExampleCodeBlock(code, 450)
+            documentationExampleCodeBlock(formattedDocumentationExample(code), 450)
         }
 
     private fun progressTab(): JPanel =
