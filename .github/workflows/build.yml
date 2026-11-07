@@ -35,7 +35,7 @@ jobs:
             - name: Install root npm fixture
               run: npm ci
 
-            - name: Check formatting
+            - name: Check repository formatting (Prettier)
               run: npm run format:check
 
             - name: Install Taiga UI version workspaces

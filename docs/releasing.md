@@ -11,6 +11,22 @@ Pull requests and ordinary pushes never publish. GitHub Releases created using t
 
 The automatic publish workflow builds the exact tagged commit, requires that commit to be reachable from `main`, and does not change `main`, tags, or `CHANGELOG.md`.
 
+## Marketplace description
+
+The **README.md is the single source of truth** for the Marketplace overview. Keep the
+HTML between `<!-- marketplace-description:start -->` and `<!-- marketplace-description:end -->`
+up to date when plugin features change. This HTML is displayed on GitHub and passed to
+`intellijPlatform.pluginConfiguration.description` when Gradle builds the plugin.
+
+Do not edit the `<description>` element in source `plugin.xml`: the `patchPluginXml`
+task generates it. Run `./gradlew verifyMarketplaceDescription` to check that the
+generated description matches README.md. The regular `check` task runs this verification
+automatically, including in pull-request and publishing workflows.
+
+For the published Marketplace page, set **General Information → Description source**
+to use `plugin.xml` on plugin updates. A persistent description edited in the Marketplace
+UI can override the content uploaded with new releases.
+
 ## Marketplace prerequisite
 
 JetBrains requires the first plugin publication to be created/uploaded manually before subsequent versions can be published through Gradle.

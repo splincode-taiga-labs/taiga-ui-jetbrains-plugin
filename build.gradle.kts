@@ -1,7 +1,9 @@
+import javax.xml.parsers.DocumentBuilderFactory
 import org.gradle.api.tasks.testing.Test
 import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+import org.jetbrains.intellij.platform.gradle.tasks.PatchPluginXmlTask
 
 plugins {
     java
@@ -54,6 +56,26 @@ val pluginVerifierIdeVersions =
     providers.gradleProperty("pluginVerifierIdeVersions").map { versions ->
         versions.split(',').map(String::trim)
     }
+val marketplaceDescription =
+    providers
+        .fileContents(layout.projectDirectory.file("README.md"))
+        .asText
+        .map { readme ->
+            val start = "<!-- marketplace-description:start -->"
+            val end = "<!-- marketplace-description:end -->"
+            val from = readme.indexOf(start)
+            val to = readme.indexOf(end)
+
+            require(from >= 0 && to > from) { "Missing or misplaced Marketplace description markers in README.md" }
+            require(readme.indexOf(start, from + start.length) == -1 && readme.indexOf(end, to + end.length) == -1) {
+                "Marketplace description markers must appear exactly once"
+            }
+
+            readme.substring(from + start.length, to).trim().also { html ->
+                require(html.isNotBlank()) { "Marketplace description must not be empty" }
+                require("]]>" !in html) { "Marketplace description cannot contain a CDATA terminator" }
+            }
+        }
 val zipSignerPath = providers.gradleProperty("zipSignerPath")
 val marketplaceChannel =
     providers.gradleProperty("marketplaceChannel").orElse("beta").map { channel ->
@@ -92,6 +114,8 @@ intellijPlatform {
     )
 
     pluginConfiguration {
+        description.set(marketplaceDescription)
+
         ideaVersion {
             sinceBuild.set(supportedIdeSinceBuild)
             untilBuild.set(supportedIdeUntilBuild)
@@ -119,6 +143,29 @@ intellijPlatform {
             }
         }
     }
+}
+
+val verifyMarketplaceDescription by tasks.registering {
+    group = "verification"
+    description = "Verify the patched plugin.xml description matches the README.md Marketplace section"
+
+    val patchPluginXml = tasks.named<PatchPluginXmlTask>("patchPluginXml")
+    dependsOn(patchPluginXml)
+
+    doLast {
+        val generatedXml = patchPluginXml.get().outputFile.get().asFile
+        val document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(generatedXml)
+        val descriptions = document.getElementsByTagName("description")
+
+        require(descriptions.length == 1) { "Expected exactly one Marketplace description in patched plugin.xml" }
+        require(descriptions.item(0).textContent.trim() == marketplaceDescription.get()) {
+            "Patched plugin.xml description differs from the README.md Marketplace section"
+        }
+    }
+}
+
+tasks.named("check") {
+    dependsOn(verifyMarketplaceDescription)
 }
 
 tasks.withType<Test>().configureEach {
