@@ -36,7 +36,11 @@ private fun openingTagEnd(
     for (index in start until code.length) {
         when (code[index]) {
             '"', '\'' -> {
-                if (quote == null) quote = code[index] else if (quote == code[index]) quote = null
+                if (quote == null) {
+                    quote = code[index]
+                } else if (quote == code[index]) {
+                    quote = null
+                }
             }
             '>' -> if (quote == null) return index
         }
