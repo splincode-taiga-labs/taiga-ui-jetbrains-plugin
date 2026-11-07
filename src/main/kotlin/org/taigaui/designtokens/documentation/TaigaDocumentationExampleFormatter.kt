@@ -1,6 +1,7 @@
 package org.taigaui.designtokens.documentation
 
 import com.intellij.ide.highlighter.HtmlFileType
+import com.intellij.openapi.application.EDT
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.project.Project
