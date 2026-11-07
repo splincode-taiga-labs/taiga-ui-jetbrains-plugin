@@ -16,6 +16,7 @@ internal class TaigaDocumentationExamplePrettier(
 ) {
     private val cache = ConcurrentHashMap<Triple<Path, String, String>, String>()
 
+    @Suppress("ReturnCount")
     fun format(
         code: String,
         sourceFile: Path,
