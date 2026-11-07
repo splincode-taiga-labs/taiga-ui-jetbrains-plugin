@@ -20,11 +20,13 @@ internal class TaigaDocumentationExampleFormatter(
         withContext(Dispatchers.IO) {
             val example = resolved.entity.example
             val nextExample =
-                example?.takeIf { it.language?.lowercase() == "html" }
+                example
+                    ?.takeIf { it.language?.lowercase() == "html" }
                     ?.let { it.copy(code = prettier.format(it.code, sourceFile)) }
                     ?: example
             val nextUsage =
-                resolved.usage?.takeIf { it.trimStart().startsWith('<') }
+                resolved.usage
+                    ?.takeIf { it.trimStart().startsWith('<') }
                     ?.let { prettier.format(it, sourceFile) }
                     ?: resolved.usage
             if (example == nextExample && resolved.usage == nextUsage) {
