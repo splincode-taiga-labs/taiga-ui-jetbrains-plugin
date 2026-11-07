@@ -447,6 +447,8 @@ internal class TaigaQuickDocumentationPopupPanel(
     }
 
     /** Complete current tab on EDT without rebuilding the popup or resetting selected inputs. */
+    internal fun showExampleFormattingProgress() = exampleState.showProgress()
+
     internal fun finishExampleFormatting(code: String?) = exampleState.finish(code?.take(MAX_EXAMPLE_LENGTH))
 
     private fun memberContent(member: TaigaResolvedDocumentation.Member): JComponent =
