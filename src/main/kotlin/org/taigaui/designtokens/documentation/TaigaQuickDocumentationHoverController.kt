@@ -667,44 +667,18 @@ internal class TaigaQuickDocumentationHoverController(
 
         exampleJob =
             coroutineScope.launch(Dispatchers.Default + CoroutineName("Taiga UI documentation example formatting")) {
-                val progressJob =
-                    if (loading) {
-                        launch(Dispatchers.EDT) {
-                            delay(150.milliseconds)
-                            if (popupContent === panel && activeKey == request.key && request.isStillCurrent(project)) {
-                                panel.showExampleFormattingProgress()
-                            }
-                        }
-                    } else {
-                        null
-                    }
+                val progressJob = scheduleExampleProgress(request, panel, loading)
                 try {
-                    val formatted =
-                        try {
-                            val updated =
-                                if (loading && resolved.entity.example == null) {
-                                    project
-                                        .service<TaigaDocsService>()
-                                        .snapshotFor(request.sourceFile)
-                                        ?.resolve(request.documentationRequest)
-                                        ?: resolved
-                                } else {
-                                    resolved
-                                }
-                            hoverResolver.formatExample(updated, request.sourceFile)
-                        } catch (cancelled: CancellationException) {
-                            throw cancelled
-                        } catch (_: Exception) {
-                            // Documentation formatting is optional. Always unblock the Examples tab.
-                            resolved
-                        }
+                    val formatted = resolveFormattedExample(request, resolved, loading)
                     progressJob?.cancel()
                     withContext(Dispatchers.EDT) {
                         if (popupContent === panel && activeKey == request.key && request.isStillCurrent(project)) {
                             panel.finishExampleFormatting(formatted.entity.example?.code)
                             panel.finishUsageFormatting(
                                 formatted.usage,
-                                suppress = formatted is TaigaResolvedDocumentation.Entity && formatted.entity.example != null,
+                                suppress =
+                                    formatted is TaigaResolvedDocumentation.Entity &&
+                                        formatted.entity.example != null,
                             )
                             navigation.currentView
                                 ?.takeIf { it.resolved === resolved }
@@ -717,6 +691,46 @@ internal class TaigaQuickDocumentationHoverController(
                 }
             }
     }
+
+    private fun scheduleExampleProgress(
+        request: TaigaQuickDocumentationHoverRequest,
+        panel: TaigaQuickDocumentationPopupPanel,
+        loading: Boolean,
+    ): Job? =
+        if (loading) {
+            coroutineScope.launch(Dispatchers.EDT) {
+                delay(150.milliseconds)
+                if (popupContent === panel && activeKey == request.key && request.isStillCurrent(project)) {
+                    panel.showExampleFormattingProgress()
+                }
+            }
+        } else {
+            null
+        }
+
+    private suspend fun resolveFormattedExample(
+        request: TaigaQuickDocumentationHoverRequest,
+        resolved: TaigaResolvedDocumentation,
+        loading: Boolean,
+    ): TaigaResolvedDocumentation =
+        try {
+            val updated =
+                if (loading && resolved.entity.example == null) {
+                    project
+                        .service<TaigaDocsService>()
+                        .snapshotFor(request.sourceFile)
+                        ?.resolve(request.documentationRequest)
+                        ?: resolved
+                } else {
+                    resolved
+                }
+            hoverResolver.formatExample(updated, request.sourceFile)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // Formatting is optional; never strand the Examples tab on an error.
+            resolved
+        }
 
     private fun loadIconPreviews(
         request: TaigaQuickDocumentationHoverRequest,
