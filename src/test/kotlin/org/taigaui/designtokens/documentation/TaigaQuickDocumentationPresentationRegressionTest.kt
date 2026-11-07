@@ -27,6 +27,48 @@ class TaigaQuickDocumentationPresentationRegressionTest : TaigaDocumentationPopu
         renderAndSave(panel, "native-button-example")
     }
 
+    fun testTuiIconHasOneFormattedExampleAndChipsForInputs() {
+        val code =
+            """<tui-icon [background]="backgroundIcon" [icon]="icon" """ +
+                """[style.background]="backgroundColor" [style.color]="color" [style.font-size.px]="size" />"""
+        val owner = directive()
+        val inputs =
+            listOf(
+                TaigaApiProperty("icon", "[icon]", "string)", null),
+                TaigaApiProperty("background", "[background]", "string)", null),
+            )
+        val documented =
+            owner.copy(
+                entity = owner.entity.copy(inputs = inputs, example = TaigaExample("html", code)),
+                usage = code,
+            )
+        val panel = TaigaQuickDocumentationPopupPanel(documented, exampleLoading = true)
+        val tabs = descendants(panel).filterIsInstance<JTabbedPane>().single()
+
+        assertFalse(descendants(panel).filterIsInstance<JBLabel>().any { it.text == "Usage" })
+        assertEquals(2, descendants(panel).filterIsInstance<JBLabel>().count { it.accessibleContext.accessibleName == "string" })
+        assertTrue(tabs.indexOfTab("Examples") >= 0)
+
+        panel.finishExampleFormatting(formattedDocumentationExample(code))
+        tabs.selectedIndex = tabs.indexOfTab("Examples")
+        val expected = formattedDocumentationExample(code)
+        assertTrue(descendants(tabs).filterIsInstance<JBLabel>().any { it.accessibleContext.accessibleName == expected })
+    }
+
+    fun testMemberUsageUsesSameFormattedCodeBlockAsExamples() {
+        val owner = directive()
+        val source = """<button tuiButton [size]="size" [appearance]="appearance">Save</button>"""
+        val member =
+            owner.focusedMember(owner.entity.inputs.first(), TaigaApiMemberKind.INPUT)
+                .copy(usage = source)
+        val panel = TaigaQuickDocumentationPopupPanel(member)
+        val expected = formattedDocumentationExample(source)
+
+        assertTrue(descendants(panel).filterIsInstance<JBLabel>().any { it.text == "Usage" })
+        assertTrue(descendants(panel).filterIsInstance<JBLabel>().any { it.accessibleContext.accessibleName == expected })
+        assertTrue(descendants(panel).filterIsInstance<JBLabel>().any { it.text?.contains("<pre>") == true })
+    }
+
     fun testExamplesTabShowsFormattingProgressUntilExampleIsReady() {
         val original = "<button tuiButton>Save</button>"
         val owner = directive()
