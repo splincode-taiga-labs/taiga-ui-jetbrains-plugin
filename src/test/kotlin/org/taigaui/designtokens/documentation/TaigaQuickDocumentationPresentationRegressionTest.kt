@@ -24,7 +24,7 @@ class TaigaQuickDocumentationPresentationRegressionTest : TaigaDocumentationPopu
         tabs.selectedIndex = tabs.indexOfTab("Examples")
 
         val formatted = formattedDocumentationExample(code)
-        assertNotEquals(code, formatted)
+        assertFalse(code == formatted)
         assertTrue(documentationExamplePreservesContent(code, formatted))
         assertTrue(descendants(panel).any { it.accessibleContext?.accessibleName == formatted })
         renderAndSave(panel, "native-button-example")
