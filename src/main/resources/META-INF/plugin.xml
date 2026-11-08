@@ -170,4 +170,14 @@
             implementation="org.taigaui.designtokens.icons.IconHoverPopupListener"
         />
     </extensions>
+    <actions>
+        <action
+            id="TaigaUI.BrowseIcons"
+            class="org.taigaui.designtokens.icons.IconBrowserAction"
+            text="Taiga UI: Browse Icons..."
+            description="Browse, copy, and insert icons from the current project's Taiga UI catalog"
+        >
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+    </actions>
 </idea-plugin>

@@ -255,6 +255,12 @@ For proprietary CDN requests, the plugin tries `cdn.tbank.ru` first, then `cdn.t
 
 The icon subsystem is independent from the token-resolution graph.
 
+### Visual icon browser
+
+The Tools → Taiga UI: Browse Icons action opens a project-aware Swing dialog. It resolves the current editor file (or the project root), then consumes an immutable `IconCatalog` snapshot through `IconCompletionService.catalogFor()`. The browser does not scan icon directories or fetch CDN data itself: it reuses the completion cache, freshness/invalidation rules, and public/proprietary precedence.
+
+Cold catalog loads notify the dialog through a weak refresh callback; package discovery and loading happen on an IO dispatcher. The dialog renders only the visible grid cells, with a small parallelism limit, using the shared `IconSvgPreviewRenderer` implementation; remote SVG access and SVG conversion stay off EDT. Render jobs are canceled when the viewport, search, or dialog lifetime changes. Copy and editor insert actions operate only on selected names from the active catalog.
+
 ## Background loading and caching
 
 Completion and inspection must not perform expensive discovery on the UI path.

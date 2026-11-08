@@ -16,6 +16,7 @@
     <li>Resolved token values, source navigation, and project override detection.</li>
     <li>Inspections and safe quick fixes for unknown or deprecated tokens.</li>
     <li><code>@tui.*</code> icon completion and SVG previews in Angular, HTML, TypeScript, and JavaScript.</li>
+    <li>Visual icon browser with search, SVG previews, and copy/insert actions (Tools → Taiga UI: Browse Icons).</li>
     <li><code>rem</code>-to-<code>px</code> editor hints for styles and Angular bindings.</li>
     <li>Angular event-plugin completion, validation, and hover documentation.</li>
 </ul>
