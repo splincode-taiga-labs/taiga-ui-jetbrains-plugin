@@ -2,7 +2,36 @@
 
 [![codecov](https://codecov.io/gh/splincode-taiga-labs/taiga-ui-jetbrains-plugin/branch/main/graph/badge.svg)](https://codecov.io/gh/splincode-taiga-labs/taiga-ui-jetbrains-plugin)
 
-Independent community plugin for Taiga UI projects. Bring project-aware design tokens, icons, CSS hints, and completions into your editor.
+<!-- marketplace-description:start -->
+<p>Taiga UI design tokens, icon previews, and Angular tooling for WebStorm.</p>
+
+<p>
+    Taiga xUI Community provides project-aware completion, previews, and inspections for Taiga UI projects.
+    It discovers the installed Taiga UI packages and local styles, so suggestions match your project version.
+</p>
+
+<h3>Features</h3>
+<ul>
+    <li>Design token completion and color previews in CSS, Less, and SCSS.</li>
+    <li>Resolved token values, source navigation, and project override detection.</li>
+    <li>Inspections and safe quick fixes for unknown or deprecated tokens.</li>
+    <li><code>@tui.*</code> icon completion and SVG previews in Angular, HTML, TypeScript, and JavaScript.</li>
+    <li><code>rem</code>-to-<code>px</code> editor hints for styles and Angular bindings.</li>
+    <li>Angular event-plugin completion, validation, and hover documentation.</li>
+</ul>
+
+<h3>Getting started</h3>
+<p>
+    Install the plugin in WebStorm and open a Taiga UI project. Type <code>var(--tui-</code> in a stylesheet
+    or <code>@tui.</code> in a supported code context to explore available tokens and icons.
+    No separate token catalog is needed.
+</p>
+
+<p>
+    An independent community project, not affiliated with or endorsed by Taiga UI, Pineopticone, or T-Bank.
+    <a href="https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin">Source code and issues</a>.
+</p>
+<!-- marketplace-description:end -->
 
 ## About the project
 

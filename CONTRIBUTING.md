@@ -10,6 +10,26 @@ Thank you for contributing to this independently maintained open-source project 
 4. Describe the purpose of the change, compatibility considerations, verification performed, and any remaining limitations.
 5. Keep PR discussion respectful and technical. Maintainers may request changes or decline work that does not fit the project's scope.
 
+## Code formatting
+
+The repository uses **Prettier 3.6.2** from the root `package.json` for supported
+JavaScript, TypeScript, CSS, HTML, JSON, Markdown, and YAML files:
+
+```sh
+npm ci
+npm run format:check
+npm run format
+```
+
+Both commands run against the repository root (`prettier .`), not just a specific
+directory. The CI build and both release/publishing workflows run
+`npm run format:check` before the Gradle build or publication.
+
+The `.prettierignore` intentionally excludes generated files and integration
+fixtures whose exact source formatting is used by tests. Kotlin and Gradle
+Kotlin DSL files are formatted by `ktlint` through the Gradle checks, not by
+Prettier. Do not format fixture files or add a competing Kotlin formatter.
+
 ## Licensing and ownership
 
 The project uses the [MIT License](LICENSE) for original code its rightsholders are entitled to license, subject to separate third-party terms and notices. By intentionally submitting an original contribution for inclusion, you confirm that you have the necessary rights and authorize its distribution under the applicable project license.
