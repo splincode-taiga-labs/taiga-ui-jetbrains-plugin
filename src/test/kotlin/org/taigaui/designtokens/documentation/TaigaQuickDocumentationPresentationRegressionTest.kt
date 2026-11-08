@@ -11,7 +11,7 @@ import javax.swing.JTabbedPane
 import kotlin.time.Duration.Companion.milliseconds
 
 class TaigaQuickDocumentationPresentationRegressionTest : TaigaDocumentationPopupTestCase() {
-    fun testExamplesPreviewPreservesTheProvidedSource() {
+    fun testExamplesPreviewPreservesContentAfterFormatting() {
         val code =
             """<button tuiButton type="button" [disabled]="count > 2" """ +
                 """[size]="size" [iconEnd]="icons.iconEnd"> Button </button>"""
@@ -23,7 +23,10 @@ class TaigaQuickDocumentationPresentationRegressionTest : TaigaDocumentationPopu
         val tabs = descendants(panel).filterIsInstance<JTabbedPane>().single()
         tabs.selectedIndex = tabs.indexOfTab("Examples")
 
-        assertTrue(descendants(panel).any { it.accessibleContext?.accessibleName == code })
+        val formatted = formattedDocumentationExample(code)
+        assertNotEquals(code, formatted)
+        assertTrue(documentationExamplePreservesContent(code, formatted))
+        assertTrue(descendants(panel).any { it.accessibleContext?.accessibleName == formatted })
         renderAndSave(panel, "native-button-example")
     }
 
