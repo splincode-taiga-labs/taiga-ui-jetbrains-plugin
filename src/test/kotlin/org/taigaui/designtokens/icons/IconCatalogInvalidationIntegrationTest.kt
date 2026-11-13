@@ -80,15 +80,9 @@ class IconCatalogInvalidationIntegrationTest : BasePlatformTestCase() {
         val sourceFile = createSourceFile(workspace)
         val owner = Any()
         val updates = AtomicInteger()
-        val scopeRoot =
-            workspace
-                .resolve("node_modules/@taiga-ui")
-                .toAbsolutePath()
-                .normalize()
-
         assertNull(
-            namesForScope(
-                scopeRoot,
+            service.namesFor(
+                sourceFile,
                 RefreshCallback(owner, "initial") {
                     updates.incrementAndGet()
                 },
@@ -98,8 +92,8 @@ class IconCatalogInvalidationIntegrationTest : BasePlatformTestCase() {
 
         assertEquals(
             listOf("@tui.first"),
-            namesForScope(
-                scopeRoot,
+            service.namesFor(
+                sourceFile,
                 RefreshCallback(owner, "cached") {},
             ),
         )
@@ -112,8 +106,8 @@ class IconCatalogInvalidationIntegrationTest : BasePlatformTestCase() {
 
         val refreshes = AtomicInteger()
 
-        namesForScope(
-            scopeRoot,
+        service.namesFor(
+            sourceFile,
             RefreshCallback(owner, "refresh") {
                 refreshes.incrementAndGet()
             },
@@ -122,8 +116,8 @@ class IconCatalogInvalidationIntegrationTest : BasePlatformTestCase() {
 
         assertEquals(
             listOf("@tui.first", "@tui.second"),
-            namesForScope(
-                scopeRoot,
+            service.namesFor(
+                sourceFile,
                 RefreshCallback(owner, "after-refresh") {},
             ),
         )
@@ -305,21 +299,6 @@ class IconCatalogInvalidationIntegrationTest : BasePlatformTestCase() {
             .getDeclaredField(fieldName)
             .apply { isAccessible = true }
             .set(target, value)
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    private fun namesForScope(
-        scopeRoot: Path,
-        callback: RefreshCallback<*>,
-    ): List<String>? {
-        val method =
-            service.javaClass.declaredMethods
-                .single { candidate ->
-                    candidate.name == "namesForScope" &&
-                        candidate.parameterCount == 2
-                }.apply { isAccessible = true }
-
-        return method.invoke(service, scopeRoot, callback) as? List<String>
     }
 
     private fun waitUntil(condition: () -> Boolean) {

@@ -43,16 +43,24 @@ internal class IconCompletionService(
             )
     }
 
-    fun namesFor(
+    fun catalogFor(
         sourceFile: Path,
         onUpdated: RefreshCallback<*>,
-    ): List<String>? =
-        loader
-            .resolveScopeRoot(sourceFile)
-            ?.toAbsolutePath()
-            ?.normalize()
-            ?.let { scopeRoot -> namesForScope(scopeRoot, onUpdated) }
-            ?: emptyList()
+    ): IconCatalog? {
+        val scopeRoot =
+            loader
+                .resolveScopeRoot(sourceFile)
+                ?.toAbsolutePath()
+                ?.normalize()
+                ?: return IconCatalog(emptyList())
+        val lookup = cache.lookup(scopeRoot)
+
+        if (lookup == null || !lookup.isFresh) {
+            scheduleWarmup(scopeRoot, onUpdated)
+        }
+
+        return lookup?.catalog
+    }
 
     fun svgSourceFor(
         sourceFile: Path,
@@ -123,19 +131,6 @@ internal class IconCompletionService(
         cache.publish(scopeRoot, generation, result)
 
         return result.catalog.names
-    }
-
-    private fun namesForScope(
-        scopeRoot: Path,
-        onUpdated: RefreshCallback<*>,
-    ): List<String>? {
-        val lookup = cache.lookup(scopeRoot)
-
-        if (lookup == null || !lookup.isFresh) {
-            scheduleWarmup(scopeRoot, onUpdated)
-        }
-
-        return lookup?.catalog?.names
     }
 
     private fun scheduleWarmup(
@@ -236,6 +231,11 @@ internal class IconCompletionService(
         ) : WarmupOutcome
     }
 }
+
+internal fun IconCompletionService.namesFor(
+    sourceFile: Path,
+    onUpdated: RefreshCallback<*>,
+): List<String>? = catalogFor(sourceFile, onUpdated)?.names
 
 internal object IconVfsEventPaths {
     fun from(event: VFileEvent): Set<Path> =
