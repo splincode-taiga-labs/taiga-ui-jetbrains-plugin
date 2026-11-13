@@ -4,9 +4,9 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
-import com.intellij.util.ui.UIUtil
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextField
+import com.intellij.util.ui.UIUtil
 import java.awt.BorderLayout
 import java.awt.datatransfer.DataFlavor
 import java.awt.image.BufferedImage
@@ -127,7 +127,8 @@ class IconBrowserDialogTest : BasePlatformTestCase() {
                     renderer.getListCellRendererComponent(list, name, 0, selected, false) as JPanel
                 assertEquals(name, cell.accessibleContext.accessibleName)
                 val image = cell.getComponent(0) as JBLabel
-                val caption = (cell.layout as BorderLayout).getLayoutComponent(BorderLayout.SOUTH) as JBLabel
+                val caption =
+                    (cell.layout as BorderLayout).getLayoutComponent(BorderLayout.SOUTH) as JBLabel
                 assertEquals("actions.arrow", caption.text)
                 assertEquals(name, caption.toolTipText)
                 return image to caption
@@ -151,8 +152,14 @@ class IconBrowserDialogTest : BasePlatformTestCase() {
     private fun openEditorWithIcons(): Path {
         val icons = workspaceRoot.resolve("node_modules/@taiga-ui/icons/src/actions")
         Files.createDirectories(icons)
-        Files.writeString(icons.resolve("arrow.svg"), "<svg viewBox=\"0 0 24 24\"><path d=\"M0 0h24\"/></svg>")
-        Files.writeString(icons.resolve("check.svg"), "<svg viewBox=\"0 0 24 24\"><path d=\"M0 0h24\"/></svg>")
+        Files.writeString(
+            icons.resolve("arrow.svg"),
+            """<svg viewBox="0 0 24 24"><path d="M0 0h24"/></svg>""",
+        )
+        Files.writeString(
+            icons.resolve("check.svg"),
+            """<svg viewBox="0 0 24 24"><path d="M0 0h24"/></svg>""",
+        )
 
         val source = workspaceRoot.resolve("src/example.html")
         Files.createDirectories(source.parent)
