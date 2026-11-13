@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-No unreleased changes yet.
+### Changed
+
+- Expanded WebStorm compatibility to 2026.3 (`263.*`) and added WebStorm 2026.3 to Plugin Verifier checks.
 
 ## 0.1.3 - 2026-09-30
 
