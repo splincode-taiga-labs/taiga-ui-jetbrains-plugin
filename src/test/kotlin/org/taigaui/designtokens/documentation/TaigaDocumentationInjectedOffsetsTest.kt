@@ -62,9 +62,9 @@ class TaigaDocumentationInjectedOffsetsTest {
         assertEquals(114, mappedAttribute.endOffset)
         assertEquals("size", mappedAttribute.text)
 
-        assertEquals(10, request.bindings.single().startOffset)
-        assertEquals(30, request.icons.single().startOffset)
-        assertEquals(0, request.element?.startOffset)
+        assertEquals(10, binding.startOffset)
+        assertEquals(30, icon.startOffset)
+        assertEquals(0, element.startOffset)
     }
 
     @Test
@@ -85,7 +85,8 @@ class TaigaDocumentationInjectedOffsetsTest {
         val mapped = request.mapTemplateOffsets { it - 2 } as TaigaDocumentationRequest.Member
         val mappedBinding = requireNotNull(mapped.binding)
         val mappedContext = mappedBinding.context.single()
-        val mappedCollectionContext = mapped.bindings.single().context.single()
+        val mappedCollectionBinding = mapped.bindings.single()
+        val mappedCollectionContext = mappedCollectionBinding.context.single()
         val mappedIcon = mapped.icons.single()
         val mappedElement = requireNotNull(mapped.element)
         val mappedAttribute = mappedElement.attributes.single()
