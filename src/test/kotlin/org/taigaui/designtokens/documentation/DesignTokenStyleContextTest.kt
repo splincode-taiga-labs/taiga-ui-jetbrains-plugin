@@ -1,6 +1,7 @@
 package org.taigaui.designtokens.documentation
 
-import com.intellij.openapi.application.ReadAction
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.util.Computable
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.testFramework.fixtures.LightPlatformCodeInsightFixture4TestCase
 import org.junit.Assert.assertEquals
@@ -111,9 +112,11 @@ class DesignTokenStyleContextTest : LightPlatformCodeInsightFixture4TestCase() {
                 .indexOf("--tui-te")
                 .plus("--tui-te".length)
         val prefix =
-            ReadAction.compute<String?, RuntimeException> {
-                myFixture.editor.designTokenCompletionContextAt(tokenEnd)?.prefix
-            }
+            ApplicationManager.getApplication().runReadAction(
+                Computable {
+                    myFixture.editor.designTokenCompletionContextAt(tokenEnd)?.prefix
+                },
+            )
 
         assertEquals("--tui-te", prefix)
     }
@@ -138,9 +141,11 @@ class DesignTokenStyleContextTest : LightPlatformCodeInsightFixture4TestCase() {
         )
 
         val source =
-            ReadAction.compute<java.nio.file.Path?, RuntimeException> {
-                myFixture.editor.designTokenSourceFile()
-            }
+            ApplicationManager.getApplication().runReadAction(
+                Computable {
+                    myFixture.editor.designTokenSourceFile()
+                },
+            )
 
         assertNotNull(source)
         assertTrue(requireNotNull(source).toString().endsWith("source.scss"))
@@ -159,9 +164,11 @@ class DesignTokenStyleContextTest : LightPlatformCodeInsightFixture4TestCase() {
     }
 
     private fun isDesignTokenStyleContext(): Boolean =
-        ReadAction.compute<Boolean, RuntimeException> {
-            myFixture.editor.isDesignTokenStyleContext(tokenOffset())
-        }
+        ApplicationManager.getApplication().runReadAction(
+            Computable {
+                myFixture.editor.isDesignTokenStyleContext(tokenOffset())
+            },
+        )
 
     private fun tokenOffset(): Int =
         myFixture.editor.document.text
