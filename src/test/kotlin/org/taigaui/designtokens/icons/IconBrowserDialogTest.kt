@@ -184,9 +184,12 @@ class IconBrowserDialogTest : BasePlatformTestCase() {
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun <T> field(target: Any, name: String): T =
-        target.javaClass
-            .getDeclaredField(name)
-            .apply { isAccessible = true }
-            .get(target) as T
+    private fun <T> field(
+        target: Any,
+        name: String,
+    ): T {
+        val declaredField = target.javaClass.getDeclaredField(name)
+        declaredField.isAccessible = true
+        return declaredField.get(target) as T
+    }
 }
