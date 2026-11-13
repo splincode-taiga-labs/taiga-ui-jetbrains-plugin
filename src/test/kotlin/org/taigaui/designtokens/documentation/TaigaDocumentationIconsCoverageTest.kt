@@ -10,7 +10,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import org.taigaui.designtokens.icons.IconCompletionService
 import java.nio.file.Files
-import java.nio.file.Path
 
 class TaigaDocumentationIconsCoverageTest : BasePlatformTestCase() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -76,9 +75,9 @@ class TaigaDocumentationIconsCoverageTest : BasePlatformTestCase() {
             var result: List<TaigaDocumentationIconPreview>? = null
             val job = icons.loadPreviews(source, listOf(missing, reference)) { result = it }
 
-            for (attempt in 0 until 300) {
+            var attempts = 0
+            while ((!job.isCompleted || result == null) && attempts++ < 300) {
                 UIUtil.dispatchAllInvocationEvents()
-                if (job.isCompleted && result != null) break
                 Thread.sleep(10)
             }
             assertTrue("Preview job should complete", job.isCompleted)
@@ -89,7 +88,11 @@ class TaigaDocumentationIconsCoverageTest : BasePlatformTestCase() {
         }
     }
 
-    private fun replace(reference: TaigaDocumentationIcon, replacement: String, isCurrent: () -> Boolean) {
+    private fun replace(
+        reference: TaigaDocumentationIcon,
+        replacement: String,
+        isCurrent: () -> Boolean,
+    ) {
         val method =
             icons.javaClass.declaredMethods.single {
                 it.name == "replaceIcon" && it.parameterCount == 4
