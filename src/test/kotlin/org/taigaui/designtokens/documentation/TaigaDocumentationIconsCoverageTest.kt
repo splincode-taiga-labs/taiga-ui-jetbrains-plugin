@@ -1,7 +1,6 @@
 package org.taigaui.designtokens.documentation
 
 import com.intellij.openapi.components.service
-import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.util.ui.UIUtil
@@ -77,9 +76,9 @@ class TaigaDocumentationIconsCoverageTest : BasePlatformTestCase() {
             var result: List<TaigaDocumentationIconPreview>? = null
             val job = icons.loadPreviews(source, listOf(missing, reference)) { result = it }
 
-            repeat(300) {
+            for (attempt in 0 until 300) {
                 UIUtil.dispatchAllInvocationEvents()
-                if (job.isCompleted && result != null) return@repeat
+                if (job.isCompleted && result != null) break
                 Thread.sleep(10)
             }
             assertTrue("Preview job should complete", job.isCompleted)
@@ -90,16 +89,12 @@ class TaigaDocumentationIconsCoverageTest : BasePlatformTestCase() {
         }
     }
 
-    private fun replace(
-        reference: TaigaDocumentationIcon,
-        replacement: String,
-        isCurrent: () -> Boolean,
-    ) {
+    private fun replace(reference: TaigaDocumentationIcon, replacement: String, isCurrent: () -> Boolean) {
         val method =
             icons.javaClass.declaredMethods.single {
                 it.name == "replaceIcon" && it.parameterCount == 4
             }
         method.isAccessible = true
-        method.invoke(icons, myFixture.editor as Editor, reference, replacement, isCurrent)
+        method.invoke(icons, myFixture.editor, reference, replacement, isCurrent)
     }
 }
