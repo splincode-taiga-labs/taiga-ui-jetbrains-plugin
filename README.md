@@ -180,6 +180,7 @@ The plugin supports **WebStorm 2025.3 through 2026.3.x** (IntelliJ Platform buil
 CI runs JetBrains Plugin Verifier against:
 
 - **WebStorm 2025.3** — the minimum supported IDE;
+- **WebStorm 2026.1.5** — the earlier supported major version;
 - **WebStorm 2026.2.3** — the previous major version;
 - **WebStorm 2026.3** — the latest supported major version, including build `WS-263.7307.202`.
 
