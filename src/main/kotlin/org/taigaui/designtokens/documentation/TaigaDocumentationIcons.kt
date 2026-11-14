@@ -85,7 +85,11 @@ internal class TaigaDocumentationIcons(
                 if (!isCurrent()) return@run
                 val document = editor.document
                 val current = document.charsSequence
-                if (reference.endOffset <= current.length &&
+                val validRange =
+                    reference.startOffset >= 0 &&
+                        reference.endOffset >= reference.startOffset &&
+                        reference.endOffset <= current.length
+                if (validRange &&
                     current.subSequence(reference.startOffset, reference.endOffset).toString() == reference.name
                 ) {
                     document.replaceString(reference.startOffset, reference.endOffset, name)

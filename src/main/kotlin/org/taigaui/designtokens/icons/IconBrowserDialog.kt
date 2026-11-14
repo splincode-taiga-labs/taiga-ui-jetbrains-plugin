@@ -309,7 +309,7 @@ private class IconBrowserCellRenderer(
         foreground = if (isSelected) list.selectionForeground else list.foreground
         caption.foreground = foreground
         image.foreground = foreground
-        accessibleContext.accessibleName = value
+        getAccessibleContext().accessibleName = value
 
         return this
     }
