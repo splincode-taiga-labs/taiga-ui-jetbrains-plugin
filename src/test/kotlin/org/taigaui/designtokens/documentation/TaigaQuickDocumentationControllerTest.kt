@@ -495,6 +495,29 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
         assertEquals("Choose icon", button("Choose icon").text)
     }
 
+    fun testPinnedCardIgnoresMouseExitAndUnforcedDismissal() {
+        open("<button tuiButton size=\"m\">Save</button>", "size")
+        button("Pin").doClick()
+        val pinnedCard = panel()
+
+        controller.mouseExited(myFixture.editor)
+        controller.dismissHover(myFixture.editor)
+        assertSame(pinnedCard, panel())
+
+        controller.dismissHover(myFixture.editor, force = true)
+        assertNull(panelOrNull())
+    }
+
+    fun testMouseExitWithoutAnInteractiveCardClearsPendingHover() {
+        configure("<button tuiButton>Save</button>", "tuiButton")
+
+        controller.mouseExited(myFixture.editor)
+
+        assertNull(panelOrNull())
+        assertNull(documentationField<Any?>(controller, "pendingKey"))
+        assertNull(documentationField<Any?>(controller, "currentRequest"))
+    }
+
     private fun open(
         text: String,
         needle: String,
