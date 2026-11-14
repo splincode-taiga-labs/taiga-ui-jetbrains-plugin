@@ -110,6 +110,32 @@ class TaigaQuickDocumentationHoverRequestCoverageTest : TaigaDocumentationPopupT
         }
     }
 
+    fun testCompletePresentationMarksAChangedSourceStale() {
+        configureTemplate()
+        val request = requireNotNull(candidate("size").resolveRequest())
+        val panel = TaigaQuickDocumentationPopupPanel(directive())
+
+        WriteCommandAction.runWriteCommandAction(project) {
+            myFixture.editor.document.insertString(0, " ")
+        }
+        request.completePresentation(panel, refreshing = false)
+
+        assertTrue(labelText(panel).contains(STALE_DOCUMENTATION_MESSAGE))
+    }
+
+    fun testRefreshingPresentationShowsProgressRegardlessOfStaleSource() {
+        configureTemplate()
+        val request = requireNotNull(candidate("size").resolveRequest())
+        val panel = TaigaQuickDocumentationPopupPanel(directive())
+
+        WriteCommandAction.runWriteCommandAction(project) {
+            myFixture.editor.document.insertString(0, " ")
+        }
+        request.completePresentation(panel, refreshing = true)
+
+        assertTrue(labelText(panel).contains("Refreshing Taiga UI API"))
+    }
+
     private fun configureTemplate() {
         val file = myFixture.tempDirFixture.createFile("src/component.html", """<button tuiButton size="m">Save</button>""")
         myFixture.configureFromExistingVirtualFile(file)
