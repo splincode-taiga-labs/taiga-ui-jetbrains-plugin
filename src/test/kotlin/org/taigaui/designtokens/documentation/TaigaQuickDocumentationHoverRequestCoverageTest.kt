@@ -137,7 +137,11 @@ class TaigaQuickDocumentationHoverRequestCoverageTest : TaigaDocumentationPopupT
     }
 
     private fun configureTemplate() {
-        val file = myFixture.tempDirFixture.createFile("src/component.html", """<button tuiButton size="m">Save</button>""")
+        val file =
+            myFixture.tempDirFixture.createFile(
+                "src/component.html",
+                """<button tuiButton size="m">Save</button>""",
+            )
         myFixture.configureFromExistingVirtualFile(file)
         PsiDocumentManager.getInstance(project).commitAllDocuments()
         myFixture.doHighlighting()
