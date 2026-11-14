@@ -57,7 +57,8 @@ class TaigaDocumentationExampleStateTest : TaigaDocumentationPopupTestCase() {
         assertEquals(1, container.componentCount)
 
         state.showProgress()
-        assertEquals(2, container.componentCount)
+        assertEquals(1, container.componentCount)
+        assertEquals(2, (container.getComponent(0) as JPanel).componentCount)
         assertEquals(1, sizeChanges)
 
         state.finish("<span>Formatted</span>")
