@@ -11,6 +11,9 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.EditorFactory
 import com.intellij.openapi.editor.RangeMarker
+import com.intellij.openapi.editor.event.EditorMouseEvent
+import com.intellij.openapi.editor.event.EditorMouseEventArea
+import com.intellij.openapi.editor.ex.EditorSettingsExternalizable
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.impl.text.TextEditorProvider
 import com.intellij.openapi.project.DumbAwareAction
@@ -31,6 +34,7 @@ import com.intellij.util.ui.UIUtil
 import kotlinx.coroutines.Job
 import java.awt.Dimension
 import java.awt.Point
+import java.awt.event.MouseEvent
 import javax.swing.JButton
 
 class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() {
@@ -493,6 +497,112 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
         assertEquals("TuiWithIcons", icon.declaration?.publicSymbol)
         assertEquals("iconEnd", icon.property.name)
         assertEquals("Choose icon", button("Choose icon").text)
+    }
+
+    fun testPinnedCardIgnoresMouseExitAndUnforcedDismissal() {
+        open("<button tuiButton size=\"m\">Save</button>", "size")
+        button("Pin").doClick()
+        val pinnedCard = panel()
+
+        controller.mouseExited(myFixture.editor)
+        controller.dismissHover(myFixture.editor)
+        assertSame(pinnedCard, panel())
+
+        controller.dismissHover(myFixture.editor, force = true)
+        assertNull(panelOrNull())
+    }
+
+    fun testMouseExitWithoutAnInteractiveCardClearsPendingHover() {
+        configure("<button tuiButton>Save</button>", "tuiButton")
+
+        controller.mouseExited(myFixture.editor)
+
+        assertNull(panelOrNull())
+        assertNull(documentationField<Any?>(controller, "pendingKey"))
+        assertNull(documentationField<Any?>(controller, "currentRequest"))
+    }
+
+    fun testRepeatedMouseMoveKeepsOnePendingHoverResolution() {
+        configure("<button tuiButton size=\"m\">Save</button>", "size")
+        val settings = EditorSettingsExternalizable.getInstance()
+        val previous = settings.isShowQuickDocOnMouseOverElement
+        try {
+            settings.isShowQuickDocOnMouseOverElement = true
+            val event = mouseMoveOver("size")
+            controller.mouseMoved(event)
+            val first = documentationField<Job>(controller, "resolutionJob")
+
+            controller.mouseMoved(event)
+            assertSame(first, documentationField<Job>(controller, "resolutionJob"))
+            assertNotNull(documentationField<Any?>(controller, "pendingKey"))
+        } finally {
+            controller.dismissHover(force = true)
+            settings.isShowQuickDocOnMouseOverElement = previous
+        }
+    }
+
+    fun testMouseMoveBetweenIdentifiersCancelsStaleResolution() {
+        configure("<button tuiButton size=\"m\">Save</button>", "size")
+        val settings = EditorSettingsExternalizable.getInstance()
+        val previous = settings.isShowQuickDocOnMouseOverElement
+        try {
+            settings.isShowQuickDocOnMouseOverElement = true
+            controller.mouseMoved(mouseMoveOver("tuiButton"))
+            val first = documentationField<Job>(controller, "resolutionJob")
+
+            controller.mouseMoved(mouseMoveOver("size"))
+            val second = documentationField<Job>(controller, "resolutionJob")
+            assertNotSame(first, second)
+            assertTrue(first.isCancelled)
+        } finally {
+            controller.dismissHover(force = true)
+            settings.isShowQuickDocOnMouseOverElement = previous
+        }
+    }
+
+    fun testMovingOntoWhitespaceLeavesNoPendingHoverTarget() {
+        configure("<button tuiButton>Save</button>\n<button tuiButton>Next</button>", "tuiButton")
+        val settings = EditorSettingsExternalizable.getInstance()
+        val previous = settings.isShowQuickDocOnMouseOverElement
+        try {
+            settings.isShowQuickDocOnMouseOverElement = true
+            controller.mouseMoved(mouseMoveOver("\n", middle = false))
+            assertNull(documentationField<Any?>(controller, "pendingKey"))
+        } finally {
+            controller.dismissHover(force = true)
+            settings.isShowQuickDocOnMouseOverElement = previous
+        }
+    }
+
+    private fun mouseMoveOver(
+        needle: String,
+        middle: Boolean = true,
+    ): EditorMouseEvent {
+        val editor = myFixture.editor
+        val offset = myFixture.file.text.indexOf(needle) + if (middle) 1 else 0
+        val mouse =
+            MouseEvent(
+                editor.contentComponent,
+                MouseEvent.MOUSE_MOVED,
+                System.currentTimeMillis(),
+                0,
+                20,
+                20,
+                0,
+                false,
+            )
+        return EditorMouseEvent(
+            editor,
+            mouse,
+            EditorMouseEventArea.EDITING_AREA,
+            offset,
+            editor.offsetToLogicalPosition(offset),
+            editor.offsetToVisualPosition(offset),
+            true,
+            null,
+            null,
+            null,
+        )
     }
 
     private fun open(
