@@ -561,12 +561,12 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
     }
 
     fun testMovingOntoWhitespaceLeavesNoPendingHoverTarget() {
-        configure("<button tuiButton>Save</button>", "tuiButton")
+        configure("<button tuiButton>Save</button>\n<button tuiButton>Next</button>", "tuiButton")
         val settings = EditorSettingsExternalizable.getInstance()
         val previous = settings.isShowQuickDocOnMouseOverElement
         try {
             settings.isShowQuickDocOnMouseOverElement = true
-            controller.mouseMoved(mouseMoveOver(" ", middle = false))
+            controller.mouseMoved(mouseMoveOver("\n", middle = false))
             assertNull(documentationField<Any?>(controller, "pendingKey"))
         } finally {
             controller.dismissHover(force = true)
