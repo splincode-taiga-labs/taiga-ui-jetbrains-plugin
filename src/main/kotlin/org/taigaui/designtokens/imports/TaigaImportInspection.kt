@@ -6,6 +6,7 @@ import com.intellij.lang.ecmascript6.psi.ES6ImportDeclaration
 import com.intellij.lang.ecmascript6.psi.ES6ImportExportDeclaration.ImportExportPrefixKind
 import com.intellij.lang.ecmascript6.psi.ES6ImportExportSpecifier.ImportExportSpecifierKind
 import com.intellij.lang.ecmascript6.psi.ES6ImportSpecifier
+import com.intellij.lang.ecmascript6.psi.impl.ES6ImportPsiUtil
 import com.intellij.lang.javascript.psi.JSFile
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.vfs.VfsUtilCore
@@ -47,7 +48,7 @@ class TaigaImportInspection : LocalInspectionTool() {
         }
 
         declarations.forEach { declaration ->
-            val packageName = declaration.importModuleText ?: return@forEach
+            val packageName = declaration.taigaPackageName ?: return@forEach
             val root = packages[packageName] ?: return@forEach
 
             if (declaration.resolvesWithin(root)) {
@@ -67,7 +68,7 @@ class TaigaImportInspection : LocalInspectionTool() {
         ProgressManager.checkCanceled()
 
         val symbol =
-            specifier.referenceName.takeIf { name ->
+            specifier.referenceName?.takeIf { name ->
                 IDENTIFIER.matches(name) && !specifier.isDefault && !specifier.hasResolution()
             } ?: return
         val target = specifier.uniqueReplacement(symbol, packageName, packages) ?: return
@@ -80,9 +81,12 @@ class TaigaImportInspection : LocalInspectionTool() {
     }
 }
 
+internal val ES6ImportDeclaration.taigaPackageName: String?
+    get() = ES6ImportPsiUtil.getUnquotedFromClauseText(this)
+
 internal fun JSFile.taigaImports(): List<ES6ImportDeclaration> =
     statements.filterIsInstance<ES6ImportDeclaration>().filter { declaration ->
-        declaration.importModuleText?.let(TAIGA_PACKAGE::matches) == true &&
+        declaration.taigaPackageName?.let(TAIGA_PACKAGE::matches) == true &&
             declaration.withClause == null &&
             declaration.importExportPrefixKind in IMPORT_PREFIXES &&
             declaration.importSpecifiers.isNotEmpty() &&
@@ -110,11 +114,11 @@ private fun ES6ImportSpecifier.uniqueReplacement(
         .asSequence()
         .filter { probe ->
             ProgressManager.checkCanceled()
-            val root = packages[probe.importModuleText]
+            val root = packages[probe.taigaPackageName]
             root != null && probe.resolvesWithin(root) && probe.importSpecifiers.singleOrNull()?.hasResolution() == true
         }.take(2)
         .singleOrNull()
-        ?.importModuleText
+        ?.taigaPackageName
 }
 
 internal fun ES6ImportSpecifier.isTypeOnly(): Boolean =

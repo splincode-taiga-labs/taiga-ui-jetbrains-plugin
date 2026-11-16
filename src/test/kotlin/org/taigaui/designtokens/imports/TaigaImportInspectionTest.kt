@@ -15,6 +15,23 @@ class TaigaImportInspectionTest : CodeInsightFixtureTestCase<EmptyModuleFixtureB
     override fun setUp() {
         super.setUp()
         myFixture.enableInspections(TaigaImportInspection())
+        myFixture.addFileToProject("package.json", """{"name":"taiga-workspace","private":true}""")
+        myFixture.addFileToProject("pnpm-workspace.yaml", "packages: ['apps/*']")
+        myFixture.addFileToProject(
+            "apps/v4/package.json",
+            """
+            {"name":"taiga-four","dependencies":{"@taiga-ui/core":"4.60.0","@taiga-ui/kit":"4.60.0"}}
+            """.trimIndent(),
+        )
+        myFixture.addFileToProject(
+            "apps/v5/package.json",
+            """
+            {
+              "name":"taiga-five",
+              "dependencies":{"@taiga-ui/core":"5.18.0","@taiga-ui/kit":"5.18.0","@taiga-ui/addon-mobile":"5.18.0"}
+            }
+            """.trimIndent(),
+        )
         myFixture.addFileToProject(
             "tsconfig.json",
             """{"compilerOptions":{"module":"ESNext","moduleResolution":"bundler","verbatimModuleSyntax":true}}""",
@@ -58,7 +75,7 @@ class TaigaImportInspectionTest : CodeInsightFixtureTestCase<EmptyModuleFixtureB
 
         applyFix("core")
 
-        val imports = (myFixture.file as JSFile).taigaImports().associateBy { it.importModuleText }
+        val imports = (myFixture.file as JSFile).taigaImports().associateBy { it.taigaPackageName }
         val core = requireNotNull(imports["@taiga-ui/core"])
         val kit = requireNotNull(imports["@taiga-ui/kit"])
         assertEquals(setOf("TuiButton", "Options"), core.importSpecifiers.map { it.declaredName }.toSet())
@@ -106,7 +123,8 @@ class TaigaImportInspectionTest : CodeInsightFixtureTestCase<EmptyModuleFixtureB
     fun testLeavesUnknownAmbiguousAndPrivateExportsAlone() {
         val app = "apps/v5"
         installCheckbox(app, "5.18.0", "core")
-        val addon = install(app, "addon-mobile", "5.18.0", "export {TuiCheckbox} from '@taiga-ui/core';")
+        val addon = install(app, "addon-mobile", "5.18.0", "export {TuiCheckbox} from './checkbox';")
+        myFixture.addFileToProject("$addon/checkbox.d.ts", "export declare class TuiCheckbox {}")
         myFixture.addFileToProject("$addon/private.d.ts", "export declare class TuiHidden {}")
         configure(
             "$app/src/example.ts",
@@ -127,7 +145,7 @@ class TaigaImportInspectionTest : CodeInsightFixtureTestCase<EmptyModuleFixtureB
 
         applyFix("core")
 
-        val imports = (myFixture.file as JSFile).taigaImports().associateBy { it.importModuleText }
+        val imports = (myFixture.file as JSFile).taigaImports().associateBy { it.taigaPackageName }
         assertEquals("TuiButton", imports["@taiga-ui/core"]?.importSpecifiers?.single()?.referenceName)
         assertEquals("TuiBadge", imports["@taiga-ui/kit"]?.importSpecifiers?.single()?.referenceName)
         assertEmpty(problems())
@@ -176,11 +194,14 @@ class TaigaImportInspectionTest : CodeInsightFixtureTestCase<EmptyModuleFixtureB
               "name":"@taiga-ui/$name",
               "version":"$version",
               "types":"./index.d.ts",
-              "exports":{".":{"types":"./index.d.ts"}$exports}
+              "type":"module",
+              "module":"./index.mjs",
+              "exports":{".":{"types":"./index.d.ts","default":"./index.mjs"}$exports}
             }
             """.trimIndent(),
         )
         myFixture.addFileToProject("$store/index.d.ts", declarations)
+        myFixture.addFileToProject("$store/index.mjs", declarations.replace("declare ", ""))
         val scope =
             myFixture.tempDirFixture.findOrCreateDir(
                 listOf(app, "node_modules/@taiga-ui").filter(String::isNotEmpty).joinToString("/"),

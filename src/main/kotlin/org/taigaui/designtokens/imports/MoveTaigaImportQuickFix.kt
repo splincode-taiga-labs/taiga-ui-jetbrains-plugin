@@ -23,7 +23,7 @@ internal class MoveTaigaImportQuickFix(
 ) : PsiUpdateModCommandQuickFix() {
     private val originalImport = original.declaration?.text
     private val originalOffset = original.startOffsetInParent
-    private val vfsStamp = VirtualFileManager.getInstance().modificationCount
+    private val vfsStamp = VirtualFileManager.VFS_STRUCTURE_MODIFICATIONS.modificationCount
     private val psiStamp = PsiModificationTracker.getInstance(original.project).modificationCount
 
     override fun getFamilyName(): String = "Move import to '$targetPackage'"
@@ -39,7 +39,7 @@ internal class MoveTaigaImportQuickFix(
 
         val sourceMatches = source.text == originalImport && specifier.startOffsetInParent == originalOffset
         val packagesMatch =
-            vfsStamp == VirtualFileManager.getInstance().modificationCount &&
+            vfsStamp == VirtualFileManager.VFS_STRUCTURE_MODIFICATIONS.modificationCount &&
                 psiStamp == PsiModificationTracker.getInstance(project).modificationCount
 
         if (sourceMatches && packagesMatch) {
@@ -54,7 +54,7 @@ private fun moveSpecifier(
     targetPackage: String,
 ) {
     val file = source.containingFile as? JSFile ?: return
-    val targetImports = file.taigaImports().filter { target -> target.importModuleText == targetPackage }
+    val targetImports = file.taigaImports().filter { target -> target.taigaPackageName == targetPackage }
     val existing =
         targetImports
             .asSequence()
