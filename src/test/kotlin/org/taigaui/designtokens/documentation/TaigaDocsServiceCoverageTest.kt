@@ -22,6 +22,7 @@ import org.taigaui.designtokens.documentation.discovery.TaigaApiCatalog
 import org.taigaui.designtokens.documentation.discovery.TaigaSearchEverywhereContributorFactory
 import org.taigaui.designtokens.documentation.discovery.taigaApiSource
 import java.lang.reflect.Proxy
+import java.net.URI
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -153,14 +154,18 @@ class TaigaDocsServiceCoverageTest : BasePlatformTestCase() {
             val catalog = requireNotNull(TaigaApiCatalog.load(project, source))
             assertEquals(version, catalog.version)
 
-            val sidebarResults = catalog.search("Input").map { it.entry.entity.documentationUri.toString() }
+            val sidebarResults = catalog.search("Input").map { it.entry.entity.documentationUri }
             val searchResults =
                 withContext(Dispatchers.Default) {
                     val results = contributor.search("Input", EmptyProgressIndicator())
 
-                    results.map { it.entity.documentationUri.toString() }
+                    results.map { it.entity.documentationUri }
                 }
-            val expected = listOf("${baseUrl}components/input", "${baseUrl}components/$extraSlug")
+            val expected =
+                listOf(
+                    URI.create("${baseUrl}components/input"),
+                    URI.create("${baseUrl}components/$extraSlug"),
+                )
 
             assertEquals(expected, sidebarResults)
             assertEquals(expected, searchResults)
