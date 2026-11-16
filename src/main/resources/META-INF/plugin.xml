@@ -136,6 +136,15 @@
             level="ERROR"
             implementationClass="org.taigaui.designtokens.events.TypeScriptEventPluginModifierInspection"
         />
+        <localInspection
+            shortName="WrongTaigaUIImport"
+            displayName="Wrong Taiga UI import package"
+            groupName="Taiga UI"
+            enabledByDefault="true"
+            language="TypeScript"
+            level="WARNING"
+            implementationClass="org.taigaui.designtokens.imports.TaigaImportInspection"
+        />
         <lang.inspectionSuppressor
             language="TypeScript"
             implementationClass="org.taigaui.designtokens.events.TypeScriptHostEventPluginInspectionSuppressor"

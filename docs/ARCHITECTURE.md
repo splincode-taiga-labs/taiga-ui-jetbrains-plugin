@@ -301,6 +301,12 @@ The Tools → Taiga UI: Browse Icons action opens a project-aware Swing dialog. 
 
 Cold catalog loads notify the dialog through a weak refresh callback; package discovery and loading happen on an IO dispatcher. The dialog renders only the visible grid cells, with a small parallelism limit, using the shared `IconSvgPreviewRenderer` implementation; remote SVG access and SVG conversion stay off EDT. Render jobs are canceled when the viewport, search, or dialog lifetime changes. Copy and editor insert actions operate only on selected names from the active catalog.
 
+## TypeScript import inspection
+
+The local TypeScript inspection checks named imports from Taiga UI package root entry points. It discovers visible package roots in the editor file's ancestor `node_modules` directories, keeping the nearest installation of each package. It delegates module and symbol resolution to WebStorm, including package exports and declaration re-exports. An alternative must resolve inside the expected installed package. Inspections with multiple viable alternatives or without a reliable resolution stay silent.
+
+Resolution runs during the IDE's inspection pass. The quick fix edits the import through the IDE's PSI update command and verifies that the source and package-resolution context still match the inspected snapshot before writing.
+
 ## Background loading and caching
 
 Completion and inspection must not perform expensive discovery on the UI path.
@@ -365,6 +371,7 @@ org.taigaui.designtokens
 ├── completion     token completion, strict inspection names, native lookup integration, and selected-item preview
 ├── units          stateless CSS unit parsing, conversion, injected-style mapping, and declarative inlay presentation
 ├── icons          @tui.* completion, local/remote catalogs, SVG preview rendering, and icon hover
+├── imports        TypeScript package inspection and PSI import quick fix
 └── documentation  token-reference scanning, hover controller, Swing model, and Swing popup
 ```
 
