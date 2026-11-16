@@ -6,8 +6,6 @@ import com.intellij.ide.actions.searcheverywhere.FoundItemDescriptor
 import com.intellij.ide.actions.searcheverywhere.SearchEverywhereContributorFactory
 import com.intellij.ide.actions.searcheverywhere.WeightedSearchEverywhereContributor
 import com.intellij.openapi.actionSystem.AnActionEvent
-import com.intellij.openapi.actionSystem.CommonDataKeys
-import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.util.ProgressIndicatorUtils
 import com.intellij.openapi.project.Project
@@ -28,11 +26,8 @@ internal class TaigaSearchEverywhereContributorFactory : SearchEverywhereContrib
 
     override fun createContributor(initEvent: AnActionEvent): WeightedSearchEverywhereContributor<TaigaApiEntry> {
         val project = requireNotNull(initEvent.project)
-        val file =
-            initEvent.getData(CommonDataKeys.VIRTUAL_FILE)
-                ?: FileEditorManager.getInstance(project).selectedFiles.firstOrNull()
 
-        return TaigaSearchEverywhereContributor(project, taigaApiSource(project, file))
+        return TaigaSearchEverywhereContributor(project, taigaApiSource(project))
     }
 }
 

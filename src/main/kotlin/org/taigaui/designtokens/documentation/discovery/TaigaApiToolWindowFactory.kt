@@ -3,7 +3,6 @@ package org.taigaui.designtokens.documentation.discovery
 import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.EDT
-import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.FileEditorManagerEvent
 import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.project.DumbAware
@@ -129,12 +128,9 @@ private class TaigaApiToolWindowPanel(
                 }
             },
         )
-        reloadButton.addActionListener { load(selectedFileSource()) }
-        load(selectedFileSource())
+        reloadButton.addActionListener { load(taigaApiSource(project)) }
+        load(taigaApiSource(project))
     }
-
-    private fun selectedFileSource(): Path? =
-        taigaApiSource(project, FileEditorManager.getInstance(project).selectedFiles.firstOrNull())
 
     private fun configureActions() {
         searchField.addDocumentListener(

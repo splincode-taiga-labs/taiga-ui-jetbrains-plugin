@@ -1,6 +1,7 @@
 package org.taigaui.designtokens.documentation.discovery
 
 import com.intellij.openapi.components.service
+import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import kotlinx.coroutines.Dispatchers
@@ -118,7 +119,7 @@ internal val TaigaDocKind.categoryLabel: String
 
 internal fun taigaApiSource(
     project: Project,
-    file: VirtualFile?,
+    file: VirtualFile? = FileEditorManager.getInstance(project).selectedFiles.firstOrNull(),
 ): Path? = file?.takeIf { it.isInLocalFileSystem }?.path?.let(Path::of) ?: project.basePath?.let(Path::of)
 
 private fun String.searchKey(): String = lowercase(Locale.ROOT).filter(Char::isLetterOrDigit)

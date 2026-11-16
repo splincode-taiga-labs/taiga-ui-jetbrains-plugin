@@ -34,14 +34,21 @@ class TaigaUiVersionDetectorTest {
     }
 
     @Test
-    fun usesNearestTaigaPackageScopeInMonorepo() {
+    fun resolvesHoistedV4AndNestedV5FromTheirOwnFiles() {
         val workspace = temporaryFolder.newFolder("monorepo").toPath()
         createPackage(workspace, "core", "4.60.0")
+        createPackage(workspace, "legacy", "4.60.0")
         val app = Files.createDirectories(workspace.resolve("apps/admin"))
         createPackage(app, "core", "5.18.0")
-        val sourceFile = createSource(app)
+        createPackage(app, "kit", "5.18.0")
 
-        assertEquals(5, requireNotNull(detector.detect(sourceFile)).majorVersion)
+        val v4 = requireNotNull(detector.detect(createSource(workspace.resolve("apps/legacy"))))
+        val v5 = requireNotNull(detector.detect(createSource(app)))
+
+        assertEquals("4.60.0", v4.version)
+        assertEquals(setOf("@taiga-ui/core", "@taiga-ui/legacy"), v4.installedPackages)
+        assertEquals("5.18.0", v5.version)
+        assertEquals(setOf("@taiga-ui/core", "@taiga-ui/kit"), v5.installedPackages)
     }
 
     @Test
