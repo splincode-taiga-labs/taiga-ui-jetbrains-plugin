@@ -196,7 +196,7 @@ Cache bookkeeping stays behind small synchronized sections; network requests and
 
 ### API discovery
 
-The right-hand Taiga UI tool window and the Search Everywhere contributor use the same immutable search catalog built from a project-filtered documentation snapshot. The active editor file determines the package scope; with no active local file, discovery uses the project root. The tool window rebuilds it when the editor selection changes or the user reloads it. A Search Everywhere session captures one scope and launches one background load. A cold query can wait cancellably for that load on the search worker. Subsequent queries reuse the same in-memory catalog without package discovery or network work.
+The right-hand Taiga UI tool window and the Search Everywhere contributor build the same immutable search catalog from a project-filtered documentation snapshot. The active editor file determines the package scope. Discovery uses the project root when no local file is active. The tool window rebuilds the catalog when the editor selection changes or the user reloads it. A Search Everywhere session captures one scope and launches one background load. A cold query can wait for that load on the search worker and can be canceled. Subsequent queries reuse the in-memory catalog without package discovery or network work.
 
 Search ranks exact public symbols and selectors ahead of title, prefix, substring and fuzzy matches. The tool window groups the results by documented entity kind and only applies tree updates on the EDT. Opening a result uses its versioned documentation URL.
 
