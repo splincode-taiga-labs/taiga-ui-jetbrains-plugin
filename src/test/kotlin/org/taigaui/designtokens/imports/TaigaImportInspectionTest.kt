@@ -91,7 +91,14 @@ class TaigaImportInspectionTest : CodeInsightFixtureTestCase<EmptyModuleFixtureB
         applyFix("core")
         val imports = (myFixture.file as JSFile).taigaImports()
         assertEquals(1, imports.size)
-        assertEquals("Options", imports.single().importSpecifiers.single().declaredName)
+        assertEquals(
+            "Options",
+            imports
+                .single()
+                .importSpecifiers
+                .single()
+                .declaredName,
+        )
         assertEmpty(problems())
     }
 

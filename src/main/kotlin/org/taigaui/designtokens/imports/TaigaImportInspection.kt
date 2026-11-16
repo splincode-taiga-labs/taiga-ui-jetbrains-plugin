@@ -37,7 +37,10 @@ class TaigaImportInspection : LocalInspectionTool() {
         declarations: List<ES6ImportDeclaration>,
         holder: ProblemsHolder,
     ) {
-        val packages = file.originalFile.virtualFile?.installedTaigaPackages().orEmpty()
+        val packages =
+            file.originalFile.virtualFile
+                ?.installedTaigaPackages()
+                .orEmpty()
 
         if (packages.size < 2) {
             return
@@ -63,7 +66,10 @@ class TaigaImportInspection : LocalInspectionTool() {
     ) {
         ProgressManager.checkCanceled()
 
-        val symbol = specifier.referenceName?.takeIf(IDENTIFIER::matches) ?: return
+        val symbol =
+            specifier.referenceName.takeIf { name ->
+                IDENTIFIER.matches(name) && !specifier.isDefault && !specifier.hasResolution()
+            } ?: return
         val target = specifier.uniqueReplacement(symbol, packageName, packages) ?: return
 
         holder.registerProblem(
@@ -88,10 +94,6 @@ private fun ES6ImportSpecifier.uniqueReplacement(
     currentPackage: String,
     packages: Map<String, VirtualFile>,
 ): String? {
-    if (isDefault || hasResolution()) {
-        return null
-    }
-
     val file = containingFile
     val prefix = if (isTypeOnly()) "import type" else "import"
     // Give every probe its own local name and keep the original file's module resolution context.
@@ -100,9 +102,8 @@ private fun ES6ImportSpecifier.uniqueReplacement(
             .filter { name -> name != currentPackage }
             .mapIndexed { index, name -> "$prefix {$symbol as __TaigaImportProbe$index} from '$name';" }
             .joinToString("\n")
-    val parsed = PsiFileFactory.getInstance(project).createFileFromText(probes, file) as? PsiFileImpl ?: return null
-    parsed.setOriginalFile(file.originalFile)
-    val probeFile = parsed as? JSFile ?: return null
+    val probeFile = PsiFileFactory.getInstance(project).createFileFromText(probes, file) as? JSFile ?: return null
+    (probeFile as? PsiFileImpl)?.setOriginalFile(file.originalFile)
 
     return probeFile
         .taigaImports()

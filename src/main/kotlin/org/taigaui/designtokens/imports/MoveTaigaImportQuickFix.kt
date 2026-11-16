@@ -37,22 +37,23 @@ internal class MoveTaigaImportQuickFix(
         val specifier = element as? ES6ImportSpecifier ?: return
         val source = specifier.declaration ?: return
 
-        if (source.text == originalImport &&
-            specifier.startOffsetInParent == originalOffset &&
+        val sourceMatches = source.text == originalImport && specifier.startOffsetInParent == originalOffset
+        val packagesMatch =
             vfsStamp == VirtualFileManager.getInstance().modificationCount &&
-            psiStamp == PsiModificationTracker.getInstance(project).modificationCount
-        ) {
-            moveSpecifier(specifier, targetPackage)
+                psiStamp == PsiModificationTracker.getInstance(project).modificationCount
+
+        if (sourceMatches && packagesMatch) {
+            moveSpecifier(source, specifier, targetPackage)
         }
     }
 }
 
 private fun moveSpecifier(
+    source: ES6ImportDeclaration,
     specifier: ES6ImportSpecifier,
     targetPackage: String,
 ) {
-    val file = specifier.containingFile as? JSFile ?: return
-    val source = specifier.declaration ?: return
+    val file = source.containingFile as? JSFile ?: return
     val targetImports = file.taigaImports().filter { target -> target.importModuleText == targetPackage }
     val existing =
         targetImports
@@ -70,13 +71,17 @@ private fun moveSpecifier(
     val compatibleTarget = targetImports.firstOrNull { target -> target.canMerge(specifier) }
 
     when {
-        compatibleTarget?.addSpecifier(specifier) == true -> specifier.delete()
+        compatibleTarget?.addSpecifier(specifier) == true -> {
+            specifier.delete()
+        }
 
         source.importSpecifiers.size == 1 && source.importedBindings.isEmpty() -> {
             source.fromClause?.let { from -> ES6ReplaceImportFromClauseFix.changeImportFromText(from, targetPackage) }
         }
 
-        else -> addSeparateImport(file, source, specifier, targetPackage)
+        else -> {
+            addSeparateImport(file, source, specifier, targetPackage)
+        }
     }
 }
 
@@ -115,7 +120,10 @@ private fun ES6ImportDeclaration.addSpecifier(specifier: ES6ImportSpecifier): Bo
             CreateImportExportInfo(specifier.referenceName, specifier.declaredName, ImportExportType.SPECIFIER, prefix),
         )
 
-    val matches = added != null && added.declaredName == specifier.declaredName && added.isTypeOnly() == specifier.isTypeOnly()
+    val matches =
+        added != null &&
+            added.declaredName == specifier.declaredName &&
+            added.isTypeOnly() == specifier.isTypeOnly()
 
     if (!matches) {
         added?.delete()
