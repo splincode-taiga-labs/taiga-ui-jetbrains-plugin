@@ -274,7 +274,7 @@ class TaigaQuickDocumentationRendererTest {
                 subject = owner,
                 startOffset = 0,
                 endOffset = 4,
-                usage = "<button\\n  size=\\\"s\\\">Save</button>",
+                usage = "<button\n  size=\"s\">Save</button>",
                 property = property,
                 kind = TaigaApiMemberKind.INPUT,
                 localMember = local,
