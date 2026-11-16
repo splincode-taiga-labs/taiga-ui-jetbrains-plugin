@@ -81,7 +81,7 @@ class TaigaImportInspectionTest : CodeInsightFixtureTestCase<EmptyModuleFixtureB
         assertEquals(setOf("TuiButton", "Options"), core.importSpecifiers.map { it.declaredName }.toSet())
         val options = core.importSpecifiers.single { it.declaredName == "Options" }
         assertEquals("TuiCheckboxOptions", options.referenceName)
-        assertTrue(options.isTypeOnly())
+        assertEquals("type TuiCheckboxOptions as Options", options.text)
         assertEquals(listOf("TuiBadge"), kit.importSpecifiers.map { it.declaredName })
         assertEmpty(problems())
     }

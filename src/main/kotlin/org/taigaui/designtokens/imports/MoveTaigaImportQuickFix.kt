@@ -1,5 +1,8 @@
 package org.taigaui.designtokens.imports
 
+import com.intellij.codeInsight.intention.preview.IntentionPreviewInfo
+import com.intellij.codeInspection.LocalQuickFix
+import com.intellij.codeInspection.ProblemDescriptor
 import com.intellij.lang.ecmascript6.intentions.ES6ReplaceImportFromClauseFix
 import com.intellij.lang.ecmascript6.psi.ES6ImportDeclaration
 import com.intellij.lang.ecmascript6.psi.ES6ImportExportDeclaration.ImportExportPrefixKind
@@ -8,11 +11,8 @@ import com.intellij.lang.ecmascript6.psi.impl.ES6ImportPsiUtil
 import com.intellij.lang.ecmascript6.psi.impl.ES6ImportPsiUtil.CreateImportExportInfo
 import com.intellij.lang.ecmascript6.psi.impl.ES6ImportPsiUtil.ImportExportType
 import com.intellij.lang.javascript.psi.JSFile
-import com.intellij.modcommand.ModPsiUpdater
-import com.intellij.modcommand.PsiUpdateModCommandQuickFix
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFileManager
-import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFileFactory
 import com.intellij.psi.PsiParserFacade
 import com.intellij.psi.util.PsiModificationTracker
@@ -20,7 +20,7 @@ import com.intellij.psi.util.PsiModificationTracker
 internal class MoveTaigaImportQuickFix(
     original: ES6ImportSpecifier,
     private val targetPackage: String,
-) : PsiUpdateModCommandQuickFix() {
+) : LocalQuickFix {
     private val originalImport = original.declaration?.text
     private val originalOffset = original.startOffsetInParent
     private val vfsStamp = VirtualFileManager.VFS_STRUCTURE_MODIFICATIONS.modificationCount
@@ -28,13 +28,18 @@ internal class MoveTaigaImportQuickFix(
 
     override fun getFamilyName(): String = "Move import to '$targetPackage'"
 
+    // The JavaScript import helpers require a write action even for a preview file.
+    override fun generatePreview(
+        project: Project,
+        previewDescriptor: ProblemDescriptor,
+    ): IntentionPreviewInfo = IntentionPreviewInfo.EMPTY
+
     // The inspection resolves packages on the daemon thread. Only apply the edit to the same snapshot.
     override fun applyFix(
         project: Project,
-        element: PsiElement,
-        updater: ModPsiUpdater,
+        descriptor: ProblemDescriptor,
     ) {
-        val specifier = element as? ES6ImportSpecifier ?: return
+        val specifier = descriptor.psiElement as? ES6ImportSpecifier ?: return
         val source = specifier.declaration ?: return
 
         val sourceMatches = source.text == originalImport && specifier.startOffsetInParent == originalOffset
