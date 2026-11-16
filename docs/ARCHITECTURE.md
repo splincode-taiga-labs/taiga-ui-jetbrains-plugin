@@ -194,6 +194,12 @@ The project-level docs store:
 
 Cache bookkeeping stays behind small synchronized sections; network requests and parsing remain outside cache locks.
 
+### API discovery
+
+The right-hand Taiga UI tool window and the Search Everywhere contributor use the same immutable search catalog built from a project-filtered documentation snapshot. The active editor file determines the package scope; with no active local file, discovery uses the project root. The tool window rebuilds it when the editor selection changes or the user reloads it. A Search Everywhere session captures one scope and launches one background load. A cold query can wait cancellably for that load on the search worker. Subsequent queries reuse the same in-memory catalog without package discovery or network work.
+
+Search ranks exact public symbols and selectors ahead of title, prefix, substring and fuzzy matches. The tool window groups the results by documented entity kind and only applies tree updates on the EDT. Opening a result uses its versioned documentation URL.
+
 ### Contextual documentation cards
 
 Component/directive, binding and TypeScript hover cards use the same reference layout as explicitly opened cards: a neutral kind badge, package metadata and documentation link in the header, labeled code rows and bounded API tabs. API tabs use vertically stacked rows and omit empty categories. Every installed member is present in the list; long types have a bounded summary and a focused member view. The header is the single external documentation entry point. There is no Details disclosure, API-browser footer or clipboard action. Passive pipe hover retains its shorter summary and can expand into complete documentation.

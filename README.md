@@ -62,6 +62,12 @@ Use **Show Taiga UI Card** from Find Action or the editor context menu, or press
 
 Code changes invalidate the card's source-changing actions, including changes to component imports and installed declarations. A stale card keeps navigation available and offers **Refresh** / **F5** to resolve the current API. Refresh preserves the browsed member, Back navigation, scroll position, and a pinned card's position and size. Successful value and template edits refresh the card automatically; Undo/Redo require refreshing before another edit. If its source target was deleted or renamed outside the card, reopen the card at the caret.
 
+## Browse and search the Taiga UI API
+
+Open **Taiga UI** on the right-hand tool window bar to browse components, directives, pipes and other APIs by category. The search field filters the tree by name, public symbol or selector. Select an entry to see its package and summary, then press **Enter** in the tree or click **Open Documentation**.
+
+Open the **Taiga UI** tab in Search Everywhere (press **Shift** twice) for the same results without leaving the editor. Both views use the cached documentation for the Taiga UI version installed for the active file, or the project root when no file is selected.
+
 ## Design tokens
 
 ### Completion
