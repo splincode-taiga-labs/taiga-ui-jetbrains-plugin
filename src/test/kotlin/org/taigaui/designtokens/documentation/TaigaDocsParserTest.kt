@@ -49,13 +49,17 @@ class TaigaDocsParserTest {
                 v5Docs() + "\n# components/TuiButton\n# components/Button Group\n# components/Icon Button",
             )
 
-        assertEquals("components/button", catalog.search("TuiButton").first().entry.entity.sectionId)
+        val exact = catalog.search("TuiButton").first()
+        val selector = catalog.search("<tui-calendar>").single()
+        val fuzzy = catalog.search("clndr").single()
+
+        assertEquals("components/button", exact.entry.entity.sectionId)
         assertEquals(
             listOf("Button", "Button Group", "Icon Button", "TuiButton"),
             catalog.search("button").map { it.entry.entity.title },
         )
-        assertEquals("Calendar", catalog.search("<tui-calendar>").single().entry.entity.title)
-        assertEquals("Calendar", catalog.search("clndr").single().entry.entity.title)
+        assertEquals("Calendar", selector.entry.entity.title)
+        assertEquals("Calendar", fuzzy.entry.entity.title)
         assertTrue(catalog.search("xyz").isEmpty())
         assertTrue(catalog.search("/").isEmpty())
     }
