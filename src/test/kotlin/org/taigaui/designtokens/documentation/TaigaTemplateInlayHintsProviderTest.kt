@@ -26,7 +26,7 @@ class TaigaTemplateInlayHintsProviderTest : BasePlatformTestCase() {
         val source = """<button tuiButton size="m">Save</button>"""
         val file = myFixture.tempDirFixture.createFile("src/component.html", source)
         myFixture.configureFromExistingVirtualFile(file)
-        val sink = collect(file)
+        val sink = collect(myFixture.file)
 
         assertContainsElements(sink.texts, " Taiga UI directive", " medium")
         assertContainsElements(
@@ -41,7 +41,7 @@ class TaigaTemplateInlayHintsProviderTest : BasePlatformTestCase() {
         val source = """<button tuiButton size="invalid" title="m">Save</button>"""
         val file = myFixture.tempDirFixture.createFile("src/component.html", source)
         myFixture.configureFromExistingVirtualFile(file)
-        val sink = collect(file)
+        val sink = collect(myFixture.file)
 
         assertContainsElements(sink.texts, " Taiga UI directive")
         assertFalse(sink.texts.any { it.contains("medium") })
@@ -57,7 +57,7 @@ class TaigaTemplateInlayHintsProviderTest : BasePlatformTestCase() {
             )
         val file = myFixture.tempDirFixture.createFile("src/inline.ts", source)
         myFixture.configureFromExistingVirtualFile(file)
-        val sink = collect(file)
+        val sink = collect(myFixture.file)
 
         assertContainsElements(sink.texts, " Taiga UI directive", " medium")
         val templateOffset = source.indexOf(template)
