@@ -156,7 +156,6 @@ class TaigaQuickDocumentationRendererTest {
         assertTrue(html.contains("+2 more"))
     }
 
-
     @Test
     fun `renders pipe invocation parameters result and purity without a package`() {
         val local =
@@ -166,7 +165,12 @@ class TaigaQuickDocumentationRendererTest {
                         name = "tuiMapper",
                         parameters =
                             listOf(
-                                TaigaPipeParameter("mapper", "(value: string) => string", false, "Transforms the value"),
+                                TaigaPipeParameter(
+                                    name = "mapper",
+                                    type = "(value: string) => string",
+                                    optional = false,
+                                    description = "Transforms the value",
+                                ),
                                 TaigaPipeParameter("args", null, true, variadic = true),
                             ),
                         resultType = "string",
