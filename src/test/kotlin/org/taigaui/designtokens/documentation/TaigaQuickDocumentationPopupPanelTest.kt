@@ -21,6 +21,47 @@ import javax.swing.KeyStroke
 import javax.swing.SwingUtilities
 
 class TaigaQuickDocumentationPopupPanelTest : TaigaDocumentationPopupTestCase() {
+    fun testStableHoverHostKeepsDimensionsWhenCardsChange() {
+        val first = TaigaQuickDocumentationPopupPanel(directive(), compactHover = true)
+        val host = TaigaDocumentationPopupHost(first, stabilizesHoverSize = true)
+        val locked = host.preferredSize
+
+        assertTrue(locked.width >= JBUI.scale(380))
+        assertTrue(locked.height in JBUI.scale(220)..JBUI.scale(300))
+        assertSame(first, host.card)
+
+        host.showCard(first)
+        assertSame(first, host.card)
+
+        val second = TaigaQuickDocumentationPopupPanel(component(), compactHover = true)
+        host.showCard(second)
+
+        assertSame(second, host.card)
+        assertSame(second, host.components.single())
+        assertEquals(locked, host.preferredSize)
+
+        val full = TaigaQuickDocumentationPopupPanel(component())
+        host.showCard(full)
+        assertEquals(full.preferredSize, host.preferredSize)
+
+        host.showCard(TaigaQuickDocumentationPopupPanel(directive(), compactHover = true))
+        assertEquals(locked, host.preferredSize)
+        host.stopTransition()
+    }
+
+    fun testUnstableHoverHostUsesNaturalCardDimensions() {
+        val compact = TaigaQuickDocumentationPopupPanel(directive(), compactHover = true)
+        val host = TaigaDocumentationPopupHost(compact)
+
+        assertEquals(compact.preferredSize, host.preferredSize)
+
+        val full = TaigaQuickDocumentationPopupPanel(directive())
+        host.showCard(full)
+
+        assertSame(full, host.card)
+        assertEquals(full.preferredSize, host.preferredSize)
+    }
+
     fun testSizeHintDescriptionsDoNotGuessUnknownValues() {
         assertEquals("extra small", taigaSizeDescription("xs"))
         assertEquals("small", taigaSizeDescription("s"))

@@ -16,6 +16,42 @@ class TaigaDocumentationExamplePrettierCoverageTest {
     private val code = """<button tuiButton [disabled]="busy">Save</button>"""
 
     @Test
+    fun testRealProcessFormatsThroughStdinAndReturnsItsStdout() {
+        val formatter =
+            TaigaDocumentationExamplePrettier(
+                commandFor = { listOf("sh", "-c", "cat") },
+            )
+
+        assertEquals(code, formatter.format(code, sourceFile))
+    }
+
+    @Test
+    fun testRealProcessFailuresFallBackWithoutModifyingSource() {
+        val commands =
+            listOf(
+                listOf("sh", "-c", "exit 23"),
+                listOf("nonexistent-taiga-formatter-binary-34917"),
+                listOf("sh", "-c", "printf unrelated"),
+            )
+        commands.forEach { command ->
+            val formatter = TaigaDocumentationExamplePrettier(commandFor = { command })
+            assertEquals(formattedDocumentationExample(code), formatter.format(code, sourceFile))
+        }
+    }
+
+    @Test
+    fun testRealProcessRejectsOutputLargerThanConfiguredLimit() {
+        val formatter =
+            TaigaDocumentationExamplePrettier(
+                commandFor = {
+                    listOf("sh", "-c", "awk 'BEGIN { for (i = 0; i < 13000; i++) printf \"x\" }'")
+                },
+            )
+
+        assertEquals(formattedDocumentationExample(code), formatter.format(code, sourceFile))
+    }
+
+    @Test
     fun testFindsClosestProjectPrettierAndSupportsBothCliLayouts() {
         val project = temporaryFolder.newFolder("angular").toPath()
         val nestedSource = project.resolve("apps/demo/src/example.component.html")
