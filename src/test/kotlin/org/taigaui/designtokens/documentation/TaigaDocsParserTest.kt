@@ -4,6 +4,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.taigaui.designtokens.documentation.discovery.TaigaApiCatalog
+import org.taigaui.designtokens.documentation.discovery.categoryLabel
 
 class TaigaDocsParserTest {
     private val parser = TaigaDocsParser()
@@ -38,6 +40,60 @@ class TaigaDocsParserTest {
         assertEquals(setOf("@taiga-ui/legacy"), input.packageNames)
         assertEquals(setOf("tui-input"), input.selectors)
         assertEquals("https://taiga-ui.dev/v4/components/input", input.documentationUri.toString())
+    }
+
+    @Test
+    fun discoveryRanksExactIdentifiersAndFindsFuzzyTitlesFromTheSameCatalog() {
+        val catalog =
+            discoveryCatalog(
+                v5Docs() + "\n# components/TuiButton\n# components/Button Group\n# components/Icon Button",
+            )
+
+        val exact = catalog.search("TuiButton").first()
+        val selector = catalog.search("<tui-calendar>").single()
+        val fuzzy = catalog.search("clndr").single()
+
+        assertEquals("components/button", exact.entry.entity.sectionId)
+        assertEquals(
+            listOf("Button", "Button Group", "Icon Button", "TuiButton"),
+            catalog.search("button").map { it.entry.entity.title },
+        )
+        assertEquals("Calendar", selector.entry.entity.title)
+        assertEquals("Calendar", fuzzy.entry.entity.title)
+        assertTrue(catalog.search("xyz").isEmpty())
+        assertTrue(catalog.search("/").isEmpty())
+    }
+
+    @Test
+    fun discoveryFiltersByInstalledPackagesAndVersionBeforeListingTheTree() {
+        val docs =
+            v5Docs() +
+                "\n# pipes/Future Pipe\n- **Package**: `CORE`\n- **Version**: 5.2.0" +
+                "\n# components/Grid\n- **Package**: `KIT`" +
+                "\n# pipes/Present Pipe\n- **Package**: `CORE, KIT`"
+        val catalog = discoveryCatalog(docs)
+        val entries = catalog.search("").map { it.entry }
+        val pipe = catalog.search("Present Pipe").single().entry
+
+        assertEquals(listOf("Button", "Calendar", "Present Pipe"), entries.map { it.entity.title })
+        assertEquals("Pipes", pipe.entity.kind.categoryLabel)
+        assertEquals(listOf("@taiga-ui/core"), pipe.packages)
+        assertTrue(catalog.search("Future Pipe").isEmpty())
+        assertTrue(catalog.search("Grid").isEmpty())
+    }
+
+    private fun discoveryCatalog(content: String): TaigaApiCatalog {
+        val index = requireNotNull(parser.parse(requireNotNull(TaigaDocsSources.forMajor(5)), content))
+        val context =
+            TaigaUiProjectContext(
+                version = "5.1.0",
+                majorVersion = 5,
+                versionSourcePackage = "@taiga-ui/core",
+                installedPackages = setOf("@taiga-ui/core"),
+                packageScopeIdentity = "test",
+            )
+
+        return TaigaApiCatalog(TaigaDocsSnapshot(context, index))
     }
 
     @Test

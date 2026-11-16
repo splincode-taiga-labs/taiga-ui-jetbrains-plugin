@@ -41,6 +41,15 @@
         <platform.backend.documentation.lookupElementTargetProvider
             implementation="org.taigaui.designtokens.documentation.TaigaQuickDocumentationTargetProvider"
         />
+        <searchEverywhereContributor
+            implementation="org.taigaui.designtokens.documentation.discovery.TaigaSearchEverywhereContributorFactory"
+        />
+        <toolWindow
+            id="Taiga UI"
+            anchor="right"
+            icon="/icons/taigaToolWindow.svg"
+            factoryClass="org.taigaui.designtokens.documentation.discovery.TaigaApiToolWindowFactory"
+        />
         <psi.referenceContributor
             language="CSS"
             implementation="org.taigaui.designtokens.navigation.DesignTokenReferenceContributor"
