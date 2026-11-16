@@ -126,7 +126,7 @@ internal fun ES6ImportSpecifier.isTypeOnly(): Boolean =
         specifierKind == ImportExportSpecifierKind.IMPORT_TYPE
 
 private fun ES6ImportSpecifier.hasResolution(): Boolean =
-    resolveOverAliases().any { result -> result.isValidResult && result.element != null }
+    multiResolve(false).any { result -> result.isValidResult && result.element != null }
 
 private fun ES6ImportDeclaration.resolvesWithin(root: VirtualFile): Boolean {
     val resolved = fromClause?.resolveReferencedElements().orEmpty()
