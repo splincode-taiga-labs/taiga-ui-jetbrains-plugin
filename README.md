@@ -14,6 +14,7 @@
 <ul>
     <li>Design token completion and color previews in CSS, Less, and SCSS.</li>
     <li>Resolved token values, source navigation, and project override detection.</li>
+    <li>Searchable Token Explorer with theme and platform previews, reference chains, and copy actions.</li>
     <li>Inspections and safe quick fixes for unknown or deprecated tokens.</li>
     <li><code>@tui.*</code> icon completion and SVG previews in Angular, HTML, TypeScript, and JavaScript.</li>
     <li>Visual icon browser with search, SVG previews, and copy/insert actions (Tools → Taiga UI: Browse Icons).</li>
@@ -73,6 +74,13 @@ Open the **Taiga UI** tab in Search Everywhere (press **Shift** twice) for the s
 When a named import uses the wrong Taiga UI package, press **Alt+Enter** on the highlighted symbol to move it to the package that exports it. Suggestions use the packages installed for the current file and are available when exactly one package exports the symbol.
 
 ## Design tokens
+
+### Token Explorer
+
+Open **Taiga UI → Tokens** and search by token name. Select a result to see its resolved values, color previews,
+project overrides, and reference chains. Use the source icon beside a value to open its declaration, or **Copy var()**
+to copy a CSS reference. The list follows the active file's Taiga UI scope and marks names that are only known to the
+catalog. Use **Reload** after editing styles or installing packages while staying in the same file.
 
 ### Completion
 
