@@ -4,6 +4,7 @@ import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import org.taigaui.designtokens.documentation.DesignTokenHoverPopupModel
+import org.taigaui.designtokens.documentation.discovery.TaigaTokenExplorerCatalog
 import org.taigaui.designtokens.index.PROJECT_STYLES_PACKAGE
 import org.taigaui.designtokens.resolution.DesignTokenValueResolution
 import java.nio.file.Files
@@ -95,6 +96,38 @@ class RealProjectValidationFixturesTest : BasePlatformTestCase() {
         assertEquals("#067647", resolvedValue(v5Source, "--tui-validation-alias"))
         assertEquals("#444444", resolvedValue(v4Source, PACKAGE_CONTEXT_TOKEN))
         assertEquals("#555555", resolvedValue(v5Source, PACKAGE_CONTEXT_TOKEN))
+
+        assertExplorerValues(v4Root, "#b54708", "#444444")
+        assertExplorerValues(v5Root, "#067647", "#555555")
+    }
+
+    private fun assertExplorerValues(
+        appRoot: Path,
+        projectValue: String,
+        packageValue: String,
+    ) {
+        val explorer = TaigaTokenExplorerCatalog.load(service, appRoot.resolve("src/app/app.component.less"))
+        val entry = explorer.search("  TEXT-SECONDARY  ").single()
+        val sections = explorer.details(entry).sections
+        val projectRow = sections.single { section -> section.packageName == PROJECT_STYLES_PACKAGE }.rows.single()
+        val packageRow = sections.single { section -> section.packageName == "@taiga-ui/design-tokens" }.rows.single()
+
+        assertEquals(DesignTokenCatalogSource.PROJECT_OVERRIDE, entry.source)
+        assertEquals(projectValue, projectRow.resolvedValue)
+        assertNotNull(projectRow.color)
+        assertEquals(appRoot.resolve("src/styles.less").normalized(), projectRow.navigationTarget?.sourceFile)
+        assertEquals("#111111", packageRow.resolvedValue)
+        assertNotNull(packageRow.overrideMessage)
+        assertTrue(explorer.search("unknown-fixture-token").isEmpty())
+        assertEquals(
+            listOf("--tui-package-${appRoot.fileName}"),
+            explorer.search("--tui-package-taiga-").map(DesignTokenCatalogEntry::name),
+        )
+
+        val marker = explorer.search(PACKAGE_CONTEXT_TOKEN).single()
+        val markerSection = explorer.details(marker).sections.single()
+
+        assertEquals(packageValue, markerSection.rows.single().resolvedValue)
     }
 
     private fun copyFixture(name: String): Path {
@@ -137,6 +170,7 @@ class RealProjectValidationFixturesTest : BasePlatformTestCase() {
             :root {
                 --tui-text-secondary: #111111;
                 $PACKAGE_CONTEXT_TOKEN: $packageMarker;
+                --tui-package-${workspace.fileName}: $packageMarker;
             }
             """.trimIndent(),
         )

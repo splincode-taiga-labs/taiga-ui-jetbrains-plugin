@@ -148,6 +148,17 @@ The resolver keeps deterministic order only where the source graph proves it. Co
 
 Recursive `var(...)` references use the same context-aware candidate selection model, with cycle protection and grouped source information preserved for editor presentation.
 
+### Token Explorer
+
+The **Tokens** tab in the Taiga UI tool window uses the completion catalog and its existing resolution snapshot for
+the active editor file. It labels catalog-only names explicitly and uses the same value rows and reference-chain
+presentation as hover. Explorer values are resolved against the project-level stylesheet graph. Selector-local
+declarations at an individual use site remain part of hover resolution only.
+
+The explorer loads a snapshot in the background when shown, when the active file changes, or on explicit reload.
+Search filters that snapshot in memory and only the selected token is resolved. The tab cancels outstanding work when
+its source changes or it is disposed, and applies UI updates on the EDT.
+
 ### Color replacement intention
 
 The color intention builds a lookup from the effective values of the selected stylesheet's token snapshot in the

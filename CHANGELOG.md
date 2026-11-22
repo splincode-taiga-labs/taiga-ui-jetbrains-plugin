@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- Token Explorer in the Taiga UI tool window with project-aware search, resolved values, source navigation, and CSS reference copying.
+
 ### Changed
 
 - Expanded WebStorm compatibility to 2026.3 (`263.*`) and added WebStorm 2026.3 to Plugin Verifier checks.

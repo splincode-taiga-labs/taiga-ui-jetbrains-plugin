@@ -10,13 +10,11 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.event.EditorMouseEvent
 import com.intellij.openapi.editor.event.EditorMouseEventArea
-import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.ui.popup.JBPopupListener
 import com.intellij.openapi.ui.popup.LightweightWindowEvent
-import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.util.ui.JBUI
 import kotlinx.coroutines.CoroutineName
@@ -344,15 +342,9 @@ internal class DesignTokenHoverPopupController(
     }
 
     private fun navigateToDefinition(target: DesignTokenNavigationTarget) {
-        val file = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(target.sourceFile) ?: return
-
-        OpenFileDescriptor(
-            project,
-            file,
-            (target.line - 1).coerceAtLeast(0),
-            0,
-        ).navigate(true)
-        dismissHover()
+        if (target.navigate(project)) {
+            dismissHover()
+        }
     }
 
     private fun hidePopup() {
