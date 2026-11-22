@@ -19,8 +19,8 @@ class TaigaLegacyImportInspection : LocalInspectionTool() {
                 val name = declaration.taigaPackageName ?: return
 
                 if (name == "@taiga-ui/legacy" || name.startsWith("@taiga-ui/legacy/")) {
-                    declaration.fromClause?.let { source ->
-                        holder.registerProblem(source, "Review this Taiga UI legacy import")
+                    declaration.fromClause?.lastChild?.let { specifier ->
+                        holder.registerProblem(specifier, "Review this Taiga UI legacy import")
                     }
                 }
             }
