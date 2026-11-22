@@ -1,10 +1,21 @@
 package org.taigaui.designtokens.documentation
 
+import com.intellij.openapi.fileEditor.OpenFileDescriptor
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.vfs.LocalFileSystem
 import org.taigaui.designtokens.index.DesignTokenContext
 import org.taigaui.designtokens.index.DesignTokenPlatform
 import org.taigaui.designtokens.index.DesignTokenTheme
 import org.taigaui.designtokens.resolution.DesignTokenUnresolvedReason
 import org.taigaui.designtokens.resolution.DesignTokenValueResolution
+
+internal fun DesignTokenNavigationTarget.navigate(project: Project): Boolean {
+    val file = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(sourceFile) ?: return false
+
+    OpenFileDescriptor(project, file, (line - 1).coerceAtLeast(0), 0).navigate(true)
+
+    return true
+}
 
 internal fun DesignTokenValueResolution.hoverValueText(): String =
     when (this) {

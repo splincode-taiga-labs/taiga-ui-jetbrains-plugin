@@ -54,11 +54,18 @@ internal class TaigaApiToolWindowFactory :
     ) {
         val panel = TaigaApiToolWindowPanel(project)
         val manager = toolWindow.contentManager
-        val content = manager.factory.createContent(panel, null, false)
+        val content = manager.factory.createContent(panel, "API", false)
 
         content.setDisposer(panel)
         content.setPreferredFocusableComponent(panel.searchField.textEditor)
         manager.addContent(content)
+
+        val tokens = TaigaTokenExplorerPanel(project)
+        val tokenContent = manager.factory.createContent(tokens, "Tokens", false)
+
+        tokenContent.setDisposer(tokens)
+        tokenContent.setPreferredFocusableComponent(tokens.searchField.textEditor)
+        manager.addContent(tokenContent)
     }
 }
 
