@@ -39,10 +39,11 @@ internal suspend fun prepareTaigaDoctorAnalysis(
     project: Project,
     source: Path,
 ): TaigaDoctorAnalysis? {
-    val workspace = project.basePath?.let(Path::of) ?: return null
+    val workspace = project.basePath?.let(Path::of)
     val directory =
         withContext(Dispatchers.IO) {
-            findTaigaDoctorApplication(source, workspace) { config -> readAngularProjectRoots(project, config) }
+            workspace
+                ?.let { findTaigaDoctorApplication(source, it) { config -> readAngularProjectRoots(project, config) } }
                 ?.let(LocalFileSystem.getInstance()::refreshAndFindFileByNioFile)
         } ?: return null
 
@@ -74,34 +75,27 @@ internal suspend fun findTaigaDoctorApplication(
     workspace: Path,
     angularProjectRoots: suspend (Path) -> List<String>,
 ): Path? {
-    val directory = if (Files.isDirectory(source)) source else source.parent ?: return null
+    val directory = source.projectDirectory(workspace) ?: return null
     val ancestors = generateSequence(directory, Path::getParent).takeWhile { it.startsWith(workspace) }.toList()
-
-    if (ancestors.isEmpty() || workspace.relativize(directory).any { it.toString() in DEPENDENCY_DIRECTORIES }) {
-        return null
-    }
-
     val nxProject = ancestors.firstOrNull { Files.isRegularFile(it.resolve("project.json")) }
     val angularConfig = ancestors.map { it.resolve("angular.json") }.firstOrNull(Files::isRegularFile)
     val angularRoots =
         angularConfig
             ?.let { config -> angularProjectRoots(config).mapNotNull { root -> config.resolveProjectRoot(root) } }
             .orEmpty()
-    val angularProject =
-        angularRoots
-            .filter { it.startsWith(workspace) && directory.startsWith(it) }
-            .maxByOrNull(Path::getNameCount)
+            .filter { it.startsWith(workspace) }
+    val angularProject = angularRoots.filter(directory::startsWith).maxByOrNull(Path::getNameCount)
     val packageRoot = ancestors.firstOrNull { Files.isRegularFile(it.resolve("package.json")) }
-    val application = listOfNotNull(nxProject, angularProject).maxByOrNull(Path::getNameCount) ?: packageRoot
     val isMonorepo = Files.isRegularFile(workspace.resolve("nx.json")) || angularRoots.any { it != workspace }
+    val fallback = (packageRoot ?: workspace).takeUnless { it == workspace && isMonorepo }
 
-    return when {
-        application == workspace && nxProject == null && angularProject == null && isMonorepo -> null
-        application != null -> application
-        isMonorepo -> null
-        else -> workspace
-    }
+    return listOfNotNull(nxProject, angularProject).maxByOrNull(Path::getNameCount) ?: fallback
 }
+
+private fun Path.projectDirectory(workspace: Path): Path? =
+    (if (Files.isDirectory(this)) this else parent)
+        ?.takeIf { it.startsWith(workspace) }
+        ?.takeUnless { directory -> workspace.relativize(directory).any { it.toString() in DEPENDENCY_DIRECTORIES } }
 
 private fun Path.resolveProjectRoot(root: String): Path? =
     try {
