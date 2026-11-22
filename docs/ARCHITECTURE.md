@@ -80,6 +80,11 @@ manifests in the background. It compares common packages that share the Taiga UI
 `core` (or another package from that family when `core` is unavailable). Independently versioned packages appear in
 the report without participating in the comparison. The tab supports explicit reload after dependency changes.
 
+**Analyze App** resolves the active application's directory using Nx project markers, Angular workspace project roots,
+or the nearest npm package boundary. It passes that directory and a temporary profile containing the existing Taiga UI
+inspections to WebStorm's batch inspection runner. WebStorm owns background analysis, cancellation, the results view,
+and quick fixes. The temporary profile leaves the user's inspection profile unchanged.
+
 ## Design token subsystem
 
 Token names and token values intentionally have different reachability rules.

@@ -76,6 +76,10 @@ within the Taiga UI release family and shows independently versioned packages in
 file from the application you want to check. Select a package and click **Open package.json** to inspect its installed
 manifest. Click **Reload** after installing or updating dependencies.
 
+Click **Analyze App** to run the Taiga UI inspections for the active application. WebStorm groups wrong-package imports,
+unknown or deprecated design tokens, and invalid event modifiers in its inspection results. Select a finding to jump to
+the source and use the existing quick fix when one is available.
+
 ## TypeScript imports
 
 When a named import uses the wrong Taiga UI package, press **Alt+Enter** on the highlighted symbol to move it to the package that exports it. Suggestions use the packages installed for the current file and are available when exactly one package exports the symbol.
