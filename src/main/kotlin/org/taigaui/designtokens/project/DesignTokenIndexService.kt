@@ -24,6 +24,7 @@ import org.taigaui.designtokens.psi.PsiDesignTokenSourceExtractor
 import org.taigaui.designtokens.resolution.DesignTokenResolutionGroup
 import org.taigaui.designtokens.resolution.DesignTokenValueResolver
 import java.nio.file.Path
+import java.util.concurrent.atomic.AtomicLong
 
 @Service(Service.Level.PROJECT)
 class DesignTokenIndexService(
@@ -66,6 +67,10 @@ class DesignTokenIndexService(
             sourceExtractor = sourceExtractor,
         )
     private val resolutionSnapshotCache = DesignTokenResolutionSnapshotCache()
+    private val indexRevision = AtomicLong()
+
+    internal val modificationCount: Long
+        get() = indexRevision.get()
 
     internal val cachedPackageCount: Int
         get() = cache.size
@@ -83,7 +88,12 @@ class DesignTokenIndexService(
                 VirtualFileManager.VFS_CHANGES,
                 object : BulkFileListener {
                     override fun after(events: List<VFileEvent>) {
-                        invalidate(events.flatMap(VfsEventPaths::from))
+                        invalidate(
+                            events
+                                .filterNot { event ->
+                                    event is VFilePropertyChangeEvent && event.propertyName == VirtualFile.PROP_WRITABLE
+                                }.flatMap(VfsEventPaths::from),
+                        )
                     }
                 },
             )
@@ -205,7 +215,11 @@ class DesignTokenIndexService(
 
         packageNameCatalogCache.invalidate(changedPaths)
 
-        return packageInvalidated + projectStylesheetIndexProvider.invalidate(changedPaths)
+        val invalidated = packageInvalidated + projectStylesheetIndexProvider.invalidate(changedPaths)
+
+        if (invalidated > 0 || changedPaths.any { path -> path.isColorLookupInput() }) indexRevision.incrementAndGet()
+
+        return invalidated
     }
 
     internal fun clear() {
@@ -213,6 +227,7 @@ class DesignTokenIndexService(
         packageNameCatalogCache.clear()
         projectStylesheetIndexProvider.clear()
         resolutionSnapshotCache.clear()
+        indexRevision.incrementAndGet()
     }
 
     internal fun resolutionSnapshot(
@@ -294,5 +309,14 @@ private fun tokenContextKey(
     ).normalized()
 
 private fun String.toPathOrNull(): Path? = runCatching { Path.of(this) }.getOrNull()
+
+private fun Path.isColorLookupInput(): Boolean {
+    val name = fileName?.toString()?.lowercase() ?: return false
+
+    return name in COLOR_LOOKUP_CONFIGS || ProjectStylesheetPathResolver.isStylesheet(this)
+}
+
+private val COLOR_LOOKUP_CONFIGS =
+    setOf("package.json", "angular.json", "nx.json", "project.json", ".pnp.cjs", ".pnp.data.json")
 
 private const val PROPRIETARY_PACKAGE = "@taiga-ui/proprietary"

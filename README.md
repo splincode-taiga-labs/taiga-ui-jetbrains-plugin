@@ -74,6 +74,12 @@ When a named import uses the wrong Taiga UI package, press **Alt+Enter** on the 
 
 ## Design tokens
 
+### Replace a color with a token
+
+Put the caret on a standalone hex, `rgb()`, or `rgba()` value in CSS, Less, or SCSS and press **Alt+Enter**. Choose
+**Replace with var(…)** or select a token from the list when several share the color. The action uses the active
+project's token values and offers matches that resolve to the same color across Taiga UI themes and platforms.
+
 ### Completion
 
 Inside CSS, Less, and SCSS `var(...)` expressions, typing `--tui-` opens WebStorm's native completion with design-token names from installed Taiga UI packages and project styles.
