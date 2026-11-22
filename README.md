@@ -69,6 +69,13 @@ Open **Taiga UI** on the right-hand tool window bar to browse components, direct
 
 Open the **Taiga UI** tab in Search Everywhere (press **Shift** twice) for the same results without leaving the editor. Both views use the cached documentation for the Taiga UI version installed for the active file, or the project root when no file is selected.
 
+## Project Doctor
+
+Open **Taiga UI → Doctor** to see installed packages and their versions for the active file. The tab flags differences
+within the Taiga UI release family and shows independently versioned packages in the same list. In a monorepo, open a
+file from the application you want to check. Select a package and click **Open package.json** to inspect its installed
+manifest. Click **Reload** after installing or updating dependencies.
+
 ## TypeScript imports
 
 When a named import uses the wrong Taiga UI package, press **Alt+Enter** on the highlighted symbol to move it to the package that exports it. Suggestions use the packages installed for the current file and are available when exactly one package exports the symbol.

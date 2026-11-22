@@ -194,10 +194,13 @@ class TaigaApiToolWindowFactoryTest : BasePlatformTestCase() {
 
         TaigaApiToolWindowFactory().createToolWindowContent(project, toolWindow)
 
-        assertEquals(listOf("API", "Tokens"), manager.contents.map { it.displayName })
-        manager.contents.forEach { tab ->
+        assertEquals(listOf("API", "Tokens", "Doctor"), manager.contents.map { it.displayName })
+        manager.contents.take(2).forEach { tab ->
             assertSame(tab.component.child<SearchTextField>().textEditor, tab.preferredFocusableComponent)
         }
+
+        val doctor = manager.contents[2]
+        assertSame((doctor.component as TaigaProjectDoctorPanel).packages, doctor.preferredFocusableComponent)
 
         return manager.contents.first().component
     }

@@ -72,6 +72,14 @@ flowchart LR
     DocsIndex --> DocsDiskCache
 ```
 
+## Project Doctor
+
+The **Doctor** tab loads an on-demand package report for the active file, with the IDE project root as the fallback.
+It uses the existing package locator, including its installed package scope rules, and reads versions from installed
+manifests in the background. It compares common packages that share the Taiga UI release version against installed
+`core` (or another package from that family when `core` is unavailable). Independently versioned packages appear in
+the report without participating in the comparison. The tab supports explicit reload after dependency changes.
+
 ## Design token subsystem
 
 Token names and token values intentionally have different reachability rules.

@@ -66,6 +66,13 @@ internal class TaigaApiToolWindowFactory :
         tokenContent.setDisposer(tokens)
         tokenContent.setPreferredFocusableComponent(tokens.searchField.textEditor)
         manager.addContent(tokenContent)
+
+        val doctor = TaigaProjectDoctorPanel(project)
+        val doctorContent = manager.factory.createContent(doctor, "Doctor", false)
+
+        doctorContent.setDisposer(doctor)
+        doctorContent.setPreferredFocusableComponent(doctor.packages)
+        manager.addContent(doctorContent)
     }
 }
 
