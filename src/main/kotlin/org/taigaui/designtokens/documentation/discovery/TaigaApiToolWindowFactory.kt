@@ -231,8 +231,10 @@ private class TaigaApiToolWindowPanel(
                 tree.expandPath(TreePath(arrayOf(root, categories.nextElement())))
             }
 
-            val firstGroup = root.firstChild as? DefaultMutableTreeNode
-            firstGroup?.let { tree.selectionPath = TreePath(arrayOf(root, it, it.firstChild)) }
+            if (root.childCount > 0) {
+                val firstGroup = root.firstChild
+                tree.selectionPath = TreePath(arrayOf(root, firstGroup, firstGroup.getChildAt(0)))
+            }
         }
 
         showDetails()
@@ -270,7 +272,9 @@ private class TaigaApiTreeRenderer : ColoredTreeCellRenderer() {
                 item.packages.firstOrNull()?.let { append("  $it", SimpleTextAttributes.GRAYED_ATTRIBUTES) }
             }
 
-            is TaigaDocKind -> append(item.categoryLabel, SimpleTextAttributes.REGULAR_BOLD_ATTRIBUTES)
+            is TaigaDocKind -> {
+                append(item.categoryLabel, SimpleTextAttributes.REGULAR_BOLD_ATTRIBUTES)
+            }
         }
     }
 }
