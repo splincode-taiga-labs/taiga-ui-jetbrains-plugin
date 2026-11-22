@@ -2,9 +2,11 @@ package org.taigaui.designtokens.diagnostics
 
 import com.intellij.analysis.AnalysisScope
 import com.intellij.codeInspection.InspectionManager
+import com.intellij.codeInspection.LocalInspectionEP
 import com.intellij.codeInspection.ex.GlobalInspectionContextBase
 import com.intellij.codeInspection.ex.InspectionProfileImpl
 import com.intellij.codeInspection.ex.InspectionToolsSupplier
+import com.intellij.codeInspection.ex.LocalInspectionToolWrapper
 import com.intellij.json.JsonFileType
 import com.intellij.json.psi.JsonFile
 import com.intellij.json.psi.JsonObject
@@ -57,17 +59,17 @@ internal suspend fun prepareTaigaDoctorAnalysis(
 }
 
 internal fun taigaDoctorInspectionProfile(project: Project): InspectionProfileImpl {
-    val currentProfile = InspectionProjectProfileManager.getInstance(project).currentProfile
+    val profileManager = InspectionProjectProfileManager.getInstance(project).currentProfile.profileManager
     val tools =
-        DOCTOR_INSPECTIONS.mapNotNull { shortName ->
-            currentProfile.getInspectionTool(shortName, project)?.createCopy()
-        }
+        LocalInspectionEP.LOCAL_INSPECTION.extensionList
+            .filter { inspection -> inspection.shortName in DOCTOR_INSPECTIONS }
+            .map(::LocalInspectionToolWrapper)
+    val profile =
+        InspectionProfileImpl("Taiga UI Doctor", InspectionToolsSupplier.Simple(tools), profileManager, null, null)
 
-    return InspectionProfileImpl(
-        "Taiga UI Doctor",
-        InspectionToolsSupplier.Simple(tools),
-        currentProfile.profileManager,
-    )
+    profile.initInspectionTools(project)
+
+    return profile
 }
 
 internal suspend fun findTaigaDoctorApplication(
@@ -116,11 +118,8 @@ private suspend fun readAngularProjectRoots(
         }
 
     return readAction {
-        val file =
-            PsiFileFactory
-                .getInstance(
-                    project,
-                ).createFileFromText("angular.json", JsonFileType.INSTANCE, content) as JsonFile
+        val factory = PsiFileFactory.getInstance(project)
+        val file = factory.createFileFromText("angular.json", JsonFileType.INSTANCE, content) as JsonFile
         val projectEntries = (file.topLevelValue as? JsonObject)?.findProperty("projects")?.value as? JsonObject
 
         projectEntries?.propertyList.orEmpty().mapNotNull { entry ->
