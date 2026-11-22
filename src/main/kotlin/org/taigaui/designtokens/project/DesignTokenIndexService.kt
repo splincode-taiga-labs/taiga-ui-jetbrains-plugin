@@ -24,6 +24,7 @@ import org.taigaui.designtokens.psi.PsiDesignTokenSourceExtractor
 import org.taigaui.designtokens.resolution.DesignTokenResolutionGroup
 import org.taigaui.designtokens.resolution.DesignTokenValueResolver
 import java.nio.file.Path
+import java.util.concurrent.atomic.AtomicLong
 
 @Service(Service.Level.PROJECT)
 class DesignTokenIndexService(
@@ -66,6 +67,10 @@ class DesignTokenIndexService(
             sourceExtractor = sourceExtractor,
         )
     private val resolutionSnapshotCache = DesignTokenResolutionSnapshotCache()
+    private val indexRevision = AtomicLong()
+
+    internal val modificationCount: Long
+        get() = indexRevision.get()
 
     internal val cachedPackageCount: Int
         get() = cache.size
@@ -205,7 +210,11 @@ class DesignTokenIndexService(
 
         packageNameCatalogCache.invalidate(changedPaths)
 
-        return packageInvalidated + projectStylesheetIndexProvider.invalidate(changedPaths)
+        val invalidated = packageInvalidated + projectStylesheetIndexProvider.invalidate(changedPaths)
+
+        if (changedPaths.isNotEmpty()) indexRevision.incrementAndGet()
+
+        return invalidated
     }
 
     internal fun clear() {
@@ -213,6 +222,7 @@ class DesignTokenIndexService(
         packageNameCatalogCache.clear()
         projectStylesheetIndexProvider.clear()
         resolutionSnapshotCache.clear()
+        indexRevision.incrementAndGet()
     }
 
     internal fun resolutionSnapshot(

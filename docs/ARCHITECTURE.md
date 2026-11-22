@@ -148,6 +148,14 @@ The resolver keeps deterministic order only where the source graph proves it. Co
 
 Recursive `var(...)` references use the same context-aware candidate selection model, with cycle protection and grouped source information preserved for editor presentation.
 
+### Color replacement intention
+
+The color intention builds a lookup from the effective values of the selected stylesheet's token snapshot in the
+background. It compares static hex and RGB channels exactly, including alpha, and requires the same resolved color in
+both themes on desktop, iOS, and Android. Selector-local declarations in the edited file exclude affected tokens and
+their aliases because those declarations are outside the global stylesheet snapshot. Cached matches are valid only for
+the index revision they were built from. IntelliJ's native intention chooser and text command handle the editor update.
+
 ## Taiga UI documentation subsystem
 
 The documentation subsystem provides a structured, version-aware enrichment index for native IDE documentation and discovery features.
