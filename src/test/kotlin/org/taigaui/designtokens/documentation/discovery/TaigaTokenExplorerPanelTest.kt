@@ -11,6 +11,7 @@ import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.ui.SimpleColoredComponent
 import com.intellij.ui.components.ActionLink
 import com.intellij.ui.components.JBList
+import org.taigaui.designtokens.documentation.NavigateToDefinitionButton
 import org.taigaui.designtokens.project.DesignTokenCatalogEntry
 import org.taigaui.designtokens.project.DesignTokenIndexService
 import java.awt.datatransfer.DataFlavor
@@ -100,6 +101,21 @@ class TaigaTokenExplorerPanelTest : BasePlatformTestCase() {
         panel.searchField.text = "missing"
         await("no matching tokens") { tokens.emptyText.text == "No matching design tokens" && tokens.model.size == 0 }
         assertFalse(copy.isEnabled)
+
+        panel.searchField.text = "fixture-base"
+        await("navigable token details") { panel.descendants().any { it is NavigateToDefinitionButton } }
+        panel
+            .descendants()
+            .filterIsInstance<NavigateToDefinitionButton>()
+            .single()
+            .doClick()
+        await("declaration editor") {
+            FileEditorManager
+                .getInstance(project)
+                .selectedFiles
+                .singleOrNull()
+                ?.name == "styles.css"
+        }
     }
 
     fun testVisibleExplorerReloadsForTheActiveApplication() {
@@ -127,6 +143,41 @@ class TaigaTokenExplorerPanelTest : BasePlatformTestCase() {
         } finally {
             host.removeNotify()
         }
+    }
+
+    fun testShowsCatalogTokenWithoutAReachableDeclaration() {
+        val source = createApp("themed", "")
+        val packageScope = Files.createDirectories(workspace.resolve("themed/node_modules/@taiga-ui"))
+        writeTokenPackage(packageScope, "design-tokens", "--tui-catalog-only")
+        writeTokenPackage(packageScope, "proprietary", "--tui-themed")
+
+        myFixture.openFileInEditor(source)
+        val panel = createPanel()
+        val tokens = panel.tokenList()
+
+        panel.searchField.text = "catalog-only"
+        panel.button("Reload").doClick()
+
+        await("catalog-only token") { tokens.selectedValue?.name == "--tui-catalog-only" }
+        await("unreachable declaration message") {
+            panel.labels().any { it.text == "No reachable declaration in this application." }
+        }
+    }
+
+    private fun writeTokenPackage(
+        scope: Path,
+        name: String,
+        token: String,
+    ) {
+        val root = Files.createDirectories(scope.resolve(name))
+
+        Files.writeString(
+            root.resolve("package.json"),
+            """{"name":"@taiga-ui/$name","version":"4.69.0","exports":{"./styles/*":"./styles/*"}}""",
+        )
+        val styles = Files.createDirectories(root.resolve("styles"))
+
+        Files.writeString(styles.resolve("tokens.css"), ":root { $token: red; }")
     }
 
     private fun createApp(

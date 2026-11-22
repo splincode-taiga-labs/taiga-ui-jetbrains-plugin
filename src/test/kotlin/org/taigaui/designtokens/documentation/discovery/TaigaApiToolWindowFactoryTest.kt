@@ -1,11 +1,17 @@
 package org.taigaui.designtokens.documentation.discovery
 
+import com.intellij.ide.browsers.BrowserLauncher
+import com.intellij.ide.browsers.BrowserLauncherAppless
+import com.intellij.ide.browsers.WebBrowser
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
 import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import com.intellij.testFramework.replaceService
 import com.intellij.ui.SearchTextField
 import com.intellij.ui.SimpleColoredComponent
 import com.intellij.ui.components.JBTextArea
@@ -18,6 +24,7 @@ import org.taigaui.designtokens.documentation.TaigaDocsSources
 import java.awt.Component
 import java.awt.Container
 import java.awt.event.ActionEvent
+import java.awt.event.MouseEvent
 import java.lang.reflect.Proxy
 import java.nio.file.Files
 import java.nio.file.Path
@@ -109,6 +116,7 @@ class TaigaApiToolWindowFactoryTest : BasePlatformTestCase() {
 
             assertEquals("Input  @taiga-ui/core", renderer.getCharSequence(false).toString())
             search.textEditor.postActionEvent()
+            assertOpensSelectedEntry(tree, open)
 
             search.text = "a-nonexistent-api"
             await("no matching API") {
@@ -129,6 +137,47 @@ class TaigaApiToolWindowFactoryTest : BasePlatformTestCase() {
                 cache.write(source, previousContent)
             }
         }
+    }
+
+    private fun assertOpensSelectedEntry(
+        tree: Tree,
+        open: JButton,
+    ) {
+        val openedUrls = mutableListOf<String>()
+        val browserLauncher =
+            object : BrowserLauncherAppless() {
+                override fun browse(
+                    url: String,
+                    browser: WebBrowser?,
+                    project: Project?,
+                ) {
+                    openedUrls.add(url)
+                }
+            }
+        ApplicationManager
+            .getApplication()
+            .replaceService(BrowserLauncher::class.java, browserLauncher, testRootDisposable)
+
+        open.doClick()
+        tree.actionMap.get("taiga.openApiDocumentation").actionPerformed(ActionEvent(tree, 0, "enter"))
+        val row = requireNotNull(tree.getPathBounds(tree.selectionPath))
+
+        clickTree(tree, row.x + row.width / 2, row.y + row.height / 2, 1)
+        clickTree(tree, row.x + row.width / 2, row.y + row.height / 2, 2)
+        clickTree(tree, 0, row.y + 1_000, 2)
+
+        assertEquals(List(3) { "https://taiga-ui.dev/components/input" }, openedUrls)
+    }
+
+    private fun clickTree(
+        tree: Tree,
+        x: Int,
+        y: Int,
+        clicks: Int,
+    ) {
+        tree.dispatchEvent(
+            MouseEvent(tree, MouseEvent.MOUSE_CLICKED, 0, 0, x, y, clicks, false, MouseEvent.BUTTON1),
+        )
     }
 
     private fun createApiPanel(): Container {
