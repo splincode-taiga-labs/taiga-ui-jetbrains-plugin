@@ -14,7 +14,10 @@ internal data class TaigaDoctorPackage(
 internal data class TaigaDoctorReport(
     val reference: TaigaDoctorPackage?,
     val packages: List<TaigaDoctorPackage>,
-)
+) {
+    val supportsV5Migration: Boolean
+        get() = reference?.version?.substringBefore('.') == "5"
+}
 
 internal class TaigaProjectDoctor(
     private val locator: TaigaUiPackageLocator = TaigaUiPackageLocator(),

@@ -1,7 +1,9 @@
 package org.taigaui.designtokens.diagnostics
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -29,6 +31,8 @@ class TaigaProjectDoctorTest {
 
         assertEquals("4.93.0", doctor.inspect(legacy).reference?.version)
         assertEquals("5.18.0", doctor.inspect(modern).reference?.version)
+        assertFalse(doctor.inspect(legacy).supportsV5Migration)
+        assertTrue(doctor.inspect(modern).supportsV5Migration)
         assertEquals(emptyList<TaigaDoctorPackage>(), doctor.inspect(legacy).warnings())
         assertEquals(emptyList<TaigaDoctorPackage>(), doctor.inspect(modern).warnings())
 

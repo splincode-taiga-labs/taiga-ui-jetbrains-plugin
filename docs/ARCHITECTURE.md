@@ -85,6 +85,12 @@ or the nearest npm package boundary. It passes that directory and a temporary pr
 inspections to WebStorm's batch inspection runner. WebStorm owns background analysis, cancellation, the results view,
 and quick fixes. The temporary profile leaves the user's inspection profile unchanged.
 
+The migration action uses the same application scope and native results view with a temporary profile for Taiga UI 5.
+It adds inspections for the schematics' exact TODO marker and static legacy imports. PSI distinguishes comments and
+imports from string literals, and the stylesheet inspection also recognizes the line marker that the schematics emit in
+plain CSS. Existing deprecated-token and wrong-package inspections provide their usual fixes from local package data.
+The migration inspections link to the official guide and report locations for manual review.
+
 ## Design token subsystem
 
 Token names and token values intentionally have different reachability rules.

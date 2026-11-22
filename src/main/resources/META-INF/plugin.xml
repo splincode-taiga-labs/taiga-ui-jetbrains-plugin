@@ -156,6 +156,23 @@
             level="WARNING"
             implementationClass="org.taigaui.designtokens.imports.TaigaImportInspection"
         />
+        <localInspection
+            shortName="TaigaV5MigrationTodo"
+            displayName="Taiga UI migration TODO"
+            groupName="Taiga UI migration"
+            enabledByDefault="false"
+            level="WARNING"
+            implementationClass="org.taigaui.designtokens.migration.TaigaMigrationTodoInspection"
+        />
+        <localInspection
+            shortName="TaigaV5LegacyImport"
+            displayName="Taiga UI legacy import"
+            groupName="Taiga UI migration"
+            enabledByDefault="false"
+            language="TypeScript"
+            level="WEAK WARNING"
+            implementationClass="org.taigaui.designtokens.migration.TaigaLegacyImportInspection"
+        />
         <lang.inspectionSuppressor
             language="TypeScript"
             implementationClass="org.taigaui.designtokens.events.TypeScriptHostEventPluginInspectionSuppressor"
