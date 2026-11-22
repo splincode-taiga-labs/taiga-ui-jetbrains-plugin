@@ -88,7 +88,12 @@ class DesignTokenIndexService(
                 VirtualFileManager.VFS_CHANGES,
                 object : BulkFileListener {
                     override fun after(events: List<VFileEvent>) {
-                        invalidate(events.flatMap(VfsEventPaths::from))
+                        invalidate(
+                            events
+                                .filterNot { event ->
+                                    event is VFilePropertyChangeEvent && event.propertyName == VirtualFile.PROP_WRITABLE
+                                }.flatMap(VfsEventPaths::from),
+                        )
                     }
                 },
             )
