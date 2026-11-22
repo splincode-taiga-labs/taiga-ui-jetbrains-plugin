@@ -212,7 +212,7 @@ class DesignTokenIndexService(
 
         val invalidated = packageInvalidated + projectStylesheetIndexProvider.invalidate(changedPaths)
 
-        if (changedPaths.isNotEmpty()) indexRevision.incrementAndGet()
+        if (invalidated > 0 || changedPaths.any { path -> path.isColorLookupInput() }) indexRevision.incrementAndGet()
 
         return invalidated
     }
@@ -304,5 +304,14 @@ private fun tokenContextKey(
     ).normalized()
 
 private fun String.toPathOrNull(): Path? = runCatching { Path.of(this) }.getOrNull()
+
+private fun Path.isColorLookupInput(): Boolean {
+    val name = fileName?.toString()?.lowercase() ?: return false
+
+    return name in COLOR_LOOKUP_CONFIGS || ProjectStylesheetPathResolver.isStylesheet(this)
+}
+
+private val COLOR_LOOKUP_CONFIGS =
+    setOf("package.json", "angular.json", "nx.json", "project.json", ".pnp.cjs", ".pnp.data.json")
 
 private const val PROPRIETARY_PACKAGE = "@taiga-ui/proprietary"

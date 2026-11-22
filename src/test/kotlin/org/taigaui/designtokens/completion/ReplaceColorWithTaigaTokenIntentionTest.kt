@@ -2,9 +2,11 @@ package org.taigaui.designtokens.completion
 
 import com.intellij.modcommand.ActionContext
 import com.intellij.modcommand.ModChooseAction
+import com.intellij.modcommand.ModCommandExecutor
 import com.intellij.openapi.components.service
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.testFramework.PsiTestUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.util.ui.UIUtil
 import org.taigaui.designtokens.resolution.CssLiteralColor
@@ -18,6 +20,10 @@ class ReplaceColorWithTaigaTokenIntentionTest : BasePlatformTestCase() {
     override fun setUp() {
         super.setUp()
         root = Files.createTempDirectory("taiga-color-intention")
+        PsiTestUtil.addContentRoot(
+            myFixture.module,
+            requireNotNull(LocalFileSystem.getInstance().refreshAndFindFileByNioFile(root)),
+        )
         createFile(
             "node_modules/@taiga-ui/design-tokens/package.json",
             """{"name":"@taiga-ui/design-tokens","version":"0.310.0"}""",
@@ -53,9 +59,9 @@ class ReplaceColorWithTaigaTokenIntentionTest : BasePlatformTestCase() {
         awaitMatches("#fff", listOf("--tui-white"))
 
         myFixture.launchAction(myFixture.findSingleIntention("Replace with var(--tui-white)"))
-        myFixture.checkResult(".card { color: var(--tui-white) !important; /* Keep this comment */ }")
+        awaitText(".card { color: var(--tui-white) !important; /* Keep this comment */ }")
         myFixture.performEditorAction("\$Undo")
-        myFixture.checkResult(original)
+        awaitText(original)
     }
 
     fun testMultipleMatchesOfferAChoiceInLess() {
@@ -70,6 +76,15 @@ class ReplaceColorWithTaigaTokenIntentionTest : BasePlatformTestCase() {
             listOf("var(--tui-black-a)", "var(--tui-black-b)"),
             command.actions().map { action -> action.getPresentation(context)?.name() },
         )
+
+        val choice = command.actions().last()
+
+        ModCommandExecutor.executeInteractively(
+            context,
+            choice.familyName,
+            myFixture.editor,
+        ) { choice.perform(context) }
+        awaitText(".card { color: var(--tui-black-b); }")
     }
 
     fun testOnlyUsesEffectiveProjectColorsAndIgnoresSelectorLocalAndThemeDependentValues() {
@@ -124,15 +139,22 @@ class ReplaceColorWithTaigaTokenIntentionTest : BasePlatformTestCase() {
     private fun awaitMatches(
         color: String,
         expected: List<String>,
+    ) = awaitValue(expected) { matches(color) }
+
+    private fun awaitText(expected: String) = awaitValue(expected) { myFixture.editor.document.text }
+
+    private fun <T> awaitValue(
+        expected: T,
+        current: () -> T,
     ) {
         repeat(500) {
             UIUtil.dispatchAllInvocationEvents()
 
-            if (matches(color) == expected) return
+            if (current() == expected) return
 
             Thread.sleep(10)
         }
 
-        assertEquals(expected, matches(color))
+        assertEquals(expected, current())
     }
 }

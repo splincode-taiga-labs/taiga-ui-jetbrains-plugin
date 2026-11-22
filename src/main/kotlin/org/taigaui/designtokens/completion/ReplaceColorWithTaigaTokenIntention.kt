@@ -46,7 +46,9 @@ internal class ReplaceColorWithTaigaTokenIntention :
 }
 
 private fun ActionContext.colorTarget(): LiteralColorTarget? {
-    if (file().language.id !in STYLE_LANGUAGES) return null
+    val file = file()
+
+    if (file.language.id !in STYLE_LANGUAGES || !file.manager.isInProject(file)) return null
 
     return sequenceOf(findLeaf(), findLeafOnTheLeft())
         .mapNotNull { leaf -> PsiTreeUtil.getParentOfType(leaf, CssDeclaration::class.java) }
@@ -61,7 +63,7 @@ private fun CssDeclaration.literalColorTarget(): LiteralColorTarget? {
 }
 
 private fun CssTerm.literalColorTarget(declaration: CssDeclaration): LiteralColorTarget? {
-    val file = containingFile.virtualFile?.takeIf { it.isInLocalFileSystem && it.isWritable } ?: return null
+    val file = containingFile.virtualFile?.takeIf(VirtualFile::isInLocalFileSystem) ?: return null
     val literal = text
 
     return CssLiteralColor
