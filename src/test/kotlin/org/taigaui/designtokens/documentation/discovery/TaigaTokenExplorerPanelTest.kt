@@ -4,7 +4,9 @@ import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.openapi.wm.impl.IdeGlassPaneImpl
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.ui.SimpleColoredComponent
 import com.intellij.ui.components.ActionLink
@@ -17,6 +19,8 @@ import java.nio.file.Files
 import java.nio.file.Path
 import javax.swing.JButton
 import javax.swing.JLabel
+import javax.swing.JPanel
+import javax.swing.JRootPane
 
 class TaigaTokenExplorerPanelTest : BasePlatformTestCase() {
     private lateinit var workspace: Path
@@ -59,7 +63,8 @@ class TaigaTokenExplorerPanelTest : BasePlatformTestCase() {
         panel.searchField.textEditor.postActionEvent()
 
         panel.button("Reload").doClick()
-        await("initial token list") { tokens.model.size == 2 }
+        await("initial token list") { tokens.selectedValue != null }
+        assertEquals(2, tokens.model.size)
         assertEquals("--tui-fixture-base", tokens.selectedValue.name)
         await("base token details") { panel.labels().any { it.text == "Project styles" } }
 
@@ -105,13 +110,22 @@ class TaigaTokenExplorerPanelTest : BasePlatformTestCase() {
         val panel = createPanel()
         val tokens = panel.tokenList()
 
-        panel.addNotify()
+        val root =
+            JRootPane().apply {
+                glassPane = IdeGlassPaneImpl(this)
+                contentPane.add(panel)
+            }
+
+        val host = JPanel().apply { add(root) }
+
+        host.addNotify()
         try {
+            assertTrue(panel.isShowing)
             await("legacy token") { tokens.selectedValue?.name == "--tui-fixture-legacy" }
             myFixture.openFileInEditor(current)
             await("current token") { tokens.selectedValue?.name == "--tui-fixture-current" }
         } finally {
-            panel.removeNotify()
+            host.removeNotify()
         }
     }
 
@@ -120,12 +134,16 @@ class TaigaTokenExplorerPanelTest : BasePlatformTestCase() {
         styles: String,
     ): VirtualFile {
         val root = Files.createDirectories(workspace.resolve(name))
-        val source = Files.writeString(root.resolve("component.ts"), "export class Example {}")
+        val src = Files.createDirectories(root.resolve("src"))
 
         Files.writeString(root.resolve("package.json"), """{"name":"$name"}""")
-        Files.writeString(root.resolve("styles.less"), styles)
+        Files.writeString(src.resolve("styles.css"), styles)
+        Files.writeString(src.resolve("component.ts"), "export class Example {}")
 
-        return requireNotNull(LocalFileSystem.getInstance().refreshAndFindFileByNioFile(source))
+        val rootFile = requireNotNull(LocalFileSystem.getInstance().refreshAndFindFileByNioFile(root))
+        VfsUtil.markDirtyAndRefresh(false, true, true, rootFile)
+
+        return requireNotNull(rootFile.findFileByRelativePath("src/component.ts"))
     }
 
     private fun createPanel(): TaigaTokenExplorerPanel =

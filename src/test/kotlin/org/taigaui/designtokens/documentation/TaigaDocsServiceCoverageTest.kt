@@ -1,5 +1,6 @@
 package org.taigaui.designtokens.documentation
 
+import com.intellij.ide.actions.searcheverywhere.FoundItemDescriptor
 import com.intellij.openapi.actionSystem.ActionUiKind
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
@@ -12,6 +13,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import com.intellij.ui.SimpleColoredComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -19,12 +21,14 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.taigaui.designtokens.documentation.discovery.TaigaApiCatalog
+import org.taigaui.designtokens.documentation.discovery.TaigaApiEntry
 import org.taigaui.designtokens.documentation.discovery.TaigaSearchEverywhereContributorFactory
 import org.taigaui.designtokens.documentation.discovery.taigaApiSource
 import java.lang.reflect.Proxy
 import java.net.URI
 import java.nio.file.Files
 import java.nio.file.Path
+import javax.swing.JList
 
 class TaigaDocsServiceCoverageTest : BasePlatformTestCase() {
     fun testDiscoverySwitchesBetweenV4AndV5UsingTheActiveEditor() =
@@ -54,6 +58,32 @@ class TaigaDocsServiceCoverageTest : BasePlatformTestCase() {
                 restoreDocs(cache, v4Source, cachedV4)
                 restoreDocs(cache, v5Source, cachedV5)
                 workspace.toFile().deleteRecursively()
+            }
+        }
+
+    fun testSearchEverywhereShowsDedicatedTabAndHandlesMissingDocumentation() =
+        runBlocking {
+            val factory = TaigaSearchEverywhereContributorFactory()
+            val context = SimpleDataContext.builder().add(CommonDataKeys.PROJECT, project).build()
+            val event = AnActionEvent.createEvent(context, Presentation(), "SearchEverywhere", ActionUiKind.NONE, null)
+            val contributor = factory.createContributor(event)
+
+            try {
+                assertFalse(factory.isAvailable(null))
+                assertTrue(factory.isAvailable(project))
+                assertEquals("TaigaApiSearch", contributor.searchProviderId)
+                assertEquals("Taiga UI", contributor.groupName)
+                assertEquals(1_000, contributor.sortWeight)
+                assertTrue(contributor.isDumbAware)
+                assertTrue(contributor.isShownInSeparateTab)
+                assertFalse(contributor.showInFindResults())
+
+                withContext(Dispatchers.Default) {
+                    assertEmpty(contributor.search(" ", EmptyProgressIndicator()))
+                    assertEmpty(contributor.search("Input", EmptyProgressIndicator()))
+                }
+            } finally {
+                contributor.dispose()
             }
         }
 
@@ -169,6 +199,25 @@ class TaigaDocsServiceCoverageTest : BasePlatformTestCase() {
 
             assertEquals(expected, sidebarResults)
             assertEquals(expected, searchResults)
+
+            val first =
+                withContext(Dispatchers.Default) {
+                    val results = mutableListOf<FoundItemDescriptor<TaigaApiEntry>>()
+
+                    contributor.fetchWeightedElements("Input", EmptyProgressIndicator()) { result ->
+                        results.add(result)
+                        false
+                    }
+                    results.single().item
+                }
+            val entryWithSummary = first.copy(entity = first.entity.copy(description = "Text entry"))
+            val renderer =
+                contributor.elementsRenderer
+                    .getListCellRendererComponent(JList<TaigaApiEntry>(), entryWithSummary, 0, true, false)
+                    as SimpleColoredComponent
+
+            assertEquals(expected.first(), first.entity.documentationUri)
+            assertEquals("Input  Component · @taiga-ui/core  Text entry", renderer.getCharSequence(false).toString())
         } finally {
             contributor.dispose()
         }
