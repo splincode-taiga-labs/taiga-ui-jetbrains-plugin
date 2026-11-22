@@ -5,6 +5,7 @@ import com.intellij.openapi.application.EDT
 import com.intellij.openapi.fileEditor.FileEditorManagerEvent
 import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
+import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.ui.ColoredListCellRenderer
@@ -22,6 +23,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.taigaui.designtokens.diagnostics.TaigaDoctorPackage
 import org.taigaui.designtokens.diagnostics.TaigaProjectDoctor
+import org.taigaui.designtokens.diagnostics.prepareTaigaDoctorAnalysis
 import java.awt.BorderLayout
 import java.awt.FlowLayout
 import java.awt.event.HierarchyEvent
@@ -46,9 +48,11 @@ internal class TaigaProjectDoctorPanel(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.EDT)
     private val summary = JBLabel()
     private val reload = JButton("Reload")
+    private val analyze = JButton("Analyze App").apply { isEnabled = false }
     private val openManifest = JButton("Open package.json").apply { isEnabled = false }
     private var source: Path? = null
     private var loadJob: Job? = null
+    private var analysisJob: Job? = null
 
     init {
         add(
@@ -61,11 +65,15 @@ internal class TaigaProjectDoctorPanel(
         )
         add(JBScrollPane(packages), BorderLayout.CENTER)
         add(
-            JPanel(FlowLayout(FlowLayout.TRAILING)).apply { add(openManifest) },
+            JPanel(FlowLayout(FlowLayout.TRAILING)).apply {
+                add(analyze)
+                add(openManifest)
+            },
             BorderLayout.SOUTH,
         )
 
         reload.addActionListener { load(source ?: taigaApiSource(project)) }
+        analyze.addActionListener { analyzeApp() }
         openManifest.addActionListener { openSelectedManifest() }
         packages.addListSelectionListener { openManifest.isEnabled = packages.selectedValue != null }
 
@@ -93,6 +101,8 @@ internal class TaigaProjectDoctorPanel(
     private fun load(path: Path?) {
         source = path
         loadJob?.cancel()
+        analysisJob?.cancel()
+        analyze.isEnabled = false
         summary.text = "Checking installed Taiga UI packages…"
         summary.toolTipText = path?.toString()
         packages.setListData(emptyArray())
@@ -108,6 +118,30 @@ internal class TaigaProjectDoctorPanel(
                     } ?: "Installed Taiga UI packages"
                 packages.emptyText.text = "No Taiga UI packages found for this file"
                 packages.setListData(entries.toTypedArray())
+                analyze.isEnabled = entries.isNotEmpty()
+            }
+    }
+
+    private fun analyzeApp() {
+        val path = source ?: return
+
+        if (DumbService.isDumb(project)) {
+            summary.text = "Wait for WebStorm indexing before analyzing the application."
+            return
+        }
+
+        analyze.isEnabled = false
+        analysisJob =
+            scope.launch {
+                val analysis = prepareTaigaDoctorAnalysis(project, path)
+
+                analyze.isEnabled = true
+
+                if (analysis == null) {
+                    summary.text = "Open a file in the application you want to analyze."
+                } else {
+                    analysis.run(project)
+                }
             }
     }
 
