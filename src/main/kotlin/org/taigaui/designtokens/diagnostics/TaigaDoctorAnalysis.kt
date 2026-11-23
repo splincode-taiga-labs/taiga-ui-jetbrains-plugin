@@ -40,11 +40,15 @@ internal class TaigaDoctorAnalysis(
 internal suspend fun prepareTaigaDoctorAnalysis(
     project: Project,
     source: Path,
+    mode: TaigaDoctorMode,
 ): TaigaDoctorAnalysis? {
     val workspace = project.basePath?.let(Path::of)
     val directory =
         withContext(Dispatchers.IO) {
+            val canAnalyze = mode == TaigaDoctorMode.APP || TaigaProjectDoctor().inspect(source).supportsV5Migration
+
             workspace
+                ?.takeIf { canAnalyze }
                 ?.let { findTaigaDoctorApplication(source, it) { config -> readAngularProjectRoots(project, config) } }
                 ?.let(LocalFileSystem.getInstance()::refreshAndFindFileByNioFile)
         } ?: return null
@@ -54,20 +58,24 @@ internal suspend fun prepareTaigaDoctorAnalysis(
             .getInstance(project)
             .findDirectory(directory)
             ?.takeIf { ProjectFileIndex.getInstance(project).isInContent(directory) }
-            ?.let { TaigaDoctorAnalysis(AnalysisScope(it), taigaDoctorInspectionProfile(project)) }
+            ?.let { TaigaDoctorAnalysis(AnalysisScope(it), taigaDoctorInspectionProfile(project, mode)) }
     }
 }
 
-internal fun taigaDoctorInspectionProfile(project: Project): InspectionProfileImpl {
+internal fun taigaDoctorInspectionProfile(
+    project: Project,
+    mode: TaigaDoctorMode,
+): InspectionProfileImpl {
     val profileManager = InspectionProjectProfileManager.getInstance(project).currentProfile.profileManager
     val tools =
         LocalInspectionEP.LOCAL_INSPECTION.extensionList
-            .filter { inspection -> inspection.shortName in DOCTOR_INSPECTIONS }
+            .filter { inspection -> inspection.shortName in mode.inspections }
             .map(::LocalInspectionToolWrapper)
     val profile =
-        InspectionProfileImpl("Taiga UI Doctor", InspectionToolsSupplier.Simple(tools), profileManager, null, null)
+        InspectionProfileImpl(mode.profileName, InspectionToolsSupplier.Simple(tools), profileManager, null, null)
 
     profile.initInspectionTools(project)
+    tools.forEach { profile.setToolEnabled(it.shortName, true, project, false) }
 
     return profile
 }
@@ -132,12 +140,28 @@ private suspend fun readAngularProjectRoots(
 
 private val DEPENDENCY_DIRECTORIES = setOf("node_modules", ".yarn")
 
-private val DOCTOR_INSPECTIONS =
-    listOf(
-        "UnknownTaigaUIDesignToken",
-        "DeprecatedTaigaUIDesignToken",
-        "UnknownTaigaUIEventModifier",
-        "DuplicateTaigaUIEventModifier",
-        "InvalidTaigaUIEventModifierInHostBinding",
-        "WrongTaigaUIImport",
-    )
+internal enum class TaigaDoctorMode(
+    val profileName: String,
+    val inspections: Set<String>,
+) {
+    APP(
+        "Taiga UI Doctor",
+        setOf(
+            "UnknownTaigaUIDesignToken",
+            "DeprecatedTaigaUIDesignToken",
+            "UnknownTaigaUIEventModifier",
+            "DuplicateTaigaUIEventModifier",
+            "InvalidTaigaUIEventModifierInHostBinding",
+            "WrongTaigaUIImport",
+        ),
+    ),
+    MIGRATION(
+        "Taiga UI v4 to v5 Migration",
+        setOf(
+            "TaigaV5MigrationTodo",
+            "TaigaV5LegacyImport",
+            "DeprecatedTaigaUIDesignToken",
+            "WrongTaigaUIImport",
+        ),
+    ),
+}

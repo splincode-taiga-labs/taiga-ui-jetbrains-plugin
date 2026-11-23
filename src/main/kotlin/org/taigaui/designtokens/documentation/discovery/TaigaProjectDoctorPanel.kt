@@ -1,5 +1,6 @@
 package org.taigaui.designtokens.documentation.discovery
 
+import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.fileEditor.FileEditorManagerEvent
@@ -10,6 +11,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.ui.ColoredListCellRenderer
 import com.intellij.ui.SimpleTextAttributes
+import com.intellij.ui.components.ActionLink
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBScrollPane
@@ -21,9 +23,11 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.taigaui.designtokens.diagnostics.TaigaDoctorMode
 import org.taigaui.designtokens.diagnostics.TaigaDoctorPackage
 import org.taigaui.designtokens.diagnostics.TaigaProjectDoctor
 import org.taigaui.designtokens.diagnostics.prepareTaigaDoctorAnalysis
+import org.taigaui.designtokens.migration.TAIGA_V5_MIGRATION_GUIDE
 import java.awt.BorderLayout
 import java.awt.FlowLayout
 import java.awt.event.HierarchyEvent
@@ -49,10 +53,12 @@ internal class TaigaProjectDoctorPanel(
     private val summary = JBLabel()
     private val reload = JButton("Reload")
     private val analyze = JButton("Analyze App").apply { isEnabled = false }
+    private val migration = JButton("Analyze v4 to v5 Migration").apply { isEnabled = false }
     private val openManifest = JButton("Open package.json").apply { isEnabled = false }
     private var source: Path? = null
     private var loadJob: Job? = null
     private var analysisJob: Job? = null
+    private var supportsV5Migration = false
 
     init {
         add(
@@ -65,15 +71,28 @@ internal class TaigaProjectDoctorPanel(
         )
         add(JBScrollPane(packages), BorderLayout.CENTER)
         add(
-            JPanel(FlowLayout(FlowLayout.TRAILING)).apply {
-                add(analyze)
-                add(openManifest)
+            JPanel(BorderLayout()).apply {
+                add(
+                    JPanel(FlowLayout(FlowLayout.TRAILING)).apply {
+                        add(analyze)
+                        add(openManifest)
+                    },
+                    BorderLayout.NORTH,
+                )
+                add(
+                    JPanel(FlowLayout(FlowLayout.TRAILING)).apply {
+                        add(ActionLink("Migration Guide") { BrowserUtil.browse(TAIGA_V5_MIGRATION_GUIDE) })
+                        add(migration)
+                    },
+                    BorderLayout.SOUTH,
+                )
             },
             BorderLayout.SOUTH,
         )
 
         reload.addActionListener { load(source ?: taigaApiSource(project)) }
-        analyze.addActionListener { analyzeApp() }
+        analyze.addActionListener { analyzeApp(TaigaDoctorMode.APP) }
+        migration.addActionListener { analyzeApp(TaigaDoctorMode.MIGRATION) }
         openManifest.addActionListener { openSelectedManifest() }
         packages.addListSelectionListener { openManifest.isEnabled = packages.selectedValue != null }
 
@@ -103,6 +122,8 @@ internal class TaigaProjectDoctorPanel(
         loadJob?.cancel()
         analysisJob?.cancel()
         analyze.isEnabled = false
+        migration.isEnabled = false
+        supportsV5Migration = false
         summary.text = "Checking installed Taiga UI packages…"
         summary.toolTipText = path?.toString()
         packages.setListData(emptyArray())
@@ -119,10 +140,12 @@ internal class TaigaProjectDoctorPanel(
                 packages.emptyText.text = "No Taiga UI packages found for this file"
                 packages.setListData(entries.toTypedArray())
                 analyze.isEnabled = entries.isNotEmpty()
+                supportsV5Migration = report?.supportsV5Migration == true
+                migration.isEnabled = supportsV5Migration
             }
     }
 
-    private fun analyzeApp() {
+    private fun analyzeApp(mode: TaigaDoctorMode) {
         val path = source ?: return
 
         if (DumbService.isDumb(project)) {
@@ -131,14 +154,20 @@ internal class TaigaProjectDoctorPanel(
         }
 
         analyze.isEnabled = false
+        migration.isEnabled = false
         analysisJob =
             scope.launch {
-                val analysis = prepareTaigaDoctorAnalysis(project, path)
+                val analysis = prepareTaigaDoctorAnalysis(project, path, mode)
 
                 analyze.isEnabled = true
+                migration.isEnabled = supportsV5Migration
 
                 if (analysis == null) {
-                    summary.text = "Open a file in the application you want to analyze."
+                    summary.text =
+                        when (mode) {
+                            TaigaDoctorMode.APP -> "Open a file in the application you want to analyze."
+                            TaigaDoctorMode.MIGRATION -> "Open a file in an application with Taiga UI 5 installed."
+                        }
                 } else {
                     analysis.run(project)
                 }
