@@ -59,10 +59,11 @@ internal class TaigaProjectDoctorPanel(
     private val analyze = JButton("Analyze App").apply { isEnabled = false }
     private val migration = JButton("Analyze v4 to v5 Migration").apply { isEnabled = false }
     private val openManifest = JButton("Open package.json").apply { isEnabled = false }
-    private val copyReport = JButton("Copy Report").apply {
-        isEnabled = false
-        accessibleContext.accessibleName = "Copy Taiga UI Doctor report"
-    }
+    private val copyReport =
+        JButton("Copy Report").apply {
+            isEnabled = false
+            accessibleContext.accessibleName = "Copy Taiga UI Doctor report"
+        }
     private var currentReport: TaigaDoctorReport? = null
     private var source: Path? = null
     private var loadJob: Job? = null
