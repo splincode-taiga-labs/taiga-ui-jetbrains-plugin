@@ -13,7 +13,11 @@ import com.intellij.openapi.vfs.VFileProperty
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.wm.WindowManager
 
-internal class ReplaceFolderColorsAction : AnAction() {
+internal class ReplaceFolderColorsAction(
+    private val confirm: (Project, List<FolderColorPreview>) -> Boolean = { project, previews ->
+        FolderColorPreviewDialog(project, previews).showAndGet()
+    },
+) : AnAction() {
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     override fun update(event: AnActionEvent) {
@@ -32,11 +36,16 @@ internal class ReplaceFolderColorsAction : AnAction() {
             }
 
             override fun onSuccess() {
-                if (!project.isDisposed) {
-                    val message = replacement.apply(project)
+                if (project.isDisposed) return
 
-                    WindowManager.getInstance().getStatusBar(project)?.setInfo(message)
-                }
+                val previews = replacement.previews
+                val shouldApply = previews.isEmpty() || confirm(project, previews)
+
+                if (!shouldApply || project.isDisposed) return
+
+                val message = replacement.apply(project)
+
+                WindowManager.getInstance().getStatusBar(project)?.setInfo(message)
             }
         }.queue()
     }

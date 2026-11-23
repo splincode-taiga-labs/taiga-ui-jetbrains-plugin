@@ -187,9 +187,11 @@ their aliases because those declarations are outside the global stylesheet snaps
 the index revision they were built from. IntelliJ's native intention chooser and text command handle the editor update.
 
 Folder replacement builds fresh matches per stylesheet using the same token lookup, including the exclusion of internal
-`--tui-const-*` tokens. The cancellable background scan collects CSS PSI ranges from committed documents and resolves
-matching colors outside the read action. One global write command applies the edits if the project roots, token index,
-and affected documents still match the scan. Ambiguous matches produce a CSS comment beside the literal.
+`--tui-const-*` tokens. The cancellable background scan collects CSS PSI ranges from committed documents, resolves
+matching colors outside the read action, and builds before/after text from the same edits used by the write command.
+The preview displays that snapshot in the IDE diff viewer. On confirmation, one global write command applies the edits
+if the project roots, token index, and affected documents still match the scan. Ambiguous matches produce a CSS comment
+beside the literal.
 
 ## Taiga UI documentation subsystem
 

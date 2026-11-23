@@ -5,6 +5,7 @@ import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.components.service
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.fileEditor.FileDocumentManager
+import com.intellij.openapi.fileTypes.FileType
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.project.Project
@@ -27,6 +28,8 @@ internal class FolderColorReplacement private constructor(
     private val rootsRevision: Long,
     private val files: List<FileColorEdits>,
 ) {
+    val previews: List<FolderColorPreview> = files.map(FileColorEdits::preview)
+
     fun apply(project: Project): String {
         if (files.isEmpty()) return "No stylesheet colors to update."
 
@@ -41,7 +44,7 @@ internal class FolderColorReplacement private constructor(
                     }
                 }
 
-        return if (applied) summary() else "Stylesheets or tokens changed during the scan. Run the action again."
+        return if (applied) summary() else "Stylesheets or tokens changed since the scan started. Run the action again."
     }
 
     private fun summary(): String {
@@ -71,7 +74,7 @@ internal class FolderColorReplacement private constructor(
             val tokenRevision = project.service<DesignTokenIndexService>().modificationCount
             val rootsRevision = ProjectRootManager.getInstance(project).modificationCount
             val lookup = project.service<DesignTokenColorLookup>()
-            val stylesheets = project.stylesheetsUnder(directory)
+            val stylesheets = project.stylesheetsUnder(directory).sortedBy(VirtualFile::getPath)
 
             indicator.isIndeterminate = false
 
@@ -88,13 +91,25 @@ internal class FolderColorReplacement private constructor(
                             .mapNotNull { color -> source.edit(color, matches[color.color].orEmpty()) }
                             .sortedByDescending { it.range.startOffset }
 
-                    if (edits.isEmpty()) null else FileColorEdits(file, path, source.document, source.stamp, edits)
+                    if (edits.isEmpty()) return@mapIndexedNotNull null
+
+                    val relativePath = VfsUtilCore.getRelativePath(file, directory) ?: file.name
+                    val preview = source.preview(relativePath, edits)
+
+                    FileColorEdits(file, path, source.document, source.stamp, edits, preview)
                 }
 
             return FolderColorReplacement(tokenRevision, rootsRevision, files)
         }
     }
 }
+
+internal data class FolderColorPreview(
+    val relativePath: String,
+    val fileType: FileType,
+    val original: String,
+    val proposed: String,
+)
 
 private fun Project.stylesheetsUnder(directory: VirtualFile): List<VirtualFile> =
     ReadAction
@@ -136,7 +151,9 @@ private fun Project.readStylesheet(file: VirtualFile): StylesheetColors? =
                         }
                     }
 
-            colors.takeIf { it.isNotEmpty() }?.let { StylesheetColors(document, document.modificationStamp, it) }
+            if (colors.isEmpty()) return@nonBlocking null
+
+            StylesheetColors(document, document.modificationStamp, psi.fileType, colors)
         }.withDocumentsCommitted(this)
         .expireWith(this)
         .executeSynchronously()
@@ -144,9 +161,23 @@ private fun Project.readStylesheet(file: VirtualFile): StylesheetColors? =
 private data class StylesheetColors(
     val document: Document,
     val stamp: Long,
+    val fileType: FileType,
     val colors: List<ColorOccurrence>,
 ) {
     private val text = document.immutableCharSequence
+
+    fun preview(
+        relativePath: String,
+        edits: List<ColorEdit>,
+    ): FolderColorPreview {
+        val proposed = StringBuilder(text)
+
+        edits.forEach { edit ->
+            proposed.replace(edit.range.startOffset, edit.range.endOffset, edit.replacement)
+        }
+
+        return FolderColorPreview(relativePath, fileType, text.toString(), proposed.toString())
+    }
 
     fun edit(
         occurrence: ColorOccurrence,
@@ -191,6 +222,7 @@ private data class FileColorEdits(
     val document: Document,
     val stamp: Long,
     val edits: List<ColorEdit>,
+    val preview: FolderColorPreview,
 ) {
     fun apply() {
         edits.forEach { edit ->

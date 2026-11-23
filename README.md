@@ -107,8 +107,10 @@ project's token values and offers matches that resolve to the same color across 
 Internal `--tui-const-*` tokens are excluded from suggestions.
 
 Right-click a folder in the **Project** tree and choose **Taiga UI → Replace Colors with Taiga UI Tokens** to process
-CSS, Less, and SCSS files in that folder and its subfolders. A single exact match replaces the color. When several tokens match, the
-action leaves the color in place and adds a CSS comment with the options. Undo reverts all edits from the run together.
+CSS, Less, and SCSS files in that folder and its subfolders. Select a file in the preview to inspect its diff and click
+**Apply Changes** to update the stylesheets. A single exact match replaces the color. When several tokens match, the
+preview shows a CSS comment with the options beside the original color. **Cancel** discards the preview. Undo reverts
+all edits from the run together.
 
 ### Completion
 
