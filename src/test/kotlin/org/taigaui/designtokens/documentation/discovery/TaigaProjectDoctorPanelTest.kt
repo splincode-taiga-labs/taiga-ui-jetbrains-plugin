@@ -182,11 +182,14 @@ class TaigaProjectDoctorPanelTest : BasePlatformTestCase() {
     ): JButton = panel.descendants().filterIsInstance<JButton>().single { it.text == title }
 
     private fun summary(panel: TaigaProjectDoctorPanel): String? =
-        panel.descendants().filterIsInstance<JBLabel>().firstOrNull {
-            it.text?.startsWith("Taiga UI ") == true ||
-                it.text == "Installed Taiga UI packages" ||
-                it.text?.startsWith("Open a file") == true
-        }?.text
+        panel
+            .descendants()
+            .filterIsInstance<JBLabel>()
+            .firstOrNull {
+                it.text?.startsWith("Taiga UI ") == true ||
+                    it.text == "Installed Taiga UI packages" ||
+                    it.text?.startsWith("Open a file") == true
+            }?.text
 
     private fun install(
         workspace: java.nio.file.Path,
