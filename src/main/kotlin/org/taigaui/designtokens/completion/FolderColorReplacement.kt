@@ -41,8 +41,10 @@ internal class FolderColorReplacement private constructor(
                     }
                 }
 
-        if (!applied) return "Stylesheets or tokens changed during the scan. Run the action again."
+        return if (applied) summary() else "Stylesheets or tokens changed during the scan. Run the action again."
+    }
 
+    private fun summary(): String {
         val replaced = files.sumOf { file -> file.edits.count { it.replaced } }
         val suggested = files.sumOf { file -> file.edits.count { it.suggested } }
 
@@ -86,7 +88,7 @@ internal class FolderColorReplacement private constructor(
                             .mapNotNull { color -> source.edit(color, matches[color.color].orEmpty()) }
                             .sortedByDescending { it.range.startOffset }
 
-                    edits.takeIf { it.isNotEmpty() }?.let { FileColorEdits(file, path, source.document, source.stamp, it) }
+                    if (edits.isEmpty()) null else FileColorEdits(file, path, source.document, source.stamp, edits)
                 }
 
             return FolderColorReplacement(tokenRevision, rootsRevision, files)
@@ -107,7 +109,7 @@ private fun Project.stylesheetsUnder(directory: VirtualFile): List<VirtualFile> 
                         file.name != "node_modules" && !file.`is`(VFileProperty.SYMLINK) && index.isInContent(file)
                     },
                     { file ->
-                        if (file.isWritable && file.isLocalStylesheet()) add(file)
+                        if (!file.isDirectory && file.isWritable && file.isLocalStylesheet()) add(file)
 
                         true
                     },
