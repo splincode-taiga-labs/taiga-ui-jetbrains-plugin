@@ -13,6 +13,7 @@ import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.progress.util.ProgressIndicatorBase
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.psi.PsiDocumentManager
 import com.intellij.testFramework.PsiTestUtil
 import com.intellij.testFramework.TestActionEvent
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
@@ -159,6 +160,9 @@ class ReplaceColorWithTaigaTokenIntentionTest : BasePlatformTestCase() {
         )
         assertEquals(".card { color: #fff; }", text(outside))
         assertEquals(".card { color: #fff; }", text(dependency))
+
+        PsiDocumentManager.getInstance(project).commitAllDocuments()
+
         assertEquals("No stylesheet colors to update.", scan(directory).apply(project))
         assertEquals(expectedCss, text(css))
     }
