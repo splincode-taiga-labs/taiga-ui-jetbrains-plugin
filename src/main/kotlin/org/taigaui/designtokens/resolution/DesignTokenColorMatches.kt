@@ -14,6 +14,8 @@ internal fun DesignTokenIndex.matchColors(
     val selector = DesignTokenCandidateSelector(this)
 
     return names
+        .asSequence()
+        .filterNot { name -> name == "--tui-const" || name.startsWith("--tui-const-") }
         .mapNotNull { name ->
             ProgressManager.checkCanceled()
             resolver.colorInEveryContext(selector, name, selectorLocalNames)?.let { color -> color to name }

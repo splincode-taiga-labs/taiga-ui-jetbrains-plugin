@@ -21,6 +21,14 @@
             <keyboard-shortcut keymap="$default" first-keystroke="alt shift Q" />
             <add-to-group group-id="EditorPopupMenu" anchor="last" />
         </action>
+        <action
+            id="TaigaUI.ReplaceFolderColors"
+            class="org.taigaui.designtokens.completion.ReplaceFolderColorsAction"
+            text="Replace Colors with Taiga UI Tokens"
+            description="Replace exact colors in stylesheets under this folder with Taiga UI tokens"
+        >
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last" />
+        </action>
     </actions>
 
     <projectListeners>

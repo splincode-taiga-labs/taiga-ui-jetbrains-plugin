@@ -56,11 +56,11 @@ private fun ActionContext.colorTarget(): LiteralColorTarget? {
         .firstOrNull { target -> offset() in target.range.startOffset..target.range.endOffset }
 }
 
-private fun CssDeclaration.literalColorTarget(): LiteralColorTarget? {
-    if (propertyName.startsWith("--")) return null
+private fun CssDeclaration.literalColorTarget(): LiteralColorTarget? =
+    literalColorTerms().singleOrNull()?.literalColorTarget(this)
 
-    return value?.terms?.singleOrNull()?.literalColorTarget(this)
-}
+internal fun CssDeclaration.literalColorTerms(): Sequence<CssTerm> =
+    if (propertyName.startsWith("--")) emptySequence() else value?.terms?.asSequence().orEmpty()
 
 private fun CssTerm.literalColorTarget(declaration: CssDeclaration): LiteralColorTarget? {
     val file = containingFile.virtualFile?.takeIf(VirtualFile::isInLocalFileSystem) ?: return null

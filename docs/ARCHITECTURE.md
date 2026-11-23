@@ -159,13 +159,18 @@ The explorer loads a snapshot in the background when shown, when the active file
 Search filters that snapshot in memory and only the selected token is resolved. The tab cancels outstanding work when
 its source changes or it is disposed, and applies UI updates on the EDT.
 
-### Color replacement intention
+### Color replacement
 
 The color intention builds a lookup from the effective values of the selected stylesheet's token snapshot in the
 background. It compares static hex and RGB channels exactly, including alpha, and requires the same resolved color in
 both themes on desktop, iOS, and Android. Selector-local declarations in the edited file exclude affected tokens and
 their aliases because those declarations are outside the global stylesheet snapshot. Cached matches are valid only for
 the index revision they were built from. IntelliJ's native intention chooser and text command handle the editor update.
+
+Folder replacement builds fresh matches per stylesheet using the same token lookup, including the exclusion of internal
+`--tui-const-*` tokens. The cancellable background scan collects CSS PSI ranges from committed documents and resolves
+matching colors outside the read action. One global write command applies the edits if the project roots, token index,
+and affected documents still match the scan. Ambiguous matches produce a CSS comment beside the literal.
 
 ## Taiga UI documentation subsystem
 

@@ -87,6 +87,11 @@ catalog. Use **Reload** after editing styles or installing packages while stayin
 Put the caret on a standalone hex, `rgb()`, or `rgba()` value in CSS, Less, or SCSS and press **Alt+Enter**. Choose
 **Replace with var(…)** or select a token from the list when several share the color. The action uses the active
 project's token values and offers matches that resolve to the same color across Taiga UI themes and platforms.
+Internal `--tui-const-*` tokens are excluded from suggestions.
+
+Right-click a folder in the **Project** tree and choose **Replace Colors with Taiga UI Tokens** to process CSS, Less, and
+SCSS files in that folder and its subfolders. A single exact match replaces the color. When several tokens match, the
+action leaves the color in place and adds a CSS comment with the options. Undo reverts all edits from the run together.
 
 ### Completion
 
