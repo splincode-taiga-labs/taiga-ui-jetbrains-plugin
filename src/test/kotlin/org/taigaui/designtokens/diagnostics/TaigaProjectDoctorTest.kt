@@ -99,6 +99,76 @@ class TaigaProjectDoctorTest {
         assertTrue(markdown.contains("| @taiga-ui/design-tokens | 0.322.0 | — |"))
     }
 
+    @Test
+    fun reportsAnEmptyWorkspaceWithoutInventingPackagesOrARelease() {
+        val workspace = temporaryFolder.newFolder().toPath()
+        val report = doctor.inspect(workspace)
+
+        assertNull(report.reference)
+        assertTrue(report.packages.isEmpty())
+        assertFalse(report.supportsV5Migration)
+        assertTrue(report.toMarkdown().contains("Installed packages: 0"))
+        assertTrue(report.toMarkdown().contains("Version mismatches: 0"))
+    }
+
+    @Test
+    fun selectsTheFirstValidReleaseWhenCoreVersionIsNotSemver() {
+        val workspace = temporaryFolder.newFolder().toPath()
+        install(workspace, "core", "workspace:*")
+        install(workspace, "icons", "5.17.0")
+        install(workspace, "kit", "5.18.0")
+
+        val report = doctor.inspect(workspace)
+
+        assertEquals("@taiga-ui/icons", report.reference?.name)
+        assertEquals("5.17.0", report.reference?.version)
+        assertTrue(report.supportsV5Migration)
+        assertEquals(listOf("@taiga-ui/kit"), report.warnings().map(TaigaDoctorPackage::name))
+        assertNull(report.packages.first { it.name == "@taiga-ui/core" }.expectedVersion)
+    }
+
+    @Test
+    fun skipsInstalledPackagesWithMissingVersionMetadata() {
+        val workspace = temporaryFolder.newFolder().toPath()
+        val missingVersion = install(workspace, "kit", "5.18.0")
+        Files.writeString(missingVersion, """{"name":"@taiga-ui/kit"}""")
+        install(workspace, "core", "5.18.0")
+
+        val report = doctor.inspect(workspace)
+
+        assertEquals(listOf("@taiga-ui/core"), report.packages.map(TaigaDoctorPackage::name))
+        assertEquals("@taiga-ui/core", report.reference?.name)
+    }
+
+    @Test
+    fun escapesMarkdownCellSeparatorsAndNewlinesInPackageMetadata() {
+        val workspace = temporaryFolder.newFolder().toPath()
+        val report =
+            TaigaDoctorReport(
+                reference = null,
+                packages =
+                    listOf(
+                        TaigaDoctorPackage(
+                            name = "@taiga-ui/kit|extra",
+                            version = "5.18.0\ninjected",
+                            manifest = workspace.resolve("package.json"),
+                            expectedVersion = "5.17.0|legacy",
+                        ),
+                    ),
+            )
+
+        val markdown = report.toMarkdown()
+
+        assertTrue(markdown.contains("Version mismatches: 1"))
+        assertTrue(
+            markdown.contains(
+                "| @taiga-ui/kit&#124;extra | 5.18.0 injected | Expected 5.17.0&#124;legacy |",
+            ),
+        )
+        assertFalse(markdown.contains("5.18.0\ninjected"))
+        assertFalse(markdown.contains(workspace.toString()))
+    }
+
     private fun install(
         directory: Path,
         name: String,
