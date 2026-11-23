@@ -152,7 +152,7 @@ class TaigaProjectDoctorTest {
         Files.createDirectories(icons.parent.resolve("src"))
         install(current, "core", "5.18.0")
         val styles = install(current, "styles", "5.18.0")
-        Files.writeString(styles, """{"name":"@taiga-ui/styles","version":"5.18.0","exports":{".":"./index.css"}}""")
+        Files.writeString(styles, """{"name":"@taiga-ui/styles","version":"5.18.0","exports":{"./*":"./*"}}""")
         val cache = mapOf(4 to TaigaDocsCacheStatus.ON_DISK, 5 to TaigaDocsCacheStatus.NOT_CACHED)
 
         val v4 = requireNotNull(doctor.inspectWithSources(legacy) { cache.getValue(it.majorVersion) }.sources)
