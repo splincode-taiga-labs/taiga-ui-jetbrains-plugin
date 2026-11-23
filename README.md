@@ -89,8 +89,8 @@ Put the caret on a standalone hex, `rgb()`, or `rgba()` value in CSS, Less, or S
 project's token values and offers matches that resolve to the same color across Taiga UI themes and platforms.
 Internal `--tui-const-*` tokens are excluded from suggestions.
 
-Right-click a folder in the **Project** tree and choose **Replace Colors with Taiga UI Tokens** to process CSS, Less, and
-SCSS files in that folder and its subfolders. A single exact match replaces the color. When several tokens match, the
+Right-click a folder in the **Project** tree and choose **Taiga UI → Replace Colors with Taiga UI Tokens** to process
+CSS, Less, and SCSS files in that folder and its subfolders. A single exact match replaces the color. When several tokens match, the
 action leaves the color in place and adds a CSS comment with the options. Undo reverts all edits from the run together.
 
 ### Completion

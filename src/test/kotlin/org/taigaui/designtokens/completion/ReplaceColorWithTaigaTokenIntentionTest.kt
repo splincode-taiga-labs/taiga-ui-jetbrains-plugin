@@ -3,6 +3,7 @@ package org.taigaui.designtokens.completion
 import com.intellij.modcommand.ActionContext
 import com.intellij.modcommand.ModChooseAction
 import com.intellij.modcommand.ModCommandExecutor
+import com.intellij.openapi.actionSystem.ActionGroup
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.actionSystem.impl.SimpleDataContext
@@ -135,7 +136,9 @@ class ReplaceColorWithTaigaTokenIntentionTest : BasePlatformTestCase() {
         val outside = createFile("outside.css", ".card { color: #fff; }")
         val dependency = createFile("src/node_modules/dependency/theme.css", ".card { color: #fff; }")
         val directory = css.parent
-        val action = ActionManager.getInstance().getAction("TaigaUI.ReplaceFolderColors")
+        val actions = ActionManager.getInstance()
+        val group = assertInstanceOf(actions.getAction("TaigaUI.ProjectViewActions"), ActionGroup::class.java)
+        val action = actions.getAction("TaigaUI.ReplaceFolderColors")
         val context =
             SimpleDataContext
                 .builder()
@@ -147,6 +150,11 @@ class ReplaceColorWithTaigaTokenIntentionTest : BasePlatformTestCase() {
             ".card { color: var(--tui-white) !important; " +
                 "background: #000 /* Taiga UI: consider var(--tui-black-a) or var(--tui-black-b) */; " +
                 "outline-color: #abc; }"
+
+        assertTrue(group.templatePresentation.isPopupGroup)
+        assertTrue(group.templatePresentation.isHideGroupIfEmpty)
+        assertNotNull(group.templatePresentation.icon)
+        assertTrue(action in group.getChildren(null))
 
         action.update(event)
         assertTrue(event.presentation.isEnabledAndVisible)
