@@ -72,6 +72,25 @@ flowchart LR
     DocsIndex --> DocsDiskCache
 ```
 
+## Project Doctor
+
+The **Doctor** tab loads an on-demand package report for the active file, with the IDE project root as the fallback.
+It uses the existing package locator, including its installed package scope rules, and reads versions from installed
+manifests in the background. It compares common packages that share the Taiga UI release version against installed
+`core` (or another package from that family when `core` is unavailable). Independently versioned packages appear in
+the report without participating in the comparison. The tab supports explicit reload after dependency changes.
+
+**Analyze App** resolves the active application's directory using Nx project markers, Angular workspace project roots,
+or the nearest npm package boundary. It passes that directory and a temporary profile containing the existing Taiga UI
+inspections to WebStorm's batch inspection runner. WebStorm owns background analysis, cancellation, the results view,
+and quick fixes. The temporary profile leaves the user's inspection profile unchanged.
+
+The migration action uses the same application scope and native results view with a temporary profile for Taiga UI 5.
+It adds inspections for the schematics' exact TODO marker and static legacy imports. PSI distinguishes comments and
+imports from string literals, and the stylesheet inspection also recognizes the line marker that the schematics emit in
+plain CSS. Existing deprecated-token and wrong-package inspections provide their usual fixes from local package data.
+The migration inspections link to the official guide and report locations for manual review.
+
 ## Design token subsystem
 
 Token names and token values intentionally have different reachability rules.
