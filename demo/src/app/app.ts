@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, ElementRef, computed, signal, viewChild } from '@angular/core';
 
-type Category = 'All features' | 'Design tokens' | 'Icons' | 'CSS hints' | 'Events';
+type Category = 'All features' | 'Design tokens' | 'Icons' | 'CSS hints' | 'Events' | 'Angular API';
 
 interface Feature {
   readonly category: Category;
@@ -26,6 +26,7 @@ export class App {
     'Icons',
     'CSS hints',
     'Events',
+    'Angular API',
   ];
   protected readonly category = signal<Category>('All features');
   protected readonly selectedFeature = signal<Feature | null>(null);
@@ -39,6 +40,23 @@ export class App {
       description: 'See resolved values, color swatches, and reference chains together in a single hover.',
       image: 'screens/design-token-preview.webp',
       alt: 'WebStorm hover showing desktop, mobile, light, and dark values of --tui-background-base',
+    },
+    {
+      category: 'Design tokens',
+      label: 'Folder color replacement',
+      title: 'Replace colors across a folder.',
+      description:
+        'Open Taiga UI in the Project tree context menu to replace exact color matches. When several public tokens match, the plugin leaves a review comment.',
+      image: 'screens/folder-color-replacement.webp',
+      alt: 'WebStorm’s Project tree context menu with Taiga UI and Replace Colors with Taiga UI Tokens selected',
+    },
+    {
+      category: 'Angular API',
+      label: 'Angular API card',
+      title: 'Explore Taiga UI APIs in your editor.',
+      description: 'Read Angular inputs, imports, and examples in the interactive card without leaving your template.',
+      image: 'screens/angular-api-card.webp',
+      alt: 'The Taiga UI card for TuiButton showing its Angular import, Inputs tab, and an example template',
     },
     {
       category: 'Icons',
