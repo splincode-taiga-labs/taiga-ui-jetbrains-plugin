@@ -99,7 +99,6 @@ class TaigaProjectDoctorTest {
         assertTrue(markdown.contains("| @taiga-ui/design-tokens | 0.322.0 | — |"))
     }
 
-
     @Test
     fun reportsAnEmptyWorkspaceWithoutInventingPackagesOrARelease() {
         val workspace = temporaryFolder.newFolder().toPath()
