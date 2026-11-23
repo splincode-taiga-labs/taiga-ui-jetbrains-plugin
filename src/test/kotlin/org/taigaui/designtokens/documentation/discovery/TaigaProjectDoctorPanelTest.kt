@@ -33,7 +33,8 @@ class TaigaProjectDoctorPanelTest : BasePlatformTestCase() {
 
             assertFalse(copy.isEnabled)
             assertEquals("Copy Taiga UI Doctor report", copy.accessibleContext.accessibleName)
-            panel.descendants().filterIsInstance<JButton>().single { it.text == "Reload" }.doClick()
+            val reload = panel.descendants().filterIsInstance<JButton>().single { it.text == "Reload" }
+            reload.doClick()
             await("Doctor report") { copy.isEnabled }
 
             val clipboard = CopyPasteManager.getInstance()
