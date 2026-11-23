@@ -4,6 +4,7 @@ import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import com.intellij.ui.components.JBLabel
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.StringSelection
 import java.nio.file.Files
@@ -54,5 +55,148 @@ class TaigaProjectDoctorPanelTest : BasePlatformTestCase() {
         } finally {
             workspace.toFile().deleteRecursively()
         }
+    }
+
+    fun testEmptyWorkspaceKeepsDoctorActionsDisabled() {
+        val workspace = Files.createTempDirectory("taiga-doctor-empty")
+        val source = Files.writeString(workspace.resolve("component.ts"), "export class Empty {}")
+
+        try {
+            val panel = openPanel(source)
+            val reload = button(panel, "Reload")
+            val analyze = button(panel, "Analyze App")
+            val migration = button(panel, "Analyze v4 to v5 Migration")
+            val openManifest = button(panel, "Open package.json")
+            val copy = button(panel, "Copy Report")
+
+            reload.doClick()
+            await("Empty Doctor report") { summary(panel) == "Installed Taiga UI packages" }
+
+            assertEquals(0, panel.packages.model.size)
+            assertFalse(analyze.isEnabled)
+            assertFalse(migration.isEnabled)
+            assertFalse(openManifest.isEnabled)
+            assertFalse(copy.isEnabled)
+        } finally {
+            workspace.toFile().deleteRecursively()
+        }
+    }
+
+    fun testPackageSelectionControlsManifestActionAndV5Migration() {
+        val workspace = Files.createTempDirectory("taiga-doctor-selection")
+        val source = Files.writeString(workspace.resolve("component.ts"), "export class Example {}")
+
+        try {
+            install(workspace, "core", "5.18.0")
+            install(workspace, "kit", "4.93.0")
+
+            val panel = openPanel(source)
+            val manifest = button(panel, "Open package.json")
+            val migration = button(panel, "Analyze v4 to v5 Migration")
+            val analyze = button(panel, "Analyze App")
+
+            button(panel, "Reload").doClick()
+            await("Installed packages") { panel.packages.model.size == 2 && analyze.isEnabled }
+
+            assertTrue(migration.isEnabled)
+            assertFalse(manifest.isEnabled)
+            assertEquals("Taiga UI 5.18.0 (@taiga-ui/core)", summary(panel))
+
+            panel.packages.selectedIndex = 1
+            assertTrue(manifest.isEnabled)
+            assertEquals("@taiga-ui/kit", panel.packages.selectedValue.name)
+            assertEquals("5.18.0", panel.packages.selectedValue.expectedVersion)
+
+            panel.packages.clearSelection()
+            assertFalse(manifest.isEnabled)
+        } finally {
+            workspace.toFile().deleteRecursively()
+        }
+    }
+
+    fun testLegacyAndIndependentPackagesCannotTriggerV5Migration() {
+        for ((name, version) in listOf("core" to "4.93.0", "design-tokens" to "0.322.0")) {
+            val workspace = Files.createTempDirectory("taiga-doctor-legacy")
+            val source = Files.writeString(workspace.resolve("component.ts"), "export class Example {}")
+
+            try {
+                install(workspace, name, version)
+                val panel = openPanel(source)
+                val copy = button(panel, "Copy Report")
+
+                button(panel, "Reload").doClick()
+                await("Installed $name package") { copy.isEnabled }
+
+                assertEquals(1, panel.packages.model.size)
+                assertTrue(button(panel, "Analyze App").isEnabled)
+                assertFalse(button(panel, "Analyze v4 to v5 Migration").isEnabled)
+                assertEquals(
+                    if (name == "core") "Taiga UI 4.93.0 (@taiga-ui/core)" else "Installed Taiga UI packages",
+                    summary(panel),
+                )
+            } finally {
+                workspace.toFile().deleteRecursively()
+            }
+        }
+    }
+
+    fun testAnalyzeOutsideTheProjectExplainsHowToChooseAnApp() {
+        val workspace = Files.createTempDirectory("taiga-doctor-outside")
+        val source = Files.writeString(workspace.resolve("component.ts"), "export class Example {}")
+
+        try {
+            install(workspace, "core", "5.18.0")
+            val panel = openPanel(source)
+            val analyze = button(panel, "Analyze App")
+            val migration = button(panel, "Analyze v4 to v5 Migration")
+
+            button(panel, "Reload").doClick()
+            await("Doctor actions") { analyze.isEnabled && migration.isEnabled }
+
+            analyze.doClick()
+            await("App analysis guidance") {
+                summary(panel) == "Open a file in the application you want to analyze."
+            }
+            assertTrue(analyze.isEnabled)
+
+            migration.doClick()
+            await("Migration analysis guidance") {
+                summary(panel) == "Open a file in an application with Taiga UI 5 installed."
+            }
+            assertTrue(migration.isEnabled)
+        } finally {
+            workspace.toFile().deleteRecursively()
+        }
+    }
+
+    private fun openPanel(source: java.nio.file.Path): TaigaProjectDoctorPanel {
+        myFixture.openFileInEditor(
+            requireNotNull(LocalFileSystem.getInstance().refreshAndFindFileByNioFile(source)),
+        )
+        return TaigaProjectDoctorPanel(project).also { Disposer.register(testRootDisposable, it) }
+    }
+
+    private fun button(
+        panel: TaigaProjectDoctorPanel,
+        title: String,
+    ): JButton = panel.descendants().filterIsInstance<JButton>().single { it.text == title }
+
+    private fun summary(panel: TaigaProjectDoctorPanel): String? =
+        panel.descendants().filterIsInstance<JBLabel>().firstOrNull {
+            it.text?.startsWith("Taiga UI ") == true ||
+                it.text == "Installed Taiga UI packages" ||
+                it.text?.startsWith("Open a file") == true
+        }?.text
+
+    private fun install(
+        workspace: java.nio.file.Path,
+        name: String,
+        version: String,
+    ) {
+        val directory = Files.createDirectories(workspace.resolve("node_modules/@taiga-ui/$name"))
+        Files.writeString(
+            directory.resolve("package.json"),
+            """{"name":"@taiga-ui/$name","version":"$version"}""",
+        )
     }
 }
