@@ -19,6 +19,28 @@ internal data class TaigaDoctorReport(
         get() = reference?.version?.substringBefore('.') == "5"
 }
 
+internal fun TaigaDoctorReport.toMarkdown(): String =
+    buildString {
+        appendLine("# Taiga UI Doctor")
+        appendLine()
+        appendLine("Detected release: " + (reference?.let { it.name + " " + it.version } ?: "Unavailable"))
+        appendLine("Installed packages: " + packages.size)
+        appendLine("Version mismatches: " + packages.count { it.expectedVersion != null })
+        appendLine()
+        appendLine("| Package | Installed version | Version mismatch |")
+        appendLine("| --- | --- | --- |")
+        packages.forEach { entry ->
+            val mismatch = entry.expectedVersion?.let { "Expected " + it } ?: "—"
+
+            appendLine(
+                "| " + entry.name.asReportCell() + " | " + entry.version.asReportCell() +
+                    " | " + mismatch.asReportCell() + " |",
+            )
+        }
+    }
+
+private fun String.asReportCell(): String = replace("|", "&#124;").lines().joinToString(" ")
+
 internal class TaigaProjectDoctor(
     private val locator: TaigaUiPackageLocator = TaigaUiPackageLocator(),
     private val reader: PackageJsonReader = PackageJsonReader(),

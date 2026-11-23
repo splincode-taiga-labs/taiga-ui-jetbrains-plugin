@@ -6,6 +6,7 @@ import com.intellij.openapi.application.EDT
 import com.intellij.openapi.fileEditor.FileEditorManagerEvent
 import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
+import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.LocalFileSystem
@@ -25,11 +26,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.taigaui.designtokens.diagnostics.TaigaDoctorMode
 import org.taigaui.designtokens.diagnostics.TaigaDoctorPackage
+import org.taigaui.designtokens.diagnostics.TaigaDoctorReport
 import org.taigaui.designtokens.diagnostics.TaigaProjectDoctor
 import org.taigaui.designtokens.diagnostics.prepareTaigaDoctorAnalysis
+import org.taigaui.designtokens.diagnostics.toMarkdown
 import org.taigaui.designtokens.migration.TAIGA_V5_MIGRATION_GUIDE
 import java.awt.BorderLayout
 import java.awt.FlowLayout
+import java.awt.datatransfer.StringSelection
 import java.awt.event.HierarchyEvent
 import java.nio.file.Path
 import javax.swing.JButton
@@ -55,6 +59,12 @@ internal class TaigaProjectDoctorPanel(
     private val analyze = JButton("Analyze App").apply { isEnabled = false }
     private val migration = JButton("Analyze v4 to v5 Migration").apply { isEnabled = false }
     private val openManifest = JButton("Open package.json").apply { isEnabled = false }
+    private val copyReport =
+        JButton("Copy Report").apply {
+            isEnabled = false
+            accessibleContext.accessibleName = "Copy Taiga UI Doctor report"
+        }
+    private var currentReport: TaigaDoctorReport? = null
     private var source: Path? = null
     private var loadJob: Job? = null
     private var analysisJob: Job? = null
@@ -76,6 +86,7 @@ internal class TaigaProjectDoctorPanel(
                     JPanel(FlowLayout(FlowLayout.TRAILING)).apply {
                         add(analyze)
                         add(openManifest)
+                        add(copyReport)
                     },
                     BorderLayout.NORTH,
                 )
@@ -94,6 +105,11 @@ internal class TaigaProjectDoctorPanel(
         analyze.addActionListener { analyzeApp(TaigaDoctorMode.APP) }
         migration.addActionListener { analyzeApp(TaigaDoctorMode.MIGRATION) }
         openManifest.addActionListener { openSelectedManifest() }
+        copyReport.addActionListener {
+            currentReport?.let { report ->
+                CopyPasteManager.getInstance().setContents(StringSelection(report.toMarkdown()))
+            }
+        }
         packages.addListSelectionListener { openManifest.isEnabled = packages.selectedValue != null }
 
         project.messageBus.connect(this).subscribe(
@@ -124,6 +140,8 @@ internal class TaigaProjectDoctorPanel(
         analyze.isEnabled = false
         migration.isEnabled = false
         supportsV5Migration = false
+        currentReport = null
+        copyReport.isEnabled = false
         summary.text = "Checking installed Taiga UI packages…"
         summary.toolTipText = path?.toString()
         packages.setListData(emptyArray())
@@ -139,6 +157,8 @@ internal class TaigaProjectDoctorPanel(
                     } ?: "Installed Taiga UI packages"
                 packages.emptyText.text = "No Taiga UI packages found for this file"
                 packages.setListData(entries.toTypedArray())
+                currentReport = report?.takeIf { entries.isNotEmpty() }
+                copyReport.isEnabled = currentReport != null
                 analyze.isEnabled = entries.isNotEmpty()
                 supportsV5Migration = report?.supportsV5Migration == true
                 migration.isEnabled = supportsV5Migration

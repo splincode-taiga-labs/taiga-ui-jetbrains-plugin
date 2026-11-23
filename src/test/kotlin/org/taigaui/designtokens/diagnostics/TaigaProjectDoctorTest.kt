@@ -62,6 +62,43 @@ class TaigaProjectDoctorTest {
         assertEquals(listOf("@taiga-ui/kit"), doctor.inspect(workspace).warnings().map(TaigaDoctorPackage::name))
     }
 
+    @Test
+    fun copiesAReportScopedToTheSelectedAppWithoutLeakingLocalPaths() {
+        val workspace = temporaryFolder.newFolder().toPath()
+        val legacy = Files.createDirectories(workspace.resolve("apps/legacy/src"))
+        val modernApp = Files.createDirectories(workspace.resolve("apps/modern"))
+        val modern = Files.createDirectories(modernApp.resolve("src"))
+        install(workspace, "core", "4.93.0")
+        install(modernApp, "core", "5.18.0")
+        install(modernApp, "kit", "4.93.0")
+        install(modernApp, "event-plugins", "5.0.0")
+
+        val markdown = doctor.inspect(modern).toMarkdown()
+
+        assertTrue(markdown.startsWith("# Taiga UI Doctor"))
+        assertTrue(markdown.contains("Detected release: @taiga-ui/core 5.18.0"))
+        assertTrue(markdown.contains("Installed packages: 3"))
+        assertTrue(markdown.contains("Version mismatches: 1"))
+        assertTrue(markdown.contains("| @taiga-ui/kit | 4.93.0 | Expected 5.18.0 |"))
+        assertTrue(markdown.contains("| @taiga-ui/event-plugins | 5.0.0 | — |"))
+        assertFalse(markdown.contains("| @taiga-ui/event-plugins | 5.0.0 | Expected"))
+        assertFalse(markdown.contains(workspace.toString()))
+        assertFalse(doctor.inspect(legacy).toMarkdown().contains("5.18.0"))
+    }
+
+    @Test
+    fun reportsIndependentPackagesWithoutInventingAnExpectedRelease() {
+        val workspace = temporaryFolder.newFolder().toPath()
+        install(workspace, "design-tokens", "0.322.0")
+
+        val markdown = doctor.inspect(workspace).toMarkdown()
+
+        assertTrue(markdown.contains("Detected release: Unavailable"))
+        assertTrue(markdown.contains("Installed packages: 1"))
+        assertTrue(markdown.contains("Version mismatches: 0"))
+        assertTrue(markdown.contains("| @taiga-ui/design-tokens | 0.322.0 | — |"))
+    }
+
     private fun install(
         directory: Path,
         name: String,
