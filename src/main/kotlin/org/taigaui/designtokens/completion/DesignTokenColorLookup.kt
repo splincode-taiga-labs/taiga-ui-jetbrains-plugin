@@ -71,7 +71,7 @@ internal class DesignTokenColorLookup(
             try {
                 delay(100)
 
-                if (entries[file] === entry) entry.colors = build(file)
+                if (entries[file] === entry) entry.colors = buildMatches(file)
             } finally {
                 if (entry.colors == null) entries.remove(file, entry)
             }
@@ -82,7 +82,7 @@ internal class DesignTokenColorLookup(
         entries.remove(file)
     }
 
-    private fun build(file: VirtualFile): Map<CssLiteralColor, List<String>> {
+    fun buildMatches(file: VirtualFile): Map<CssLiteralColor, List<String>> {
         val path = Path.of(file.path)
         val snapshot = index.resolutionSnapshot(path)
         val mergedIndex = snapshot.mergedIndex
@@ -140,6 +140,6 @@ internal class DesignTokenColorEditorListener : FileEditorManagerListener {
     }
 }
 
-private fun VirtualFile.isLocalStylesheet(): Boolean = isInLocalFileSystem && extension?.lowercase() in STYLESHEETS
+internal fun VirtualFile.isLocalStylesheet(): Boolean = isInLocalFileSystem && extension?.lowercase() in STYLESHEETS
 
 private val STYLESHEETS = setOf("css", "less", "scss")
