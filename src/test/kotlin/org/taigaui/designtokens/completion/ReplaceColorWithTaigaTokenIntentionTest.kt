@@ -139,13 +139,9 @@ class ReplaceColorWithTaigaTokenIntentionTest : BasePlatformTestCase() {
         val actions = ActionManager.getInstance()
         val group = assertInstanceOf(actions.getAction("TaigaUI.ProjectViewActions"), ActionGroup::class.java)
         val action = actions.getAction("TaigaUI.ReplaceFolderColors")
-        val context =
-            SimpleDataContext
-                .builder()
-                .add(CommonDataKeys.PROJECT, project)
-                .add(CommonDataKeys.VIRTUAL_FILE_ARRAY, arrayOf(directory))
-                .build()
+        val context = folderContext(directory)
         val event = TestActionEvent.createTestEvent(action, context)
+        val originalCss = text(css)
         val expectedCss =
             ".card { color: var(--tui-white) !important; " +
                 "background: #000 /* Taiga UI: consider var(--tui-black-a) or var(--tui-black-b) */; " +
@@ -158,9 +154,24 @@ class ReplaceColorWithTaigaTokenIntentionTest : BasePlatformTestCase() {
 
         action.update(event)
         assertTrue(event.presentation.isEnabledAndVisible)
-        action.actionPerformed(event)
+
+        var previews = emptyList<FolderColorPreview>()
+        var cssDuringPreview = ""
+        val confirmed =
+            ReplaceFolderColorsAction { _, changes ->
+                previews = changes
+                cssDuringPreview = text(css)
+
+                true
+            }
+
+        confirmed.actionPerformed(TestActionEvent.createTestEvent(confirmed, context))
 
         awaitValue(expectedCss) { text(css) }
+        assertEquals(listOf("card.css", "nested/card.less", "nested/card.scss"), previews.map { it.relativePath })
+        assertEquals(originalCss, cssDuringPreview)
+        assertEquals(originalCss, previews.first().original)
+        assertEquals(expectedCss, previews.first().proposed)
         assertEquals(".card { border: 1px solid var(--tui-white); }", text(less))
         assertEquals(
             ".card { --app-color: #fff; color: var(--tui-const-white); border-color: var(--tui-white); }",
@@ -168,11 +179,32 @@ class ReplaceColorWithTaigaTokenIntentionTest : BasePlatformTestCase() {
         )
         assertEquals(".card { color: #fff; }", text(outside))
         assertEquals(".card { color: #fff; }", text(dependency))
+        assertEquals(listOf(text(css), text(less), text(scss)), previews.map { it.proposed })
 
         PsiDocumentManager.getInstance(project).commitAllDocuments()
 
-        assertEquals("No stylesheet colors to update.", scan(directory).apply(project))
+        val repeated = scan(directory)
+
+        assertEmpty(repeated.previews)
+        assertEquals("No stylesheet colors to update.", repeated.apply(project))
         assertEquals(expectedCss, text(css))
+    }
+
+    fun testCancellingTheFolderPreviewLeavesStylesheetsUntouched() {
+        val original = ".card { color: #fff; }"
+        val css = createFile("src/card.css", original)
+        var viewed = false
+        val action =
+            ReplaceFolderColorsAction { _, _ ->
+                viewed = true
+
+                false
+            }
+
+        action.actionPerformed(TestActionEvent.createTestEvent(action, folderContext(css.parent)))
+
+        awaitValue(true) { viewed }
+        assertEquals(original, text(css))
     }
 
     fun testFolderReplacementRejectsAnEditedStylesheetBeforeWritingAnyFiles() {
@@ -185,10 +217,18 @@ class ReplaceColorWithTaigaTokenIntentionTest : BasePlatformTestCase() {
             requireNotNull(FileDocumentManager.getInstance().getDocument(second)).setText(changed)
         }
 
-        assertTrue(replacement.apply(project).contains("changed during the scan"))
+        assertEquals(".card { color: #fff; }", replacement.previews.last().original)
+        assertTrue(replacement.apply(project).contains("changed since the scan started"))
         assertEquals(".card { color: #fff; }", text(first))
         assertEquals(changed, text(second))
     }
+
+    private fun folderContext(directory: VirtualFile) =
+        SimpleDataContext
+            .builder()
+            .add(CommonDataKeys.PROJECT, project)
+            .add(CommonDataKeys.VIRTUAL_FILE_ARRAY, arrayOf(directory))
+            .build()
 
     private fun scan(directory: VirtualFile): FolderColorReplacement {
         val future =

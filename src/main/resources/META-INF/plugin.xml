@@ -33,7 +33,7 @@
                 id="TaigaUI.ReplaceFolderColors"
                 class="org.taigaui.designtokens.completion.ReplaceFolderColorsAction"
                 text="Replace Colors with Taiga UI Tokens"
-                description="Replace exact colors in stylesheets under this folder with Taiga UI tokens"
+                description="Preview and apply Taiga UI token replacements in stylesheets under this folder"
             />
         </group>
     </actions>
