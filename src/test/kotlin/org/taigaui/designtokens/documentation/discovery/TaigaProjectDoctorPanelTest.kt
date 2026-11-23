@@ -4,6 +4,7 @@ import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import com.intellij.ui.components.ActionLink
 import com.intellij.ui.components.JBLabel
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.StringSelection
@@ -101,6 +102,17 @@ class TaigaProjectDoctorPanelTest : BasePlatformTestCase() {
             assertTrue(migration.isEnabled)
             assertFalse(manifest.isEnabled)
             assertEquals("Taiga UI 5.18.0 (@taiga-ui/core)", summary(panel))
+            val labels =
+                panel
+                    .descendants()
+                    .filterIsInstance<JBLabel>()
+                    .map { it.text }
+                    .toList()
+            assertTrue(labels.contains("Design tokens: No installed source found"))
+            assertTrue(labels.contains("Icons: No local source found"))
+            assertTrue(labels.any { it.startsWith("Documentation: v5") })
+            val docs = panel.descendants().filterIsInstance<ActionLink>().single { it.text == "Open documentation" }
+            assertTrue(docs.isVisible)
 
             panel.packages.selectedIndex = 1
             assertTrue(manifest.isEnabled)

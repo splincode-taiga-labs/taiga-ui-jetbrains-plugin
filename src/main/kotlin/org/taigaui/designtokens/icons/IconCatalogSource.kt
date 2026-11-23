@@ -15,6 +15,8 @@ internal data class IconCatalogContext(
     val isProprietary: Boolean
         get() = Files.isDirectory(proprietaryPackageRoot)
 
+    fun hasLocalTdsIcons(): Boolean = Files.isDirectory(tdsIconsRoot)
+
     companion object {
         fun from(scopeRoot: Path): IconCatalogContext {
             val normalizedScope = scopeRoot.toAbsolutePath().normalize()
@@ -85,8 +87,7 @@ internal interface IconCatalogSource {
 internal class TdsIconCatalogSource(
     private val scanner: LocalIconCatalogScanner = LocalIconCatalogScanner(),
 ) : IconCatalogSource {
-    override fun supports(context: IconCatalogContext): Boolean =
-        context.isProprietary && Files.isDirectory(context.tdsIconsRoot)
+    override fun supports(context: IconCatalogContext): Boolean = context.isProprietary && context.hasLocalTdsIcons()
 
     override fun load(context: IconCatalogContext): IconCatalogLoadResult = scanner.load(context.tdsIconsRoot)
 }

@@ -76,6 +76,9 @@ within the Taiga UI release family and shows independently versioned packages in
 file from the application you want to check. Select a package and click **Open package.json** to inspect its installed
 manifest. Click **Reload** after installing or updating dependencies.
 
+The Doctor tab also shows which installed packages provide design tokens, the configured icon source, and the
+documentation cache status for the active Taiga UI version. Open the corresponding documentation directly from the tab.
+
 Click **Analyze App** to run the Taiga UI inspections for the active application. WebStorm groups wrong-package imports,
 unknown or deprecated design tokens, and invalid event modifiers in its inspection results. Select a finding to jump to
 the source and use the existing quick fix when one is available.
@@ -84,7 +87,8 @@ With Taiga UI 5 installed, click **Analyze v4 to v5 Migration** after running th
 include migration TODOs, remaining `@taiga-ui/legacy` imports, deprecated design tokens, and wrong-package imports.
 Select a finding to open the source. The guide is available in the Doctor tab and in the migration inspection descriptions.
 
-Click **Copy Report** in the Doctor tab to copy a Markdown summary of installed Taiga UI packages and version mismatches. It contains no local file paths, so it can be shared in an issue or team chat.
+Click **Copy Report** in the Doctor tab to copy a Markdown summary of installed packages, version mismatches, and source
+status. It contains no local file paths, so it can be shared in an issue or team chat.
 
 ## TypeScript imports
 

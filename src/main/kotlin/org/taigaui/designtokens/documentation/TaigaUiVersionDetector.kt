@@ -2,6 +2,7 @@ package org.taigaui.designtokens.documentation
 
 import org.taigaui.designtokens.packageinfo.PackageJsonReader
 import org.taigaui.designtokens.packageinfo.TaigaUiPackageLocator
+import org.taigaui.designtokens.packageinfo.TaigaUiPackageScope
 import java.nio.file.Path
 
 internal data class TaigaUiProjectContext(
@@ -16,19 +17,20 @@ internal class TaigaUiVersionDetector(
     private val packageLocator: TaigaUiPackageLocator = TaigaUiPackageLocator(),
     private val packageJsonReader: PackageJsonReader = PackageJsonReader(),
 ) {
-    fun detect(sourceFile: Path): TaigaUiProjectContext? {
-        val scope = packageLocator.locate(sourceFile)
+    fun detect(sourceFile: Path): TaigaUiProjectContext? = packageLocator.locate(sourceFile)?.let(::detect)
+
+    fun detect(scope: TaigaUiPackageScope): TaigaUiProjectContext? {
         val candidates =
             scope
-                ?.packages
-                ?.values
-                ?.filterNot { located -> located.name in INDEPENDENT_VERSION_PACKAGES }
-                ?.sortedWith(
+                .packages
+                .values
+                .filterNot { located -> located.name in INDEPENDENT_VERSION_PACKAGES }
+                .sortedWith(
                     compareBy(
                         { located -> if (located.name == CORE_PACKAGE) 0 else 1 },
                         { located -> located.name },
                     ),
-                ).orEmpty()
+                )
 
         return candidates.firstNotNullOfOrNull { located ->
             packageJsonReader
@@ -39,7 +41,7 @@ internal class TaigaUiVersionDetector(
                             version = version,
                             majorVersion = majorVersion,
                             versionSourcePackage = located.name,
-                            installedPackages = requireNotNull(scope).packages.keys.toSortedSet(),
+                            installedPackages = scope.packages.keys.toSortedSet(),
                             packageScopeIdentity = scope.identity,
                         )
                     }

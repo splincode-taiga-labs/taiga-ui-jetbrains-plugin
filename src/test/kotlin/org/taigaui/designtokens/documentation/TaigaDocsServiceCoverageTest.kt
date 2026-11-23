@@ -45,10 +45,13 @@ class TaigaDocsServiceCoverageTest : BasePlatformTestCase() {
                 assertTrue(cache.write(v4Source, discoveryDocs("Legacy Input", "LEGACY")))
                 assertTrue(cache.write(v5Source, discoveryDocs("Input Chip", "KIT")))
                 service.clearMemory()
+                assertEquals(TaigaDocsCacheStatus.ON_DISK, service.cacheStatusFor(v4Source))
+                assertEquals(TaigaDocsCacheStatus.ON_DISK, service.cacheStatusFor(v5Source))
                 val v4 = createApp(workspace.resolve("apps/legacy"), "4.60.0", "legacy")
                 val v5 = createApp(workspace.resolve("apps/current"), "5.18.0", "kit")
 
                 assertDiscovery(v4, v5, "4.60.0", "https://taiga-ui.dev/v4/", "legacy-input")
+                assertEquals(TaigaDocsCacheStatus.IN_MEMORY, service.cacheStatusFor(v4Source))
                 assertDiscovery(v5, v4, "5.18.0", "https://taiga-ui.dev/", "input-chip")
                 assertDiscovery(v4, v5, "4.60.0", "https://taiga-ui.dev/v4/", "legacy-input")
             } finally {
@@ -109,8 +112,10 @@ class TaigaDocsServiceCoverageTest : BasePlatformTestCase() {
                 assertNull(service.cachedIndexFor(3))
                 assertNull(service.cachedIndexFor(6))
 
+                val v5Source = requireNotNull(TaigaDocsSources.forMajor(5))
                 service.invalidate(3)
                 service.invalidate(5, removeDiskCache = true)
+                assertEquals(TaigaDocsCacheStatus.NOT_CACHED, service.cacheStatusFor(v5Source))
                 service.invalidate(6, removeDiskCache = true)
                 service.clearMemory()
                 service.warmUp(source)

@@ -3,6 +3,7 @@ package org.taigaui.designtokens.documentation.discovery
 import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.EDT
+import com.intellij.openapi.components.service
 import com.intellij.openapi.fileEditor.FileEditorManagerEvent
 import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
@@ -27,12 +28,15 @@ import kotlinx.coroutines.withContext
 import org.taigaui.designtokens.diagnostics.TaigaDoctorMode
 import org.taigaui.designtokens.diagnostics.TaigaDoctorPackage
 import org.taigaui.designtokens.diagnostics.TaigaDoctorReport
+import org.taigaui.designtokens.diagnostics.TaigaDoctorSources
 import org.taigaui.designtokens.diagnostics.TaigaProjectDoctor
 import org.taigaui.designtokens.diagnostics.prepareTaigaDoctorAnalysis
 import org.taigaui.designtokens.diagnostics.toMarkdown
+import org.taigaui.designtokens.documentation.TaigaDocsService
 import org.taigaui.designtokens.migration.TAIGA_V5_MIGRATION_GUIDE
 import java.awt.BorderLayout
 import java.awt.FlowLayout
+import java.awt.GridLayout
 import java.awt.datatransfer.StringSelection
 import java.awt.event.HierarchyEvent
 import java.nio.file.Path
@@ -55,6 +59,30 @@ internal class TaigaProjectDoctorPanel(
     private val doctor = TaigaProjectDoctor()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.EDT)
     private val summary = JBLabel()
+    private val tokenSources = JBLabel()
+    private val iconSource = JBLabel()
+    private val docsSource = JBLabel()
+    private val openDocs =
+        ActionLink("Open documentation") {
+            currentReport?.sources?.documentation?.source?.let {
+                BrowserUtil.browse(
+                    it.documentationBaseUri.toString(),
+                )
+            }
+        }
+    private val sources =
+        JPanel(GridLayout(0, 1, 0, JBUI.scale(2))).apply {
+            isVisible = false
+            border = JBUI.Borders.empty(4, 0, 0, 0)
+            add(tokenSources)
+            add(iconSource)
+            add(
+                JPanel(BorderLayout(JBUI.scale(8), 0)).apply {
+                    add(docsSource, BorderLayout.CENTER)
+                    add(openDocs, BorderLayout.EAST)
+                },
+            )
+        }
     private val reload = JButton("Reload")
     private val analyze = JButton("Analyze App").apply { isEnabled = false }
     private val migration = JButton("Analyze v4 to v5 Migration").apply { isEnabled = false }
@@ -74,8 +102,14 @@ internal class TaigaProjectDoctorPanel(
         add(
             JPanel(BorderLayout(JBUI.scale(4), 0)).apply {
                 border = JBUI.Borders.empty(6)
-                add(summary, BorderLayout.CENTER)
-                add(reload, BorderLayout.EAST)
+                add(
+                    JPanel(BorderLayout(JBUI.scale(4), 0)).apply {
+                        add(summary, BorderLayout.CENTER)
+                        add(reload, BorderLayout.EAST)
+                    },
+                    BorderLayout.NORTH,
+                )
+                add(sources, BorderLayout.CENTER)
             },
             BorderLayout.NORTH,
         )
@@ -144,11 +178,15 @@ internal class TaigaProjectDoctorPanel(
         copyReport.isEnabled = false
         summary.text = "Checking installed Taiga UI packages…"
         summary.toolTipText = path?.toString()
+        sources.isVisible = false
         packages.setListData(emptyArray())
 
         loadJob =
             scope.launch {
-                val report = withContext(Dispatchers.IO) { path?.let(doctor::inspect) }
+                val report =
+                    withContext(Dispatchers.IO) {
+                        path?.let { doctor.inspectWithSources(it, project.service<TaigaDocsService>()::cacheStatusFor) }
+                    }
                 val entries = report?.packages.orEmpty()
 
                 summary.text =
@@ -158,11 +196,23 @@ internal class TaigaProjectDoctorPanel(
                 packages.emptyText.text = "No Taiga UI packages found for this file"
                 packages.setListData(entries.toTypedArray())
                 currentReport = report?.takeIf { entries.isNotEmpty() }
+                showSources(currentReport?.sources)
                 copyReport.isEnabled = currentReport != null
                 analyze.isEnabled = entries.isNotEmpty()
                 supportsV5Migration = report?.supportsV5Migration == true
                 migration.isEnabled = supportsV5Migration
             }
+    }
+
+    private fun showSources(status: TaigaDoctorSources?) {
+        sources.isVisible = status != null
+
+        if (status != null) {
+            tokenSources.text = "Design tokens: ${status.designTokenSummary}"
+            iconSource.text = "Icons: ${status.icons}"
+            docsSource.text = "Documentation: ${status.documentationSummary}"
+            openDocs.isVisible = status.documentation != null
+        }
     }
 
     private fun analyzeApp(mode: TaigaDoctorMode) {

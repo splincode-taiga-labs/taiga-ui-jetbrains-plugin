@@ -7,6 +7,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import org.taigaui.designtokens.documentation.TaigaDocsCacheStatus
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -138,6 +139,68 @@ class TaigaProjectDoctorTest {
 
         assertEquals(listOf("@taiga-ui/core"), report.packages.map(TaigaDoctorPackage::name))
         assertEquals("@taiga-ui/core", report.reference?.name)
+    }
+
+    @Test
+    fun reportsSourcesAndDocumentationForEachInstalledMajor() {
+        val workspace = temporaryFolder.newFolder().toPath()
+        val legacy = Files.createDirectories(workspace.resolve("apps/legacy"))
+        val current = Files.createDirectories(workspace.resolve("apps/current"))
+        install(legacy, "core", "4.93.0")
+        install(legacy, "design-tokens", "0.322.0")
+        val icons = install(legacy, "icons", "4.93.0")
+        Files.createDirectories(icons.parent.resolve("src"))
+        install(current, "core", "5.18.0")
+        val styles = install(current, "styles", "5.18.0")
+        Files.writeString(styles, """{"name":"@taiga-ui/styles","version":"5.18.0","exports":{".":"./index.css"}}""")
+        val cache = mapOf(4 to TaigaDocsCacheStatus.ON_DISK, 5 to TaigaDocsCacheStatus.NOT_CACHED)
+
+        val v4 = requireNotNull(doctor.inspectWithSources(legacy) { cache.getValue(it.majorVersion) }.sources)
+        val currentReport = doctor.inspectWithSources(current) { cache.getValue(it.majorVersion) }
+        val v5 = requireNotNull(currentReport.sources)
+
+        assertEquals(listOf("@taiga-ui/design-tokens"), v4.designTokens)
+        assertEquals("Local public icons", v4.icons)
+        assertEquals(
+            "https://taiga-ui.dev/v4/",
+            v4.documentation
+                ?.source
+                ?.documentationBaseUri
+                .toString(),
+        )
+        assertEquals("v4 · Disk cache present", v4.documentationSummary)
+        assertEquals(listOf("@taiga-ui/styles"), v5.designTokens)
+        assertEquals("No local source found", v5.icons)
+        assertEquals(
+            "https://taiga-ui.dev/",
+            v5.documentation
+                ?.source
+                ?.documentationBaseUri
+                .toString(),
+        )
+        assertEquals("v5 · Not cached", v5.documentationSummary)
+        assertTrue(currentReport.toMarkdown().contains("- Documentation: v5 · Not cached"))
+        assertFalse(currentReport.toMarkdown().contains(workspace.toString()))
+    }
+
+    @Test
+    fun reportsTheConfiguredProprietaryIconSourceWithoutFetchingIt() {
+        val workspace = temporaryFolder.newFolder().toPath()
+        install(workspace, "core", "6.0.0")
+        install(workspace, "proprietary", "6.0.0")
+        val icons = install(workspace, "icons", "6.0.0")
+        Files.createDirectories(icons.parent.resolve("src"))
+
+        val fallback = requireNotNull(doctor.inspectWithSources(workspace) { error("Unsupported major") }.sources)
+        assertTrue(fallback.designTokens.isEmpty())
+        assertNull(fallback.documentation)
+        assertEquals("Remote fallback configured", fallback.icons)
+
+        val tds = install(workspace, "tds-icons", "1.0.0")
+        Files.createDirectories(tds.parent.resolve("src"))
+        val local = requireNotNull(doctor.inspectWithSources(workspace) { error("Unsupported major") }.sources)
+
+        assertEquals("Local TDS icons", local.icons)
     }
 
     @Test

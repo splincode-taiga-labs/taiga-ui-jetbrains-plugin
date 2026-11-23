@@ -6,8 +6,15 @@ import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
+import java.nio.file.attribute.BasicFileAttributes
 import java.time.Duration
 import java.time.Instant
+
+internal enum class TaigaDocsCacheStatus {
+    IN_MEMORY,
+    ON_DISK,
+    NOT_CACHED,
+}
 
 internal class TaigaDocsCache(
     private val cacheRoot: Path =
@@ -18,6 +25,13 @@ internal class TaigaDocsCache(
         ),
     private val moveFile: (Path, Path, Boolean) -> Path = ::moveTaigaDocsCacheFile,
 ) {
+    fun hasContent(source: TaigaDocsSource): Boolean =
+        runCatching {
+            val attributes = Files.readAttributes(cacheFile(source), BasicFileAttributes::class.java)
+
+            attributes.isRegularFile && attributes.size() > 0
+        }.getOrDefault(false)
+
     fun read(source: TaigaDocsSource): String? {
         val path = cacheFile(source)
 
