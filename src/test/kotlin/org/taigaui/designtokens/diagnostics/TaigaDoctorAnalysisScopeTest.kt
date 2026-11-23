@@ -57,7 +57,8 @@ class TaigaDoctorAnalysisScopeTest {
             assertNull(findTaigaDoctorApplication(outside, workspace) { error("Unexpected Angular config") })
 
             for (dependency in listOf("node_modules", ".yarn")) {
-                val directory = Files.createDirectories(workspace.resolve("apps/demo").resolve(dependency).resolve("package"))
+                val dependencyRoot = workspace.resolve("apps/demo").resolve(dependency)
+                val directory = Files.createDirectories(dependencyRoot.resolve("package"))
                 val source = Files.createFile(directory.resolve("component.ts"))
 
                 assertNull(findTaigaDoctorApplication(source, workspace) { error("Unexpected Angular config") })
@@ -125,9 +126,8 @@ class TaigaDoctorAnalysisScopeTest {
             val workspace = temporaryFolder.newFolder().toPath()
             Files.createFile(workspace.resolve("angular.json"))
             Files.createFile(workspace.resolve("package.json"))
-            val source = Files.createFile(
-                Files.createDirectories(workspace.resolve("apps/unconfigured")).resolve("component.ts"),
-            )
+            val app = Files.createDirectories(workspace.resolve("apps/unconfigured"))
+            val source = Files.createFile(app.resolve("component.ts"))
 
             assertNull(
                 findTaigaDoctorApplication(source, workspace) { listOf("apps/configured") },
