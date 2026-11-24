@@ -1,6 +1,7 @@
 package org.taigaui.designtokens.documentation
 
 import com.intellij.ui.components.JBLabel
+import javax.swing.JPanel
 import javax.swing.JTabbedPane
 
 class TaigaQuickDocumentationAdditionalPanelTest : TaigaDocumentationPopupTestCase() {
@@ -22,13 +23,13 @@ class TaigaQuickDocumentationAdditionalPanelTest : TaigaDocumentationPopupTestCa
         val formatted = "<button tuiButton>Formatted</button>"
 
         panel.finishUsageFormatting(formatted)
-        assertTrue(descendants(panel).filterIsInstance<JBLabel>().any { it.accessibleContext.accessibleName == formatted })
+        assertTrue(hasUsage(panel, formatted))
 
         panel.finishUsageFormatting(null, suppress = true)
-        assertFalse(descendants(panel).filterIsInstance<JBLabel>().any { it.accessibleContext.accessibleName == formatted })
+        assertFalse(hasUsage(panel, formatted))
 
         panel.finishUsageFormatting(formatted)
-        assertFalse(descendants(panel).filterIsInstance<JBLabel>().any { it.accessibleContext.accessibleName == formatted })
+        assertFalse(hasUsage(panel, formatted))
     }
 
     fun testAsyncIconPreviewReplacesPreviousPreviewContent() {
@@ -37,7 +38,7 @@ class TaigaQuickDocumentationAdditionalPanelTest : TaigaDocumentationPopupTestCa
         val resolved = owner.copy(icons = listOf(reference))
         val panel = TaigaQuickDocumentationPopupPanel(resolved)
         val preview = iconPreview(reference)
-        val container = documentationField<javax.swing.JPanel>(panel, "previewContent")
+        val container = documentationField<JPanel>(panel, "previewContent")
 
         panel.showIconPreviews(listOf(preview))
         assertTrue(descendants(container).filterIsInstance<JBLabel>().any { it.icon === preview.icon })
@@ -45,4 +46,9 @@ class TaigaQuickDocumentationAdditionalPanelTest : TaigaDocumentationPopupTestCa
         panel.showIconPreviews(emptyList())
         assertFalse(descendants(container).filterIsInstance<JBLabel>().any { it.icon === preview.icon })
     }
+
+    private fun hasUsage(
+        panel: TaigaQuickDocumentationPopupPanel,
+        code: String,
+    ): Boolean = descendants(panel).filterIsInstance<JBLabel>().any { it.accessibleContext.accessibleName == code }
 }
