@@ -51,6 +51,30 @@ class TaigaDocumentationIconsCoverageTest : BasePlatformTestCase() {
         )
     }
 
+    fun testReplacementRejectsInvalidRangesAndContextInvalidatedInsideCommand() {
+        val original = """<tui-icon icon="@tui.eye" />"""
+        myFixture.configureByText("example.html", original)
+        val start = original.indexOf("@tui.eye")
+        val reference = TaigaDocumentationIcon("icon", "@tui.eye", start, start + "@tui.eye".length)
+
+        val invalidReferences =
+            listOf(
+                reference.copy(startOffset = -1),
+                reference.copy(endOffset = start - 1),
+                reference.copy(endOffset = original.length + 1),
+            )
+
+        for (invalid in invalidReferences) {
+            replace(invalid, "@tui.search") { true }
+            assertEquals(original, myFixture.editor.document.text)
+        }
+
+        var checks = 0
+        replace(reference, "@tui.search") { ++checks == 1 }
+        assertEquals(2, checks)
+        assertEquals(original, myFixture.editor.document.text)
+    }
+
     fun testPreviewLoadingSkipsUnavailableIconsAndPublishesInstalledSvgOnUiThread() {
         val workspace = Files.createTempDirectory("taiga-documentation-icons")
         try {

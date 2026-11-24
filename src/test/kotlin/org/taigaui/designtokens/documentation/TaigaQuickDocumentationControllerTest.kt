@@ -3,29 +3,20 @@ package org.taigaui.designtokens.documentation
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.command.undo.UndoManager
-import com.intellij.openapi.components.service
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.EditorFactory
 import com.intellij.openapi.editor.RangeMarker
-import com.intellij.openapi.editor.event.EditorMouseEvent
-import com.intellij.openapi.editor.event.EditorMouseEventArea
-import com.intellij.openapi.editor.ex.EditorSettingsExternalizable
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.impl.text.TextEditorProvider
 import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.ui.popup.JBPopup
-import com.intellij.openapi.wm.IdeFocusManager
 import com.intellij.platform.backend.documentation.DocumentationTarget
 import com.intellij.platform.backend.documentation.impl.computeDocumentationBlocking
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.testFramework.DumbModeTestUtils
-import com.intellij.testFramework.replaceService
-import com.intellij.ui.UiInterceptors
-import com.intellij.ui.awt.RelativePoint
 import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBTextField
 import com.intellij.ui.popup.AbstractPopup
@@ -34,57 +25,9 @@ import com.intellij.util.ui.UIUtil
 import kotlinx.coroutines.Job
 import java.awt.Dimension
 import java.awt.Point
-import java.awt.event.MouseEvent
 import javax.swing.JButton
 
-class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() {
-    private lateinit var controller: TaigaQuickDocumentationHoverController
-    private val focus = TaigaDocumentationRecordingFocusManager()
-    private val shown = mutableListOf<JBPopup>()
-
-    override fun setUp() {
-        super.setUp()
-        TaigaDocumentationAngularFixture.install(myFixture)
-        ApplicationManager
-            .getApplication()
-            .replaceService(IdeFocusManager::class.java, focus, testRootDisposable)
-        UiInterceptors.registerPersistent(
-            testRootDisposable,
-            object : UiInterceptors.PersistentUiInterceptor<JBPopup>(JBPopup::class.java) {
-                override fun shouldIntercept(component: JBPopup): Boolean = true
-
-                override fun doIntercept(
-                    component: JBPopup,
-                    owner: RelativePoint?,
-                ) {
-                    shown += component
-                    documentationComponents(component.content)
-                        .filterIsInstance<TaigaQuickDocumentationPopupPanel>()
-                        .forEach {
-                            it.size =
-                                component.size?.takeIf { size -> size.width > 0 && size.height > 0 } ?: it.preferredSize
-                            layoutDocumentation(it)
-                        }
-                }
-            },
-        )
-        // Keep network/cache timing out of lifecycle tests while using the real installed-API resolver.
-        val store = documentationField<TaigaDocsIndexStore>(project.service<TaigaDocsService>(), "indexStore")
-        val snapshots = documentationField<MutableMap<TaigaDocsSource, TaigaDocsIndex>>(store, "snapshots")
-        val source = requireNotNull(TaigaDocsSources.forMajor(5))
-        snapshots[source] = TaigaDocsIndex(source, emptyList())
-        controller = project.service()
-    }
-
-    override fun tearDown() {
-        try {
-            if (::controller.isInitialized) controller.dismissHover(force = true)
-            project.service<TaigaDocsService>().clearMemory()
-        } finally {
-            super.tearDown()
-        }
-    }
-
+class TaigaQuickDocumentationControllerTest : TaigaQuickDocumentationControllerTestCase() {
     fun testRequiredInputReturnsFocusAndCaretAfterAutomaticRefreshAndOneUndo() {
         open("<button tuiButton>Save</button>", "tuiButton")
         val before = panel()
@@ -512,159 +455,12 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
         assertNull(panelOrNull())
     }
 
-    fun testMouseExitWithoutAnInteractiveCardClearsPendingHover() {
-        configure("<button tuiButton>Save</button>", "tuiButton")
-
-        controller.mouseExited(myFixture.editor)
-
-        assertNull(panelOrNull())
-        assertNull(documentationField<Any?>(controller, "pendingKey"))
-        assertNull(documentationField<Any?>(controller, "currentRequest"))
-    }
-
-    fun testRepeatedMouseMoveKeepsOnePendingHoverResolution() {
-        configure("<button tuiButton size=\"m\">Save</button>", "size")
-        val settings = EditorSettingsExternalizable.getInstance()
-        val previous = settings.isShowQuickDocOnMouseOverElement
-        try {
-            settings.isShowQuickDocOnMouseOverElement = true
-            val event = mouseMoveOver("size")
-            controller.mouseMoved(event)
-            val first = documentationField<Job>(controller, "resolutionJob")
-
-            controller.mouseMoved(event)
-            assertSame(first, documentationField<Job>(controller, "resolutionJob"))
-            assertNotNull(documentationField<Any?>(controller, "pendingKey"))
-        } finally {
-            controller.dismissHover(force = true)
-            settings.isShowQuickDocOnMouseOverElement = previous
-        }
-    }
-
-    fun testMouseMoveBetweenIdentifiersCancelsStaleResolution() {
-        configure("<button tuiButton size=\"m\">Save</button>", "size")
-        val settings = EditorSettingsExternalizable.getInstance()
-        val previous = settings.isShowQuickDocOnMouseOverElement
-        try {
-            settings.isShowQuickDocOnMouseOverElement = true
-            controller.mouseMoved(mouseMoveOver("tuiButton"))
-            val first = documentationField<Job>(controller, "resolutionJob")
-
-            controller.mouseMoved(mouseMoveOver("size"))
-            val second = documentationField<Job>(controller, "resolutionJob")
-            assertNotSame(first, second)
-            assertTrue(first.isCancelled)
-        } finally {
-            controller.dismissHover(force = true)
-            settings.isShowQuickDocOnMouseOverElement = previous
-        }
-    }
-
-    fun testMovingOntoWhitespaceLeavesNoPendingHoverTarget() {
-        configure("<button tuiButton>Save</button>\n<button tuiButton>Next</button>", "tuiButton")
-        val settings = EditorSettingsExternalizable.getInstance()
-        val previous = settings.isShowQuickDocOnMouseOverElement
-        try {
-            settings.isShowQuickDocOnMouseOverElement = true
-            controller.mouseMoved(mouseMoveOver("\n", middle = false))
-            assertNull(documentationField<Any?>(controller, "pendingKey"))
-        } finally {
-            controller.dismissHover(force = true)
-            settings.isShowQuickDocOnMouseOverElement = previous
-        }
-    }
-
-    private fun mouseMoveOver(
-        needle: String,
-        middle: Boolean = true,
-    ): EditorMouseEvent {
-        val editor = myFixture.editor
-        val offset = myFixture.file.text.indexOf(needle) + if (middle) 1 else 0
-        val mouse =
-            MouseEvent(
-                editor.contentComponent,
-                MouseEvent.MOUSE_MOVED,
-                System.currentTimeMillis(),
-                0,
-                20,
-                20,
-                0,
-                false,
-            )
-        return EditorMouseEvent(
-            editor,
-            mouse,
-            EditorMouseEventArea.EDITING_AREA,
-            offset,
-            editor.offsetToLogicalPosition(offset),
-            editor.offsetToVisualPosition(offset),
-            true,
-            null,
-            null,
-            null,
-        )
-    }
-
-    private fun open(
-        text: String,
-        needle: String,
-    ) {
-        configure(text, needle)
-        controller.showFromCaret(myFixture.editor)
-        await("installed API card") { panelOrNull() != null }
-    }
-
-    private fun configure(
-        text: String,
-        needle: String,
-    ) {
-        val file = myFixture.tempDirFixture.createFile("src/component.html", text)
-        myFixture.configureFromExistingVirtualFile(file)
-        PsiDocumentManager.getInstance(project).commitAllDocuments()
-        myFixture.doHighlighting()
-        myFixture.editor.caretModel.moveToOffset(text.indexOf(needle) + 1)
-    }
-
-    private fun panelOrNull(): TaigaQuickDocumentationPopupPanel? = documentationField(controller, "popupContent")
-
-    private fun panel(): TaigaQuickDocumentationPopupPanel = requireNotNull(panelOrNull())
-
-    private fun view(): TaigaDocumentationView {
-        val navigation = documentationField<TaigaDocumentationNavigationState>(controller, "navigation")
-        return requireNotNull(navigation.currentView)
-    }
-
-    private fun actions(): TaigaDocumentationPopupActions = documentationField(panel(), "actions")
-
-    private fun status(): TaigaDocumentationStatusPopup = documentationField(controller, "resolutionStatus")
-
     private fun statusPanel(): TaigaDocumentationStatusPanel = documentationField(status(), "panel")
 
     private fun button(text: String): JButton = button(panel(), text)
 
     private fun document(path: String) =
         requireNotNull(FileDocumentManager.getInstance().getDocument(myFixture.findFileInTempDir(path)))
-
-    private fun assertDismissed(job: Job) {
-        await("cancelled resolution") { job.isCompleted }
-        assertTrue(job.isCancelled)
-        assertNull(panelOrNull())
-        assertNull(documentationField<Any?>(controller, "pendingKey"))
-        assertNull(documentationField<Editor?>(status(), "editor"))
-        assertNull(documentationField<Any?>(controller, "refreshTarget"))
-    }
-
-    private fun await(
-        description: String,
-        condition: () -> Boolean,
-    ) {
-        repeat(1_000) {
-            UIUtil.dispatchAllInvocationEvents()
-            if (condition()) return
-            Thread.sleep(10)
-        }
-        fail("Timed out waiting for $description")
-    }
 
     private fun setField(
         target: Any,
