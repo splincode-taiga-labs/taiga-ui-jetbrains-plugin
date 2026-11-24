@@ -16,7 +16,8 @@ internal class TaigaDocsService(
     private val coroutineScope: CoroutineScope,
 ) {
     private val versionDetector = TaigaUiVersionDetector()
-    private val indexStore = TaigaDocsIndexStore(coroutineScope)
+    private val diskCache = TaigaDocsCache()
+    private val indexStore = TaigaDocsIndexStore(coroutineScope, TaigaDocsRepository(cache = diskCache))
     private val projectContexts = ConcurrentHashMap<Path, TaigaUiProjectContext>()
 
     suspend fun snapshotFor(sourceFile: Path): TaigaDocsSnapshot? {
@@ -59,6 +60,13 @@ internal class TaigaDocsService(
 
     fun cachedIndexFor(majorVersion: Int): TaigaDocsIndex? =
         TaigaDocsSources.forMajor(majorVersion)?.let(indexStore::cached)
+
+    fun cacheStatusFor(source: TaigaDocsSource): TaigaDocsCacheStatus =
+        when {
+            indexStore.cached(source) != null -> TaigaDocsCacheStatus.IN_MEMORY
+            diskCache.hasContent(source) -> TaigaDocsCacheStatus.ON_DISK
+            else -> TaigaDocsCacheStatus.NOT_CACHED
+        }
 
     fun invalidate(
         majorVersion: Int,

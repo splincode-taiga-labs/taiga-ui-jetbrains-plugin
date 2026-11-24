@@ -8,16 +8,12 @@ class DesignTokensPackageResolver(
 ) {
     private val packageLocator = TaigaUiPackageLocator(packageJsonReader)
 
-    fun resolve(start: Path): DesignTokensPackage? =
-        packageLocator
-            .locate(start)
-            ?.let { scope ->
-                val sourcePackages = discoverSourcePackages(scope)
+    fun resolve(start: Path): DesignTokensPackage? = packageLocator.locate(start)?.let(::resolve)
 
-                sourcePackages
-                    .takeIf(List<DesignTokenSourcePackage>::isNotEmpty)
-                    ?.let { packages -> createPackageSet(scope, packages) }
-            }
+    internal fun resolve(scope: TaigaUiPackageScope): DesignTokensPackage? =
+        discoverSourcePackages(scope)
+            .takeIf(List<DesignTokenSourcePackage>::isNotEmpty)
+            ?.let { packages -> createPackageSet(scope, packages) }
 
     private fun createPackageSet(
         scope: TaigaUiPackageScope,
