@@ -15,7 +15,7 @@ class TaigaShowDocumentationCardActionTest : TaigaQuickDocumentationControllerTe
         val action = TaigaShowDocumentationCardAction()
         val event = event(action, project, myFixture.editor, myFixture.file)
 
-        assertEquals(ActionUpdateThread.BGT, action.actionUpdateThread)
+        assertEquals(ActionUpdateThread.BGT, action.getActionUpdateThread())
         action.update(event)
         assertFalse(event.presentation.isEnabled)
 
