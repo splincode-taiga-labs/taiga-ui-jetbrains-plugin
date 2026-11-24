@@ -8,6 +8,7 @@ import com.intellij.codeInsight.hints.declarative.InlayHintsProvider
 import com.intellij.codeInsight.hints.declarative.InlayTreeSink
 import com.intellij.codeInsight.hints.declarative.InlineInlayPosition
 import com.intellij.codeInsight.hints.declarative.SharedBypassCollector
+import com.intellij.lang.html.HtmlCompatibleFile
 import com.intellij.lang.injection.InjectedLanguageManager
 import com.intellij.openapi.editor.Editor
 import com.intellij.psi.PsiElement
@@ -22,13 +23,15 @@ internal class TaigaTemplateInlayHintsProvider : InlayHintsProvider {
         file: PsiFile,
         editor: Editor,
     ): InlayHintsCollector =
-        if (file.language.id in HTML_LANGUAGES) {
+        if (file.isTaigaTemplateFile()) {
             object : SharedBypassCollector {
                 override fun collectFromElement(
                     element: PsiElement,
                     sink: InlayTreeSink,
                 ) {
-                    (element as? XmlAttribute)?.addTaigaHint(sink) { it }
+                    if (element === file) {
+                        file.collectTaigaHints(file, sink) { it }
+                    }
                 }
             }
         } else {
@@ -41,9 +44,10 @@ internal class TaigaTemplateInlayHintsProvider : InlayHintsProvider {
                 ) {
                     val host = element as? PsiLanguageInjectionHost ?: return
                     manager.enumerate(host) { injectedFile, _ ->
-                        if (injectedFile.language.id !in HTML_LANGUAGES) return@enumerate
-                        PsiTreeUtil.findChildrenOfType(injectedFile, XmlAttribute::class.java).forEach { attribute ->
-                            attribute.addTaigaHint(sink) { offset -> manager.injectedToHost(injectedFile, offset) }
+                        if (injectedFile.isTaigaTemplateFile()) {
+                            injectedFile.collectTaigaHints(file, sink) { offset ->
+                                manager.injectedToHost(injectedFile, offset)
+                            }
                         }
                     }
                 }
@@ -51,14 +55,28 @@ internal class TaigaTemplateInlayHintsProvider : InlayHintsProvider {
         }
 }
 
-@Suppress("ReturnCount")
-private fun XmlAttribute.addTaigaHint(
+private fun PsiFile.collectTaigaHints(
+    sourceFile: PsiFile,
     sink: InlayTreeSink,
     mapOffset: (Int) -> Int,
 ) {
-    if (name != "tuiButton" && name != "size") return
+    val template = viewProvider.allFiles.firstOrNull { it is HtmlCompatibleFile } ?: this
+
+    PsiTreeUtil.findChildrenOfType(template, XmlAttribute::class.java).forEach { attribute ->
+        attribute.addTaigaHint(sourceFile, sink, mapOffset)
+    }
+}
+
+@Suppress("ReturnCount")
+private fun XmlAttribute.addTaigaHint(
+    sourceFile: PsiFile,
+    sink: InlayTreeSink,
+    mapOffset: (Int) -> Int,
+) {
+    val attributeName = bindingName()
+    if (attributeName != "tuiButton" && attributeName != "size") return
     val range = nameElement?.textRange ?: return
-    val request = TaigaDocumentationResolver.findRequest(containingFile, range.startOffset) ?: return
+    val request = TaigaDocumentationResolver.findRequest(sourceFile, mapOffset(range.startOffset + 1)) ?: return
     val documentation = resolveDocumentation(request) ?: return
     if (documentation.packageName?.startsWith("@taiga-ui/") != true) return
     val hint = resolvedTaigaHint(documentation, range.endOffset) ?: return
@@ -78,14 +96,14 @@ private fun XmlAttribute.resolvedTaigaHint(
 ): Pair<String, Int>? =
     when (documentation) {
         is TaigaResolvedDocumentation.Entity ->
-            if (name == "tuiButton" && documentation.badge == "Directive") {
+            if (bindingName() == "tuiButton" && documentation.badge == "Directive") {
                 "Taiga UI directive" to nameEnd
             } else {
                 null
             }
 
         is TaigaResolvedDocumentation.Member ->
-            if (name == "size" && documentation.kind == TaigaApiMemberKind.INPUT) {
+            if (bindingName() == "size" && documentation.kind == TaigaApiMemberKind.INPUT) {
                 value
                     ?.takeIf { it in documentation.localValues() }
                     ?.let(::taigaSizeDescription)
@@ -105,7 +123,6 @@ internal fun taigaSizeDescription(value: String): String? =
         else -> null
     }
 
-private val HTML_LANGUAGES = setOf("HTML", "Angular2HTML")
 private val TAIGA_INLINE_FORMAT =
     HintFormat.default
         .withColorKind(HintColorKind.TextWithoutBackground)
