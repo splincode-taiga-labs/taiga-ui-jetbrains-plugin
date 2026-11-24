@@ -57,13 +57,14 @@ class TaigaDocumentationIconsCoverageTest : BasePlatformTestCase() {
         val start = original.indexOf("@tui.eye")
         val reference = TaigaDocumentationIcon("icon", "@tui.eye", start, start + "@tui.eye".length)
 
-        for (invalid in
+        val invalidReferences =
             listOf(
                 reference.copy(startOffset = -1),
                 reference.copy(endOffset = start - 1),
                 reference.copy(endOffset = original.length + 1),
             )
-        ) {
+
+        for (invalid in invalidReferences) {
             replace(invalid, "@tui.search") { true }
             assertEquals(original, myFixture.editor.document.text)
         }
