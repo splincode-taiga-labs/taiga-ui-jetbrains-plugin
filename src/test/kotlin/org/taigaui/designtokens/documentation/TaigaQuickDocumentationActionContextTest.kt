@@ -2,6 +2,8 @@ package org.taigaui.designtokens.documentation
 
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.fileEditor.FileDocumentManager
+import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.openapi.vfs.newvfs.events.VFilePropertyChangeEvent
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import java.nio.file.Path
@@ -55,4 +57,36 @@ class TaigaQuickDocumentationActionContextTest : BasePlatformTestCase() {
         WriteCommandAction.runWriteCommandAction(project) { myFixture.editor.document.insertString(0, "\n") }
         assertFalse(context.isCurrent())
     }
+
+    fun testInstalledPackageEventsInvalidateOnlyTheirOwnPackage() {
+        val declaration =
+            myFixture.tempDirFixture.createFile(
+                "node_modules/@taiga-ui/core/button.d.ts",
+                "export declare class TuiButton {}",
+            )
+        val sibling = myFixture.tempDirFixture.createFile("node_modules/@taiga-ui/core/other.d.ts", "")
+        val unrelated = myFixture.tempDirFixture.createFile("node_modules/@taiga-ui/kit/other.d.ts", "")
+        myFixture.configureByText("component.html", "<button tuiButton></button>")
+        val context =
+            TaigaDocumentationActionContext(project, myFixture.editor.document, listOf(Path.of(declaration.path)))
+
+        context.filesChanged(listOf(renameEvent(unrelated)))
+        assertTrue(context.isCurrent())
+
+        context.filesChanged(listOf(renameEvent(sibling)))
+        assertFalse(context.isCurrent())
+    }
+
+    fun testNewConfigurationFileInvalidatesPreviouslyCapturedContext() {
+        val source = myFixture.tempDirFixture.createFile("src/component.html", "<button tuiButton></button>")
+        myFixture.configureFromExistingVirtualFile(source)
+        val context = TaigaDocumentationActionContext(project, myFixture.editor.document)
+        val config = myFixture.tempDirFixture.createFile("src/tsconfig.json", "{}")
+
+        context.filesChanged(listOf(renameEvent(config)))
+        assertFalse(context.isCurrent())
+    }
+
+    private fun renameEvent(file: VirtualFile): VFilePropertyChangeEvent =
+        VFilePropertyChangeEvent(this, file, VirtualFile.PROP_NAME, file.name, "renamed-${file.name}", false)
 }
