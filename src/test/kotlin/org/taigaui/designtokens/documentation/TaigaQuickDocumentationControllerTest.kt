@@ -574,6 +574,82 @@ class TaigaQuickDocumentationControllerTest : TaigaDocumentationPopupTestCase() 
         }
     }
 
+    fun testPassiveHoverOpensMemberAndCanExpandToTheFullCard() {
+        configure("<button tuiButton size=\"m\">Save</button>", "size")
+        val settings = EditorSettingsExternalizable.getInstance()
+        val previous = settings.isShowQuickDocOnMouseOverElement
+
+        try {
+            settings.isShowQuickDocOnMouseOverElement = true
+            controller.mouseMoved(mouseMoveOver("size"))
+            await("passive member documentation") { panelOrNull() != null }
+
+            val compact = panel()
+            assertTrue(compact.compactHover)
+            assertEquals("size", (view().resolved as TaigaResolvedDocumentation.Member).property.name)
+            controller.mouseMoved(mouseMoveOver("size"))
+            assertSame(compact, panel())
+
+            requireNotNull(actions().openFullCard).invoke()
+            assertNotSame(compact, panel())
+            assertFalse(panel().compactHover)
+            assertTrue(view().expanded)
+        } finally {
+            controller.dismissHover(force = true)
+            settings.isShowQuickDocOnMouseOverElement = previous
+        }
+    }
+
+    fun testMouseListenerCancelsPendingRequestsOnPressDragAndExit() {
+        configure("<button tuiButton size=\"m\">Save</button>", "size")
+        val settings = EditorSettingsExternalizable.getInstance()
+        val previous = settings.isShowQuickDocOnMouseOverElement
+        val listener = TaigaQuickDocumentationHoverPopupListener()
+        val event = mouseMoveOver("size")
+
+        try {
+            settings.isShowQuickDocOnMouseOverElement = true
+
+            listener.mouseMoved(event)
+            val pressed = documentationField<Job>(controller, "resolutionJob")
+            listener.mousePressed(event)
+            assertDismissed(pressed)
+
+            listener.mouseMoved(event)
+            val dragged = documentationField<Job>(controller, "resolutionJob")
+            listener.mouseDragged(event)
+            assertDismissed(dragged)
+
+            listener.mouseMoved(event)
+            val exited = documentationField<Job>(controller, "resolutionJob")
+            listener.mouseExited(event)
+            assertDismissed(exited)
+        } finally {
+            controller.dismissHover(force = true)
+            settings.isShowQuickDocOnMouseOverElement = previous
+        }
+    }
+
+    fun testPassiveHoverOnOrdinaryHtmlDoesNotPublishDocumentation() {
+        configure("<button title=\"plain\">Save</button>", "title")
+        val settings = EditorSettingsExternalizable.getInstance()
+        val previous = settings.isShowQuickDocOnMouseOverElement
+
+        try {
+            settings.isShowQuickDocOnMouseOverElement = true
+            controller.mouseMoved(mouseMoveOver("title"))
+            val job = documentationField<Job>(controller, "resolutionJob")
+            await("unresolved passive hover") { job.isCompleted }
+
+            assertNull(panelOrNull())
+            assertNull(documentationField<Any?>(controller, "pendingKey"))
+            assertTrue(shown.isEmpty())
+        } finally {
+            controller.dismissHover(force = true)
+            settings.isShowQuickDocOnMouseOverElement = previous
+        }
+    }
+
     private fun mouseMoveOver(
         needle: String,
         middle: Boolean = true,

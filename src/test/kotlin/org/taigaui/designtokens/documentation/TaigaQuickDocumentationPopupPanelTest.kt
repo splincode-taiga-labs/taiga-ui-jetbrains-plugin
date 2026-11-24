@@ -62,6 +62,22 @@ class TaigaQuickDocumentationPopupPanelTest : TaigaDocumentationPopupTestCase() 
         assertEquals(full.preferredSize, host.preferredSize)
     }
 
+    fun testStableHoverHostLocksDimensionsWhenEnteringCompactMode() {
+        val full = TaigaQuickDocumentationPopupPanel(directive())
+        val host = TaigaDocumentationPopupHost(full, stabilizesHoverSize = true)
+        val compact = TaigaQuickDocumentationPopupPanel(component(), compactHover = true)
+
+        assertEquals(full.preferredSize, host.preferredSize)
+        host.showCard(compact)
+        val locked = host.preferredSize
+        assertTrue(locked.width >= JBUI.scale(380))
+        assertTrue(locked.height in JBUI.scale(220)..JBUI.scale(300))
+
+        host.showCard(TaigaQuickDocumentationPopupPanel(directive(), compactHover = true))
+        assertEquals(locked, host.preferredSize)
+        host.stopTransition()
+    }
+
     fun testSizeHintDescriptionsDoNotGuessUnknownValues() {
         assertEquals("extra small", taigaSizeDescription("xs"))
         assertEquals("small", taigaSizeDescription("s"))

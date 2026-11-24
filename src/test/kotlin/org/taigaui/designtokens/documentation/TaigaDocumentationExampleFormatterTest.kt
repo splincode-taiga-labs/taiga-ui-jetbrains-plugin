@@ -106,6 +106,36 @@ class TaigaDocumentationExampleFormatterTest : TaigaDocumentationPopupTestCase()
         assertEquals(source, format(source))
     }
 
+    fun testFallbackFormatterWrapsAttributesWithoutChangingQuotedExpressions() {
+        val source = """<input [disabled]="count > 2" placeholder="hello world" />"""
+        val expected =
+            """
+            <input
+                [disabled]="count > 2"
+                placeholder="hello world"
+            />
+            """.trimIndent()
+
+        assertEquals(expected, formattedDocumentationExample(source))
+        assertTrue(documentationExamplePreservesContent(source, expected))
+    }
+
+    fun testFallbackFormatterDoesNotReformatUnsupportedOrIncompleteMarkup() {
+        val samples =
+            listOf(
+                "plain text",
+                "<button tuiButton>Save</button>",
+                "<button tuiButton [disabled]=\"count > 2\"",
+                "<input placeholder = \"value\" />",
+                "<button\n    tuiButton\n    type=\"button\"\n>Save</button>",
+                "<span>" + "A".repeat(4_500) + "</span>",
+            )
+
+        samples.forEach { source ->
+            assertEquals(source, formattedDocumentationExample(source))
+        }
+    }
+
     private fun format(source: String): String {
         var formatted = ""
         WriteCommandAction.runWriteCommandAction(project) {
