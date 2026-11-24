@@ -223,6 +223,91 @@ class ReplaceColorWithTaigaTokenIntentionTest : BasePlatformTestCase() {
         assertEquals(changed, text(second))
     }
 
+    fun testFolderReplacementUpdatesAndRemovesStaleSuggestions() {
+        val original =
+            """
+            .card {
+                color: #fff /* Taiga UI: consider var(--tui-old) */;
+                background: #000 /* Taiga UI: consider var(--tui-old) */;
+                outline-color: #abc /* Taiga UI: consider var(--tui-old) */;
+                border-color: #fff; /* Keep this comment */
+            }
+            """.trimIndent()
+        val expected =
+            """
+            .card {
+                color: var(--tui-white);
+                background: #000 /* Taiga UI: consider var(--tui-black-a) or var(--tui-black-b) */;
+                outline-color: #abc;
+                border-color: var(--tui-white); /* Keep this comment */
+            }
+            """.trimIndent()
+        val css = createFile("src/card.css", original)
+        val replacement = scan(css.parent)
+        val preview = replacement.previews.single()
+
+        assertEquals(original, text(css))
+        assertEquals(original, preview.original)
+        assertEquals(expected, preview.proposed)
+        assertEquals("Replaced 2 colors and added 1 suggestions in 1 files.", replacement.apply(project))
+        assertEquals(expected, text(css))
+
+        PsiDocumentManager.getInstance(project).commitAllDocuments()
+        assertEmpty(scan(css.parent).previews)
+    }
+
+    fun testFolderReplacementIgnoresFilesWithoutMatchingColors() {
+        val css = createFile("src/card.css", ".card { color: #abc; }")
+        val plain = createFile("src/readme.txt", ".card { color: #fff; }")
+        val empty = createFile("src/empty.css", ".card { display: block; }")
+        val replacement = scan(css.parent)
+
+        assertEmpty(replacement.previews)
+        assertEquals("No stylesheet colors to update.", replacement.apply(project))
+        assertEquals(".card { color: #abc; }", text(css))
+        assertEquals(".card { color: #fff; }", text(plain))
+        assertEquals(".card { display: block; }", text(empty))
+    }
+
+    fun testFolderActionRejectsMultipleSelectionsAndNonDirectories() {
+        val css = createFile("src/card.css", ".card { color: #fff; }")
+        val nested = createFile("src/nested/card.css", ".card { color: #fff; }")
+        val dependency = createFile("src/node_modules/dependency/card.css", ".card { color: #fff; }")
+        val action = ReplaceFolderColorsAction { _, _ -> error("Unexpected confirmation") }
+
+        val selections =
+            listOf(
+                emptyArray<VirtualFile>(),
+                arrayOf(css),
+                arrayOf(css.parent, nested.parent),
+                arrayOf(dependency.parent),
+            )
+
+        for (selection in selections) {
+            val context =
+                SimpleDataContext
+                    .builder()
+                    .add(CommonDataKeys.PROJECT, project)
+                    .add(CommonDataKeys.VIRTUAL_FILE_ARRAY, selection)
+                    .build()
+            val event = TestActionEvent.createTestEvent(action, context)
+
+            action.update(event)
+            assertFalse(event.presentation.isEnabledAndVisible)
+        }
+
+        val singleFileContext =
+            SimpleDataContext
+                .builder()
+                .add(CommonDataKeys.PROJECT, project)
+                .add(CommonDataKeys.VIRTUAL_FILE, css.parent)
+                .build()
+        val event = TestActionEvent.createTestEvent(action, singleFileContext)
+
+        action.update(event)
+        assertTrue(event.presentation.isEnabledAndVisible)
+    }
+
     private fun folderContext(directory: VirtualFile) =
         SimpleDataContext
             .builder()
