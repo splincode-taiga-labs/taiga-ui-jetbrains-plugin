@@ -113,5 +113,4 @@ abstract class TaigaQuickDocumentationControllerTestCase : TaigaDocumentationPop
         }
         fail("Timed out waiting for $description")
     }
-
 }

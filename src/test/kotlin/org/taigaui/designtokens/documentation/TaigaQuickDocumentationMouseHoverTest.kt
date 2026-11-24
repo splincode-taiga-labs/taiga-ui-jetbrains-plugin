@@ -175,5 +175,4 @@ class TaigaQuickDocumentationMouseHoverTest : TaigaQuickDocumentationControllerT
             null,
         )
     }
-
 }
