@@ -223,7 +223,7 @@ class ReplaceColorWithTaigaTokenIntentionTest : BasePlatformTestCase() {
         assertEquals(changed, text(second))
     }
 
-fun testFolderReplacementUpdatesAndRemovesStaleSuggestions() {
+    fun testFolderReplacementUpdatesAndRemovesStaleSuggestions() {
         val original =
             """
             .card {
