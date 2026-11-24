@@ -65,6 +65,38 @@ class TaigaApiCatalogTest {
         }
     }
 
+    @Test
+    fun `preserves short summaries and labels every documentation category`() {
+        val entity = entry("Button").copy(description = "A short description")
+        val match = catalog(listOf(entity)).search("Button").single().entry
+
+        assertEquals("A short description", match.summary)
+        assertEquals("Component", match.kindLabel)
+        assertEquals(
+            mapOf(
+                TaigaDocKind.COMPONENT to "Components",
+                TaigaDocKind.DIRECTIVE to "Directives",
+                TaigaDocKind.PIPE to "Pipes",
+                TaigaDocKind.SERVICE to "Services",
+                TaigaDocKind.TYPE to "Types",
+                TaigaDocKind.TOKEN to "Tokens",
+                TaigaDocKind.UTILITY to "Utilities",
+                TaigaDocKind.CLASS to "Classes",
+                TaigaDocKind.UNKNOWN to "Other",
+            ),
+            TaigaDocKind.entries.associateWith { it.categoryLabel },
+        )
+    }
+
+    @Test
+    fun `short queries cannot use fuzzy matching and equal scores keep title order`() {
+        val catalog = catalog(listOf(entry("Button Z"), entry("Button A"), entry("Badge Anchor")))
+
+        assertEquals(listOf("Button A", "Button Z"), catalog.search("button").map { it.entry.entity.title })
+        assertTrue(catalog.search("baq").isEmpty())
+        assertTrue(catalog.search("bn").isEmpty())
+    }
+
     private fun catalog(entities: List<TaigaEntityDoc>): TaigaApiCatalog {
         val context = TaigaUiProjectContext("5.18.0", 5, "@taiga-ui/core", setOf("@taiga-ui/core"), "test-scope")
         val index = TaigaDocsIndex(requireNotNull(TaigaDocsSources.forMajor(5)), entities)
