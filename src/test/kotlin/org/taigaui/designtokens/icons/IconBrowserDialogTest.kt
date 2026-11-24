@@ -149,6 +149,70 @@ class IconBrowserDialogTest : BasePlatformTestCase() {
         }
     }
 
+    fun testEmptyCatalogDisablesCopyAndInsert() {
+        val source = workspaceRoot.resolve("empty.html")
+        Files.writeString(source, "<div></div>")
+        val dialog = IconBrowserDialog(project, source)
+
+        try {
+            val status = field<JBLabel>(dialog, "status")
+            val list = field<JList<String>>(dialog, "list")
+            val search = field<JBTextField>(dialog, "search")
+            val copy = field<JButton>(dialog, "copyButton")
+            val insert = field<JButton>(dialog, "insertButton")
+            val message = "No icons found. Check installed Taiga UI packages for this project."
+
+            awaitUi { status.text == message }
+            assertEquals(0, list.model.size)
+            assertFalse(copy.isEnabled)
+            assertFalse(insert.isEnabled)
+
+            search.text = "arrow"
+            assertEquals(message, status.text)
+            assertEquals(0, list.model.size)
+            assertFalse(copy.isEnabled)
+            assertFalse(insert.isEnabled)
+        } finally {
+            dialog.close(1)
+        }
+    }
+
+    fun testCatalogReloadRemovesDeletedIconsAndClearsOldPreviews() {
+        val source = openEditorWithIcons()
+        val dialog = IconBrowserDialog(project, source)
+
+        try {
+            val list = field<JList<String>>(dialog, "list")
+            val previews = field<MutableMap<String, javax.swing.Icon>>(dialog, "previews")
+            val completed = field<MutableSet<String>>(dialog, "completedPreviews")
+            val status = field<JBLabel>(dialog, "status")
+            val name = "@tui.actions.arrow"
+
+            awaitUi { list.model.size == 2 }
+            list.selectedIndex = 0
+            previews[name] = ImageIcon(BufferedImage(12, 12, BufferedImage.TYPE_INT_ARGB))
+            completed.add(name)
+
+            val deleted = workspaceRoot.resolve("node_modules/@taiga-ui/icons/src/actions/arrow.svg")
+            Files.delete(deleted)
+            val service = project.service<IconCompletionService>()
+            assertEquals(1, service.invalidate(listOf(deleted)))
+            assertEquals(listOf("@tui.actions.check"), service.loadNow(source))
+
+            val reload = dialog.javaClass.getDeclaredMethod("loadCatalog")
+            reload.isAccessible = true
+            reload.invoke(dialog)
+
+            awaitUi { list.model.size == 1 && list.model.getElementAt(0) == "@tui.actions.check" }
+            assertFalse(previews.containsKey(name))
+            assertFalse(completed.contains(name))
+            assertNull(list.selectedValue)
+            assertEquals("1 of 1 icons", status.text)
+        } finally {
+            dialog.close(1)
+        }
+    }
+
     private fun openEditorWithIcons(): Path {
         val icons = workspaceRoot.resolve("node_modules/@taiga-ui/icons/src/actions")
         Files.createDirectories(icons)

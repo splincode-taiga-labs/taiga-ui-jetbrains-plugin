@@ -1,5 +1,6 @@
 package org.taigaui.designtokens.documentation
 
+import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.event.EditorMouseEvent
 import com.intellij.openapi.editor.event.EditorMouseEventArea
 import com.intellij.openapi.editor.ex.EditorSettingsExternalizable
@@ -136,6 +137,54 @@ class TaigaQuickDocumentationMouseHoverTest : TaigaQuickDocumentationControllerT
             val job = documentationField<Job>(controller, "resolutionJob")
             await("unresolved passive hover") { job.isCompleted }
 
+            assertNull(panelOrNull())
+            assertNull(documentationField<Any?>(controller, "pendingKey"))
+            assertTrue(shown.isEmpty())
+        } finally {
+            controller.dismissHover(force = true)
+            settings.isShowQuickDocOnMouseOverElement = previous
+        }
+    }
+
+    fun testDocumentChangeWhileHoverIsPendingPreventsStaleCard() {
+        configure("<button tuiButton size=\"m\">Save</button>", "size")
+        val settings = EditorSettingsExternalizable.getInstance()
+        val previous = settings.isShowQuickDocOnMouseOverElement
+
+        try {
+            settings.isShowQuickDocOnMouseOverElement = true
+            controller.mouseMoved(mouseMoveOver("size"))
+            await("scheduled hover") { documentationField<Job?>(controller, "hoverJob") != null }
+            val scheduled = documentationField<Job>(controller, "hoverJob")
+
+            WriteCommandAction.runWriteCommandAction(project) {
+                myFixture.editor.document.insertString(0, "<!-- changed -->")
+            }
+
+            await("stale hover completion") { scheduled.isCompleted }
+            assertNull(panelOrNull())
+            assertTrue(shown.isEmpty())
+        } finally {
+            controller.dismissHover(force = true)
+            settings.isShowQuickDocOnMouseOverElement = previous
+        }
+    }
+
+    fun testMouseExitCancelsScheduledHoverBeforeItCanShowCard() {
+        configure("<button tuiButton size=\"m\">Save</button>", "size")
+        val settings = EditorSettingsExternalizable.getInstance()
+        val previous = settings.isShowQuickDocOnMouseOverElement
+
+        try {
+            settings.isShowQuickDocOnMouseOverElement = true
+            controller.mouseMoved(mouseMoveOver("size"))
+            await("scheduled hover") { documentationField<Job?>(controller, "hoverJob") != null }
+            val scheduled = documentationField<Job>(controller, "hoverJob")
+
+            controller.mouseExited(myFixture.editor)
+
+            await("cancelled hover") { scheduled.isCompleted }
+            assertTrue(scheduled.isCancelled)
             assertNull(panelOrNull())
             assertNull(documentationField<Any?>(controller, "pendingKey"))
             assertTrue(shown.isEmpty())

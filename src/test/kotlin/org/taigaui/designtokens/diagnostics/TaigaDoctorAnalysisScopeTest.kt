@@ -135,6 +135,39 @@ class TaigaDoctorAnalysisScopeTest {
         }
 
     @Test
+    fun choosesTheMostSpecificRootAcrossNxAndAngularConfiguration() =
+        runBlocking {
+            val workspace = temporaryFolder.newFolder().toPath()
+            Files.createFile(workspace.resolve("angular.json"))
+            val app = Files.createDirectories(workspace.resolve("apps/demo"))
+            Files.createFile(app.resolve("project.json"))
+            val nested = Files.createDirectories(app.resolve("feature"))
+            val source = Files.createFile(nested.resolve("component.ts"))
+
+            assertEquals(
+                nested,
+                findTaigaDoctorApplication(source, workspace) { listOf("apps/demo/feature") },
+            )
+            assertEquals(
+                app,
+                findTaigaDoctorApplication(source, workspace) { listOf("apps") },
+            )
+        }
+
+    @Test
+    fun allowsPackageFallbackInsideAnOtherwiseUnconfiguredMonorepo() =
+        runBlocking {
+            val workspace = temporaryFolder.newFolder().toPath()
+            Files.createFile(workspace.resolve("nx.json"))
+            Files.createFile(workspace.resolve("package.json"))
+            val app = Files.createDirectories(workspace.resolve("packages/demo"))
+            Files.createFile(app.resolve("package.json"))
+            val source = Files.createFile(app.resolve("component.ts"))
+
+            assertEquals(app, findTaigaDoctorApplication(source, workspace) { emptyList() })
+        }
+
+    @Test
     fun readsTheNearestAngularConfigurationInsteadOfTheWorkspaceConfiguration() =
         runBlocking {
             val workspace = temporaryFolder.newFolder().toPath()
