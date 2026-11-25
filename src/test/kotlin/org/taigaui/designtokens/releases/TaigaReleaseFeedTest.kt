@@ -1,0 +1,51 @@
+package org.taigaui.designtokens.releases
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class TaigaReleaseFeedTest {
+    @Test
+    fun selectsTheLatestStableGitHubReleaseOfEachMajor() {
+        val json =
+            """
+            [
+                {"tag_name":"v5.9.0","draft":false,"prerelease":false},
+                {"tag_name":"v4.110.0","draft":false,"prerelease":false},
+                {"tag_name":"v5.34.1","draft":false,"prerelease":false},
+                {"tag_name":"v5.35.0","draft":true,"prerelease":false},
+                {"tag_name":"v5.36.0","draft":false,"prerelease":true},
+                {"tag_name":"v5.37.0-canary.1","draft":false,"prerelease":false},
+                {"tag_name":"not-a-version","draft":false,"prerelease":false},
+                {"tag_name":"v5.39.0"},
+                null
+            ]
+            """.trimIndent()
+
+        assertEquals(mapOf(4 to version("v4.110.0"), 5 to version("v5.34.1")), parseTaigaReleases(json))
+        assertTrue(parseTaigaReleases("""{"message":"Unavailable"}""").isEmpty())
+    }
+
+    @Test
+    fun onlyNotifiesForVersionsNewerThanTheInstallationAndPreviousAnnouncement() {
+        val installed = version("5.9.0+build")
+
+        assertTrue(shouldShowRelease(installed, version("v5.34.1"), null))
+        assertTrue(shouldShowRelease(installed, version("v5.34.1"), version("v5.34.0")))
+        assertFalse(shouldShowRelease(installed, version("v5.34.1"), version("v5.34.1")))
+        assertFalse(shouldShowRelease(installed, version("v5.34.1"), version("v5.35.0")))
+        assertFalse(shouldShowRelease(installed, version("v5.9.0"), null))
+        assertFalse(shouldShowRelease(installed, version("v5.8.9"), null))
+        assertFalse(shouldShowRelease(installed, version("v6.0.0"), null))
+        assertFalse(shouldShowRelease(installed, version("v5.34.1-canary.1"), null))
+    }
+
+    @Test
+    fun notifiesAboutTheStableVersionOfAnInstalledPrerelease() {
+        assertTrue(shouldShowRelease(version("5.34.1-rc.0"), version("v5.34.1"), null))
+        assertFalse(shouldShowRelease(version("5.35.0-rc.0"), version("v5.34.1"), null))
+    }
+
+    private fun version(value: String): TaigaReleaseVersion = requireNotNull(TaigaReleaseVersion.parse(value))
+}
