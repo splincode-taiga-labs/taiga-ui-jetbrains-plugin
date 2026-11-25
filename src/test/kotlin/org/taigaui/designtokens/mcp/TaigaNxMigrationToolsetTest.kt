@@ -24,7 +24,7 @@ class TaigaNxMigrationToolsetTest : BasePlatformTestCase() {
                 project = project,
                 mcpToolDescriptor = inspect.descriptor,
                 rawArguments = args,
-                meta = null,
+                meta = buildJsonObject {},
                 mcpSessionOptions = McpServerService.McpSessionOptions(McpServerService.AskCommandExecutionMode.ASK),
                 headers = emptyMap(),
             )
