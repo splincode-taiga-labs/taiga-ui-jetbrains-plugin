@@ -21,9 +21,13 @@ internal data class TaigaMigrationPlan(
                 "Nx did not generate migrations.json. Review its output and package.json before retrying."
             }
 
-            execute(listOf("migrate", "--run-migrations=migrations.json"))
+            execute(RUN_NX_MIGRATIONS)
         }
 
+        checkInstalledV5()
+    }
+
+    fun checkInstalledV5() {
         check(installedCdkMajor(root) == "5") {
             "The CLI finished, but the workspace does not have Taiga UI CDK v5 installed. Review the output."
         }
@@ -46,6 +50,20 @@ internal enum class TaigaMigrationCli(
 }
 
 internal fun prepareTaigaMigration(
+    selected: Path,
+    projectRoot: Path,
+): TaigaMigrationPlan {
+    val plan = resolveTaigaMigrationWorkspace(selected, projectRoot)
+
+    check(installedCdkMajor(plan.root) == "4") {
+        "Install Taiga UI CDK v4 in this workspace before running the v4 to v5 migration."
+    }
+    plan.checkNoExistingPlan()
+
+    return plan
+}
+
+internal fun resolveTaigaMigrationWorkspace(
     selected: Path,
     projectRoot: Path,
 ): TaigaMigrationPlan {
@@ -75,18 +93,14 @@ internal fun prepareTaigaMigration(
     ) {
         "The selected folder has its own Taiga UI installation. Select the root of its Angular or Nx workspace."
     }
-    check(installedCdkMajor(workspace) == "4") {
-        "Install Taiga UI CDK v4 in this workspace before running the v4 to v5 migration."
-    }
-
-    plan.checkNoExistingPlan()
-
     return plan
 }
 
-private fun Path.isRegularFileWithoutFollowingLinks(): Boolean = Files.isRegularFile(this, LinkOption.NOFOLLOW_LINKS)
+internal fun Path.isRegularFileWithoutFollowingLinks(): Boolean = Files.isRegularFile(this, LinkOption.NOFOLLOW_LINKS)
 
 private fun installedCdkMajor(root: Path): String? =
     PackageJsonReader().readVersion(root.resolve("node_modules/@taiga-ui/cdk/package.json"))?.substringBefore('.')
+
+internal val RUN_NX_MIGRATIONS = listOf("migrate", "--run-migrations=migrations.json")
 
 private const val CDK_TARGET = "@taiga-ui/cdk@5"

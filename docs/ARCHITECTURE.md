@@ -94,6 +94,9 @@ The Project view migration action resolves the nearest Angular or Nx CLI workspa
 shows the workspace root before running the official v4 to v5 update. The project service serializes migrations and
 runs the local CLI in the background. Nx generates and executes its migration plan in separate steps.
 The Run window streams CLI output and the IDE refreshes files after the process finishes or is cancelled.
+The saved-plan action resolves the same workspace, requires the Taiga UI v5 migration in its existing
+`migrations.json`, and previews every entry. It rechecks the full file after confirmation and runs the plan through
+Nx without regenerating it or relying on the initially installed Taiga UI major.
 
 The Doctor migration analysis uses the same application scope and native results view with a temporary profile for Taiga UI 5.
 It adds inspections for the schematics' exact TODO marker and static legacy imports. PSI distinguishes comments and

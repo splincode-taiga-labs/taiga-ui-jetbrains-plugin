@@ -18,10 +18,13 @@ import com.intellij.openapi.application.EDT
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.DialogBuilder
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.util.Key
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.platform.ide.progress.withBackgroundProgress
+import com.intellij.ui.components.JBScrollPane
+import com.intellij.ui.components.JBTextArea
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
@@ -43,6 +46,7 @@ internal class TaigaMigrationRunner(
     fun run(
         selected: Path,
         projectRoot: Path,
+        existingPlan: Boolean,
     ) {
         scope.launch(Dispatchers.EDT) {
             if (!migration.tryLock()) {
@@ -51,14 +55,14 @@ internal class TaigaMigrationRunner(
             }
 
             try {
-                val plan = withContext(Dispatchers.IO) { prepareTaigaMigration(selected, projectRoot) }
+                val plan = withContext(Dispatchers.IO) { prepareMigration(selected, projectRoot, existingPlan) }
                 val node =
                     withContext(Dispatchers.IO) {
                         findNode()
                     } ?: error("Select a local Node.js runtime in WebStorm or add Node.js to its PATH.")
 
                 if (confirm(plan)) {
-                    execute(plan, node, selected, projectRoot)
+                    execute(plan, node) { prepareMigration(selected, projectRoot, existingPlan) }
                 }
             } catch (error: IllegalStateException) {
                 showError(error)
@@ -80,10 +84,9 @@ internal class TaigaMigrationRunner(
     }
 
     private suspend fun execute(
-        plan: TaigaMigrationPlan,
+        plan: PreparedMigration,
         node: File,
-        selected: Path,
-        projectRoot: Path,
+        prepare: () -> PreparedMigration,
     ) {
         FileDocumentManager.getInstance().saveAllDocuments()
         val console = openConsole()
@@ -91,10 +94,10 @@ internal class TaigaMigrationRunner(
         try {
             withBackgroundProgress(project, TITLE) {
                 withContext(Dispatchers.IO) {
-                    check(prepareTaigaMigration(selected, projectRoot) == plan) {
-                        "The selected workspace changed. Run the migration again."
+                    check(prepare() == plan) {
+                        "The workspace or migration plan changed. Open the migration action again."
                     }
-                    plan.run { arguments -> console.runMigrationCommand(node, plan, arguments) }
+                    plan.run { arguments -> console.runMigrationCommand(node, plan.workspace, arguments) }
                 }
             }
             console.print(
@@ -106,7 +109,10 @@ internal class TaigaMigrationRunner(
         }
     }
 
-    private fun confirm(plan: TaigaMigrationPlan): Boolean =
+    private fun confirm(plan: PreparedMigration): Boolean =
+        plan.existing?.let(::confirmExistingPlan) ?: confirmNewMigration(plan.workspace)
+
+    private fun confirmNewMigration(plan: TaigaMigrationPlan): Boolean =
         Messages.showOkCancelDialog(
             project,
             "Run the official Taiga UI v4 to v5 migration in:\n${plan.root}\n\n" +
@@ -116,6 +122,32 @@ internal class TaigaMigrationRunner(
             "Cancel",
             Messages.getQuestionIcon(),
         ) == Messages.OK
+
+    private fun confirmExistingPlan(plan: ExistingNxMigrationPlan): Boolean {
+        val preview =
+            JBTextArea(14, 72).apply {
+                text =
+                    buildString {
+                        appendLine(plan.workspace.root)
+                        appendLine()
+                        appendLine("Nx will run the entire saved plan. Steps that already ran may run again.")
+                        appendLine()
+                        plan.migrations.forEach { appendLine(it) }
+                    }
+                isEditable = false
+                lineWrap = true
+                wrapStyleWord = true
+                caretPosition = 0
+            }
+
+        return DialogBuilder(project)
+            .apply {
+                setTitle("Run Existing Nx Migration Plan")
+                setCenterPanel(JBScrollPane(preview))
+                addOkAction().setText("Run Plan")
+                addCancelAction()
+            }.showAndGet()
+    }
 
     private fun openConsole(): ConsoleView {
         val console = TextConsoleBuilderFactory.getInstance().createBuilder(project).console
@@ -129,6 +161,31 @@ internal class TaigaMigrationRunner(
     private fun showError(error: Exception) {
         if (!project.isDisposed) {
             Messages.showErrorDialog(project, error.message ?: "The migration could not be completed.", TITLE)
+        }
+    }
+}
+
+private fun prepareMigration(
+    selected: Path,
+    projectRoot: Path,
+    existingPlan: Boolean,
+): PreparedMigration =
+    if (existingPlan) {
+        val existing = prepareExistingNxMigration(selected, projectRoot)
+        PreparedMigration(existing.workspace, existing)
+    } else {
+        PreparedMigration(prepareTaigaMigration(selected, projectRoot))
+    }
+
+private data class PreparedMigration(
+    val workspace: TaigaMigrationPlan,
+    val existing: ExistingNxMigrationPlan? = null,
+) {
+    suspend fun run(execute: suspend (List<String>) -> Unit) {
+        if (existing == null) {
+            workspace.run(execute)
+        } else {
+            existing.run(execute)
         }
     }
 }

@@ -36,6 +36,12 @@
                 description="Run the official Taiga UI migration for this Angular or Nx workspace"
             />
             <action
+                id="TaigaUI.RunExistingNxMigration"
+                class="org.taigaui.designtokens.migration.RunExistingNxMigrationAction"
+                text="Run Existing Nx Migration Plan..."
+                description="Review and run the saved Nx plan for Taiga UI v4 to v5"
+            />
+            <action
                 id="TaigaUI.ReplaceFolderColors"
                 class="org.taigaui.designtokens.completion.ReplaceFolderColorsAction"
                 text="Replace Colors with Taiga UI Tokens"

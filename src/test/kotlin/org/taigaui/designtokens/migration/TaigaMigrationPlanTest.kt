@@ -106,6 +106,53 @@ class TaigaMigrationPlanTest {
         assertThrows(IllegalStateException::class.java) { prepareTaigaMigration(root, root) }
     }
 
+    @Test
+    fun runsAnExistingNxPlanWithoutGeneratingItAgain() =
+        runBlocking {
+            val root = workspace(temporaryFolder.root.toPath(), TaigaMigrationCli.NX)
+            val source = Files.createDirectories(root.resolve("apps/demo/src"))
+            val file = root.resolve("migrations.json")
+            val savedPlan =
+                """
+                {
+                    "migrations": [
+                        {"package":"@taiga-ui/cdk","name":"updateToV5","version":"5.0.0"},
+                        {"package":"@nx/angular","name":"update-build","version":"22.0.0"}
+                    ]
+                }
+                """.trimIndent()
+            write(file, savedPlan)
+            installCdk(root, "5.28.0")
+            val plan = prepareExistingNxMigration(source, root)
+            val commands = mutableListOf<List<String>>()
+
+            plan.run { arguments -> commands.add(arguments) }
+
+            assertEquals(root.toRealPath(), plan.workspace.root)
+            assertEquals(listOf("@taiga-ui/cdk: updateToV5", "@nx/angular: update-build"), plan.migrations)
+            assertEquals(listOf(listOf("migrate", "--run-migrations=migrations.json")), commands)
+            assertEquals(savedPlan, Files.readString(file))
+        }
+
+    @Test
+    fun rejectsMissingMalformedAndUnrelatedNxPlans() {
+        val root = workspace(temporaryFolder.root.toPath(), TaigaMigrationCli.NX)
+        val file = root.resolve("migrations.json")
+
+        assertThrows(IllegalStateException::class.java) { prepareExistingNxMigration(root, root) }
+
+        for (content in listOf(
+            "{",
+            """{"migrations":[null]}""",
+            """{"migrations":[{"package":"@nx/angular","name":"updateToV5","version":"5.0.0"}]}""",
+            """{"migrations":[{"package":"@taiga-ui/cdk","name":"updateToV5","version":"4.0.0"}]}""",
+        )) {
+            write(file, content)
+
+            assertThrows(IllegalStateException::class.java) { prepareExistingNxMigration(root, root) }
+        }
+    }
+
     private fun workspace(
         root: Path,
         cli: TaigaMigrationCli,
