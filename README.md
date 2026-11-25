@@ -101,6 +101,12 @@ Select a finding to open the source. The guide is available in the Doctor tab an
 Click **Copy Report** in the Doctor tab to copy a Markdown summary of installed packages, version mismatches, and source
 status. It contains no local file paths, so it can be shared in an issue or team chat.
 
+## Taiga UI release notifications
+
+WebStorm's **Notifications** tool window shows when a newer stable release is available for the Taiga UI major version
+used by your active workspace. Select **View release on GitHub** to see the release notes. Manage these entries under
+**Settings → Appearance & Behavior → Notifications → Taiga UI Releases**.
+
 ## TypeScript imports
 
 When a named import uses the wrong Taiga UI package, press **Alt+Enter** on the highlighted symbol to move it to the package that exports it. Suggestions use the packages installed for the current file and are available when exactly one package exports the symbol.

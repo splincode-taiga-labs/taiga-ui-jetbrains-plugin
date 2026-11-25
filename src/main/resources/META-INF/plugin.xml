@@ -56,9 +56,15 @@
             class="org.taigaui.designtokens.completion.DesignTokenColorEditorListener"
             topic="com.intellij.openapi.fileEditor.FileEditorManagerListener"
         />
+        <listener
+            class="org.taigaui.designtokens.releases.TaigaReleaseEditorListener"
+            topic="com.intellij.openapi.fileEditor.FileEditorManagerListener"
+        />
     </projectListeners>
 
     <extensions defaultExtensionNs="com.intellij">
+        <notificationGroup id="Taiga UI Releases" displayType="NONE" isLogByDefault="true" />
+        <postStartupActivity implementation="org.taigaui.designtokens.releases.TaigaReleaseStartupActivity" />
         <intentionAction>
             <className>org.taigaui.designtokens.completion.ReplaceColorWithTaigaTokenIntention</className>
             <category>Taiga UI</category>

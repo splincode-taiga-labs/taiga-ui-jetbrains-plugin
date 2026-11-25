@@ -109,6 +109,13 @@ imports from string literals, and the stylesheet inspection also recognizes the 
 plain CSS. Existing deprecated-token and wrong-package inspections provide their usual fixes from local package data.
 The migration inspections link to the official guide and report locations for manual review.
 
+## Release notifications
+
+A project-scoped background job uses the Project Doctor package report for the active file, with the project root as
+the fallback when no local file is selected. The application shares one cached GitHub Releases lookup across
+projects. The Notifications tool window shows only the newest stable release in the detected major when it is newer
+than the installed version. Each project remembers the latest announcement per major across IDE restarts.
+
 ## Design token subsystem
 
 Token names and token values intentionally have different reachability rules.
