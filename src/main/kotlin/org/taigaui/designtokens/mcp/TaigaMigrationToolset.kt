@@ -16,6 +16,7 @@ import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.taigaui.designtokens.migration.ExistingNxMigrationPlan
+import org.taigaui.designtokens.migration.PreparedMigration
 import org.taigaui.designtokens.migration.RUN_NX_MIGRATIONS
 import org.taigaui.designtokens.migration.TaigaMigrationCli
 import org.taigaui.designtokens.migration.TaigaMigrationResult
@@ -59,9 +60,10 @@ class TaigaMigrationToolset : McpToolset {
     ): McpToolCallResult {
         val project = currentCoroutineContext().project
         val result =
-            project.service<TaigaMigrationRunner>().runNewMigration(revision) {
+            project.service<TaigaMigrationRunner>().runConfirmedPlan(revision) {
                 withContext(Dispatchers.IO) {
-                    prepareNewTaigaMigration(project.migrationFolder(directory), project.migrationRoot())
+                    val plan = prepareNewTaigaMigration(project.migrationFolder(directory), project.migrationRoot())
+                    PreparedMigration(plan.workspace, newRevision = plan.revision)
                 }
             }
 
@@ -125,7 +127,11 @@ class TaigaMigrationToolset : McpToolset {
         revision: String,
     ): McpToolCallResult {
         val project = currentCoroutineContext().project
-        val result = project.service<TaigaMigrationRunner>().runSavedNxPlan(revision) { project.loadPlan(directory) }
+        val result =
+            project.service<TaigaMigrationRunner>().runConfirmedPlan(revision) {
+                val plan = project.loadPlan(directory)
+                PreparedMigration(plan.workspace, existing = plan)
+            }
 
         return result.toMcpResult()
     }

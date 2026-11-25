@@ -82,19 +82,7 @@ internal class TaigaMigrationRunner(
         }
     }
 
-    suspend fun runSavedNxPlan(
-        revision: String,
-        prepare: suspend () -> ExistingNxMigrationPlan,
-    ): TaigaMigrationResult =
-        runConfirmedPlan(revision) { prepare().let { PreparedMigration(it.workspace, existing = it) } }
-
-    suspend fun runNewMigration(
-        revision: String,
-        prepare: suspend () -> NewTaigaMigrationPlan,
-    ): TaigaMigrationResult =
-        runConfirmedPlan(revision) { prepare().let { PreparedMigration(it.workspace, newRevision = it.revision) } }
-
-    private suspend fun runConfirmedPlan(
+    suspend fun runConfirmedPlan(
         revision: String,
         prepare: suspend () -> PreparedMigration,
     ): TaigaMigrationResult {
@@ -269,7 +257,7 @@ private fun prepareMigration(
         PreparedMigration(prepareTaigaMigration(selected, projectRoot))
     }
 
-private data class PreparedMigration(
+internal data class PreparedMigration(
     val workspace: TaigaMigrationPlan,
     val existing: ExistingNxMigrationPlan? = null,
     val newRevision: String? = null,
