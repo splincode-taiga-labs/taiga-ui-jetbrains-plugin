@@ -90,6 +90,9 @@ internal data class TaigaReleaseVersion(
     val tag: String
         get() = "v$major.$minor.$patch"
 
+    val url: String
+        get() = "https://github.com/taiga-family/taiga-ui/releases/tag/$tag"
+
     override fun compareTo(other: TaigaReleaseVersion): Int =
         compareValuesBy(
             this,

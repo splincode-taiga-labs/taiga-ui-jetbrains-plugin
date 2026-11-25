@@ -6,8 +6,6 @@ import com.google.gson.JsonParseException
 import com.google.gson.JsonParser
 import java.nio.file.Files
 import java.nio.file.Path
-import java.security.MessageDigest
-import java.util.HexFormat
 
 internal data class ExistingNxMigrationPlan(
     val workspace: TaigaMigrationPlan,
@@ -18,11 +16,7 @@ internal data class ExistingNxMigrationPlan(
         get() = entries.map { "${it.packageName}: ${it.name}" }
 
     val revision: String
-        get() {
-            val bytes = "${workspace.root}\u0000$snapshot".toByteArray()
-
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes))
-        }
+        get() = migrationRevision(workspace.root.toString(), snapshot)
 
     fun requireRevision(expected: String) {
         check(revision == expected) { "The workspace or migration plan changed. Inspect the plan again." }

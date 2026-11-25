@@ -4,6 +4,8 @@ import org.taigaui.designtokens.packageinfo.PackageJsonReader
 import java.nio.file.Files
 import java.nio.file.LinkOption
 import java.nio.file.Path
+import java.security.MessageDigest
+import java.util.HexFormat
 
 internal data class TaigaMigrationPlan(
     val root: Path,
@@ -62,6 +64,28 @@ internal fun prepareTaigaMigration(
 
     return plan
 }
+
+internal data class NewTaigaMigrationPlan(
+    val workspace: TaigaMigrationPlan,
+    val revision: String,
+)
+
+internal fun prepareNewTaigaMigration(
+    selected: Path,
+    projectRoot: Path,
+): NewTaigaMigrationPlan {
+    val workspace = prepareTaigaMigration(selected, projectRoot)
+    val manifest = Files.readString(workspace.root.resolve("package.json"))
+    val installedCdk = Files.readString(workspace.root.resolve("node_modules/@taiga-ui/cdk/package.json"))
+
+    return NewTaigaMigrationPlan(
+        workspace,
+        migrationRevision(workspace.root.toString(), workspace.cli.command, manifest, installedCdk),
+    )
+}
+
+internal fun migrationRevision(vararg fields: String): String =
+    HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(fields.joinToString("\u0000").toByteArray()))
 
 internal fun resolveTaigaMigrationWorkspace(
     selected: Path,

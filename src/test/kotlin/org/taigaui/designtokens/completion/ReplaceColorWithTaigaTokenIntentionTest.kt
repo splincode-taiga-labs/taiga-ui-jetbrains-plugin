@@ -188,7 +188,7 @@ class ReplaceColorWithTaigaTokenIntentionTest : BasePlatformTestCase() {
         val repeated = scan(directory)
 
         assertEmpty(repeated.previews)
-        assertEquals("No stylesheet colors to update.", repeated.apply(project))
+        assertEquals("No stylesheet colors to update.", repeated.apply(project).message)
         assertEquals(expectedCss, text(css))
     }
 
@@ -220,7 +220,9 @@ class ReplaceColorWithTaigaTokenIntentionTest : BasePlatformTestCase() {
         }
 
         assertEquals(".card { color: #fff; }", replacement.previews.last().original)
-        assertTrue(replacement.apply(project).contains("changed since the scan started"))
+        val stale = replacement.apply(project)
+        assertFalse(stale.applied)
+        assertTrue(stale.message.contains("changed since the scan started"))
         assertEquals(".card { color: #fff; }", text(first))
         assertEquals(changed, text(second))
     }
@@ -251,7 +253,7 @@ class ReplaceColorWithTaigaTokenIntentionTest : BasePlatformTestCase() {
         assertEquals(original, text(css))
         assertEquals(original, preview.original)
         assertEquals(expected, preview.proposed)
-        assertEquals("Replaced 2 colors and added 1 suggestions in 1 files.", replacement.apply(project))
+        assertEquals("Replaced 2 colors and added 1 suggestions in 1 files.", replacement.apply(project).message)
         assertEquals(expected, text(css))
 
         PsiDocumentManager.getInstance(project).commitAllDocuments()
@@ -265,7 +267,7 @@ class ReplaceColorWithTaigaTokenIntentionTest : BasePlatformTestCase() {
         val replacement = scan(css.parent)
 
         assertEmpty(replacement.previews)
-        assertEquals("No stylesheet colors to update.", replacement.apply(project))
+        assertEquals("No stylesheet colors to update.", replacement.apply(project).message)
         assertEquals(".card { color: #abc; }", text(css))
         assertEquals(".card { color: #fff; }", text(plain))
         assertEquals(".card { display: block; }", text(empty))

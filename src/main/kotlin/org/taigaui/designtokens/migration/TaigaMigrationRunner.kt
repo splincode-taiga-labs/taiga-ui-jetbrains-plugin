@@ -82,12 +82,12 @@ internal class TaigaMigrationRunner(
         }
     }
 
-    suspend fun runSavedNxPlan(
+    suspend fun runConfirmedPlan(
         revision: String,
-        prepare: suspend () -> ExistingNxMigrationPlan,
-    ): NxMigrationResult {
+        prepare: suspend () -> PreparedMigration,
+    ): TaigaMigrationResult {
         if (!migration.tryLock()) {
-            return NxMigrationResult("busy", "A Taiga UI migration is already running.")
+            return TaigaMigrationResult("busy", "A Taiga UI migration is already running.")
         }
 
         val output = MigrationOutput()
@@ -100,7 +100,7 @@ internal class TaigaMigrationRunner(
             if (ApplicationManager.getApplication().isHeadlessEnvironment) {
                 output.result("confirmation_required", "Confirm the migration in an open WebStorm window.")
             } else {
-                confirmAndRunSavedPlan(plan, prepare, output)
+                confirmAndRunPlan(plan, prepare, output)
             }
         } catch (_: CancellationException) {
             currentCoroutineContext().ensureActive()
@@ -118,15 +118,15 @@ internal class TaigaMigrationRunner(
         }
     }
 
-    private suspend fun confirmAndRunSavedPlan(
-        plan: ExistingNxMigrationPlan,
-        prepare: suspend () -> ExistingNxMigrationPlan,
+    private suspend fun confirmAndRunPlan(
+        plan: PreparedMigration,
+        prepare: suspend () -> PreparedMigration,
         output: MigrationOutput,
-    ): NxMigrationResult {
+    ): TaigaMigrationResult {
         val node = withContext(Dispatchers.IO) { requireLocalNode(project) }
         val confirmed =
             withContext(Dispatchers.EDT) {
-                (!project.isDisposed && confirmExistingPlan(plan)).also { accepted ->
+                (!project.isDisposed && confirm(plan)).also { accepted ->
                     if (accepted) {
                         check(
                             isProjectTrusted(project) && !project.isDisposed,
@@ -257,10 +257,19 @@ private fun prepareMigration(
         PreparedMigration(prepareTaigaMigration(selected, projectRoot))
     }
 
-private data class PreparedMigration(
+internal data class PreparedMigration(
     val workspace: TaigaMigrationPlan,
     val existing: ExistingNxMigrationPlan? = null,
+    val newRevision: String? = null,
 ) {
+    fun requireRevision(expected: String) {
+        if (existing != null) {
+            existing.requireRevision(expected)
+        } else {
+            check(newRevision == expected) { "The workspace or migration plan changed. Inspect the plan again." }
+        }
+    }
+
     suspend fun run(execute: suspend (List<String>) -> Unit) {
         if (existing == null) {
             workspace.run(execute)

@@ -4,6 +4,9 @@
 
 ### Added
 
+- WebStorm MCP tools for Project Doctor, API documentation and installed bindings, design tokens, exact CSS color matches, icons, release checks, and rem conversion.
+- New Angular and Nx migration runs, saved Nx plans, and folder-wide color replacement through WebStorm MCP, with previews and confirmation in the IDE.
+- Taiga UI release notifications for the installed major, with links to GitHub release notes.
 - Token Explorer in the Taiga UI tool window with project-aware search, resolved values, source navigation, and CSS reference copying.
 
 ### Changed

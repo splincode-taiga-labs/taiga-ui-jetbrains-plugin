@@ -1,6 +1,6 @@
 package org.taigaui.designtokens.migration
 
-internal data class NxMigrationResult(
+internal data class TaigaMigrationResult(
     val status: String,
     val message: String?,
     val exitCode: Int? = null,
@@ -35,7 +35,7 @@ internal class MigrationOutput {
         status: String,
         message: String?,
         exitCode: Int? = null,
-    ): NxMigrationResult = NxMigrationResult(status, message, exitCode, tail.toString(), truncated)
+    ): TaigaMigrationResult = TaigaMigrationResult(status, message, exitCode, tail.toString(), truncated)
 }
 
 private const val OUTPUT_LIMIT = 16_000
