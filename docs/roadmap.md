@@ -4,85 +4,11 @@ Taiga xUI Community is developed in small, reviewable increments. Completed stag
 
 Each production change should leave the project in a buildable state and pass the relevant tests, ktlint, detekt, plugin structure checks, and CI.
 
-## Current roadmap
+## Follow-up verification
 
-### Release follow-up
-
-The production publishing pipeline shipped [v0.3.0](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/releases/tag/v0.3.0).
-[#54](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/issues/54) records the Marketplace installation
-and token/icon smoke check for the first production release. The contextual documentation checks are tracked in the
-[acceptance matrix](documentation-acceptance.md).
-
-### Stage 8 — Taiga xUI Community
-
-Status: planned / in progress.
-
-The current product roadmap is tracked by [#109 — Taiga UI Developer Companion for WebStorm](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/issues/109).
-
-The main direction is to grow from design-token tooling into a broader project-aware Taiga UI companion while keeping installed project packages as the source of truth.
-
-#### Phase 1 — Documentation foundation
-
-- [x] [#99 — Version-aware Taiga UI documentation index](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/issues/99)
-
-Build a structured, cached, version-aware documentation index using official Taiga UI documentation as enrichment while keeping installed packages authoritative for actual API availability.
-
-#### Phase 2 — Documentation inside the editor
-
-- [x] [#100 — Taiga UI component docs in Quick Documentation](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/issues/100)
-- [ ] [#101 — Documentation for Taiga UI inputs and outputs](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/issues/101)
-- [x] [#102 — Taiga UI Search Everywhere contributor](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/issues/102)
-
-#100 and #101 shipped in [PR #116](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/pull/116). The [acceptance matrix](documentation-acceptance.md) records automated coverage and pending real-project WebStorm/macOS smoke checks.
-
-Prefer native IntelliJ/WebStorm surfaces such as Quick Documentation and Search Everywhere instead of introducing parallel custom UI.
-
-#### Phase 3 — Safer coding assistance
-
-- [x] [#103 — Inspect incorrect Taiga UI import packages and provide a quick fix](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/issues/103)
-
-Installed `node_modules/@taiga-ui/*` exports remain authoritative for diagnostics and source-changing fixes.
-
-#### Phase 4 — Visual discovery
-
-- [x] [#104 — Visual Taiga UI icon browser and picker](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/issues/104)
-- [ ] [#105 — Taiga UI design token explorer](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/issues/105)
-- [ ] [#106 — Suggest Taiga UI design tokens for literal CSS values](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/issues/106)
-
-These features should reuse the existing icon catalog, token index, resolver, source navigation, and project-aware precedence instead of creating duplicate discovery pipelines.
-
-#### Phase 5 — Project-level workflows
-
-- [ ] [#107 — Taiga UI project doctor](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/issues/107)
-- [ ] [#108 — Taiga UI migration assistant for remaining v4 → v5 issues](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/issues/108)
-
-Project Doctor should establish reusable project-level diagnostics. Migration Assistant can then build on those diagnostics plus official migration documentation.
-
-#### Recommended implementation order
-
-```text
-#99   Documentation index
- ↓
-#100  Component Quick Documentation
- ↓
-#101  Inputs / Outputs documentation
- ↓
-#102  Search Everywhere
- ↓
-#103  Import inspection + quick fix
- ↓
-#104  Icon Browser
- ↓
-#105  Token Explorer
- ↓
-#106  CSS value → Taiga token
- ↓
-#107  Project Doctor
- ↓
-#108  Migration Assistant
-```
-
-The detailed dependency map, architecture principles, and Definition of Done are maintained in [Epic #109](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/issues/109) to avoid duplicating implementation-level requirements here.
+The [contextual documentation acceptance matrix](documentation-acceptance.md) tracks the remaining
+WebStorm/macOS checks. The [MCP sandbox guide](local-debugging.md#verify-the-nx-migration-mcp-tools)
+tracks a connected-client smoke test for the migration tools.
 
 ## Completed milestones
 
@@ -271,7 +197,7 @@ Acceptance goals from #18 are covered by the merged implementation and CI regres
 
 ## Stage 7 — Release and production hardening
 
-Status: production release shipped; final manual follow-up remains in #54.
+Status: production release shipped and the maintainer confirmed Marketplace installation and core workflows in [#54](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/issues/54).
 
 Completed:
 
@@ -282,6 +208,21 @@ Completed:
 - [x] Production releases published through [v0.1.3](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/releases/tag/v0.1.3).
 - [x] Release notes/changelog follow-up completed by [#79](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/pull/79).
 
-Remaining:
+## Stage 8 — Developer Companion for WebStorm
 
-- [ ] [#54](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/issues/54) — complete the final Marketplace-delivered artifact smoke test on a supported IDE.
+Status: implemented in [epic #109](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/issues/109).
+
+| Capability                                                         | Issues                                                                                                                                                                     | Implementation                                                                                                                                                                                                                                             |
+| ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Version-aware documentation index                                  | [#99](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/issues/99)                                                                                         | [#114](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/pull/114)                                                                                                                                                                         |
+| Quick Documentation for components, directives, inputs and outputs | [#100](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/issues/100), [#101](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/issues/101) | [#116](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/pull/116)                                                                                                                                                                         |
+| Search Everywhere and API browser                                  | [#102](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/issues/102)                                                                                       | [#134](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/pull/134)                                                                                                                                                                         |
+| Inspection and quick fix for incorrect package imports             | [#103](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/issues/103)                                                                                       | [#135](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/pull/135)                                                                                                                                                                         |
+| Icon browser and picker                                            | [#104](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/issues/104)                                                                                       | [#127](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/pull/127)                                                                                                                                                                         |
+| Design Token Explorer                                              | [#105](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/issues/105)                                                                                       | [#136](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/pull/136)                                                                                                                                                                         |
+| Exact CSS color-to-token matching                                  | [#106](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/issues/106)                                                                                       | [#137](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/pull/137)                                                                                                                                                                         |
+| Project Doctor and app inspections                                 | [#107](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/issues/107)                                                                                       | [#139](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/pull/139), [#140](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/pull/140), [#147](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/pull/147) |
+| Migration analysis and the official v4-to-v5 CLI workflow          | [#108](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/issues/108)                                                                                       | [#141](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/pull/141), [#152](https://github.com/splincode-taiga-labs/taiga-ui-jetbrains-plugin/pull/152)                                                                                     |
+
+Installed packages determine API availability and source changes. See the [README](../README.md) for the IDE entry
+points and the [architecture](ARCHITECTURE.md) for service and threading boundaries.
