@@ -153,6 +153,44 @@ class TaigaMigrationPlanTest {
         }
     }
 
+    @Test
+    fun bindsPlanRevisionToTheWholeFileAndResolvedWorkspace() {
+        val root = temporaryFolder.root.toPath()
+        val first = workspace(root.resolve("first"), TaigaMigrationCli.NX)
+        val second = workspace(root.resolve("second"), TaigaMigrationCli.NX)
+        val file = first.resolve("migrations.json")
+        val content = """{"migrations":[{"package":"@taiga-ui/cdk","name":"updateToV5","version":"5.0.0"}]}"""
+        write(file, content)
+        write(second.resolve("migrations.json"), content)
+        val plan = prepareExistingNxMigration(first, root)
+
+        prepareExistingNxMigration(first, root).requireRevision(plan.revision)
+        assertThrows(IllegalStateException::class.java) {
+            prepareExistingNxMigration(second, root).requireRevision(plan.revision)
+        }
+
+        write(file, "$content\n")
+
+        assertThrows(IllegalStateException::class.java) {
+            prepareExistingNxMigration(first, root).requireRevision(plan.revision)
+        }
+    }
+
+    @Test
+    fun keepsOnlyTheTailOfMigrationOutput() {
+        val output = MigrationOutput()
+        output.append("early output")
+        output.append("x".repeat(15_997))
+        output.append("done")
+
+        val result = output.result("failed", "CLI failed", 7)
+
+        assertEquals(16_000, result.output.length)
+        assertEquals("done", result.output.takeLast(4))
+        assertEquals(true, result.outputTruncated)
+        assertEquals(7, result.exitCode)
+    }
+
     private fun workspace(
         root: Path,
         cli: TaigaMigrationCli,

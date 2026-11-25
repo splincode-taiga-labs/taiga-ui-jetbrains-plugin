@@ -54,6 +54,24 @@ To use a specific local WebStorm build instead of the downloaded platform, pass 
 
 The local IDE build must remain compatible with the plugin's configured `sinceBuild`.
 
+## Verify the Nx migration MCP tools
+
+Use a disposable Nx workspace with its local CLI installed and a saved `migrations.json` containing
+`@taiga-ui/cdk`'s `updateToV5` migration. The Run tool applies the full saved plan, including migrations from
+other packages. A previously applied step may run again.
+
+1. Open the workspace in the sandbox WebStorm. In **Settings | AI | MCP Server**, enable the server and use the
+   Codex auto-configuration option or the configuration snippet for your MCP client.
+2. In the connected client, list tools and call `taiga_ui_inspect_nx_migration_plan` with `{"directory":"."}`.
+   Check the workspace and plan paths, step order, and returned `revision`. A preview should leave the workspace clean.
+3. Call `taiga_ui_run_nx_migration_plan` with the same directory and revision. Decline the prompt in WebStorm and
+   check that the tool returns `cancelled` and the workspace stays clean.
+4. In the disposable workspace, make the same call and approve the plan. Check the structured result, CLI output,
+   and installed CDK version. Repeat the inspect/run sequence with a change to `migrations.json` between calls and
+   verify that the stale revision is rejected before Nx starts.
+5. Disable the **MCP Server** plugin and restart the sandbox. Verify the Taiga UI folder menu and Doctor still load.
+   Repeat the smoke check on the oldest and newest supported WebStorm builds.
+
 ## Attach a debugger
 
 Start the sandbox JVM in debug mode:

@@ -8,12 +8,15 @@ import com.intellij.execution.filters.TextConsoleBuilderFactory
 import com.intellij.execution.process.OSProcessHandler
 import com.intellij.execution.process.ProcessEvent
 import com.intellij.execution.process.ProcessListener
+import com.intellij.execution.process.ProcessOutputTypes
 import com.intellij.execution.ui.ConsoleView
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.execution.ui.RunContentDescriptor
 import com.intellij.execution.ui.RunContentManager
+import com.intellij.ide.trustedProjects.TrustedProjects.isProjectTrusted
 import com.intellij.javascript.nodejs.interpreter.NodeJsInterpreterManager
 import com.intellij.javascript.nodejs.interpreter.local.NodeJsLocalInterpreter
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.fileEditor.FileDocumentManager
@@ -25,6 +28,7 @@ import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.platform.ide.progress.withBackgroundProgress
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextArea
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
@@ -57,13 +61,15 @@ internal class TaigaMigrationRunner(
             try {
                 val plan = withContext(Dispatchers.IO) { prepareMigration(selected, projectRoot, existingPlan) }
                 val node =
-                    withContext(Dispatchers.IO) {
-                        findNode()
-                    } ?: error("Select a local Node.js runtime in WebStorm or add Node.js to its PATH.")
+                    withContext(Dispatchers.IO) { requireLocalNode(project) }
 
                 if (confirm(plan)) {
                     execute(plan, node) { prepareMigration(selected, projectRoot, existingPlan) }
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: MigrationCommandFailed) {
+                showError(IllegalStateException("${error.message} See the Run window for details.", error))
             } catch (error: IllegalStateException) {
                 showError(error)
             } catch (error: IOException) {
@@ -76,11 +82,81 @@ internal class TaigaMigrationRunner(
         }
     }
 
-    private fun findNode(): File? {
-        val configured = NodeJsInterpreterManager.getInstance(project).getInterpreter(false) as? NodeJsLocalInterpreter
+    suspend fun runSavedNxPlan(
+        revision: String,
+        prepare: suspend () -> ExistingNxMigrationPlan,
+    ): NxMigrationResult {
+        if (!migration.tryLock()) {
+            return NxMigrationResult("busy", "A Taiga UI migration is already running.")
+        }
 
-        return configured?.interpreterSystemDependentPath?.let(::File)?.takeIf(File::isFile)
-            ?: PathEnvironmentVariableUtil.findExecutableInPathOnAnyOS("node")
+        val output = MigrationOutput()
+
+        return try {
+            check(isProjectTrusted(project)) { "Trust this WebStorm project before running migrations." }
+            val plan = prepare()
+            plan.requireRevision(revision)
+
+            if (ApplicationManager.getApplication().isHeadlessEnvironment) {
+                output.result("confirmation_required", "Confirm the migration in an open WebStorm window.")
+            } else {
+                confirmAndRunSavedPlan(plan, prepare, output)
+            }
+        } catch (_: CancellationException) {
+            currentCoroutineContext().ensureActive()
+            output.result("cancelled", "Migration cancelled. Review changes already written to the workspace.")
+        } catch (error: MigrationCommandFailed) {
+            output.result("failed", error.message, error.exitCode)
+        } catch (error: IllegalStateException) {
+            output.result("failed", error.message)
+        } catch (error: IOException) {
+            output.result("failed", error.message)
+        } catch (error: ExecutionException) {
+            output.result("failed", error.message)
+        } finally {
+            migration.unlock()
+        }
+    }
+
+    private suspend fun confirmAndRunSavedPlan(
+        plan: ExistingNxMigrationPlan,
+        prepare: suspend () -> ExistingNxMigrationPlan,
+        output: MigrationOutput,
+    ): NxMigrationResult {
+        val node = withContext(Dispatchers.IO) { requireLocalNode(project) }
+        val confirmed =
+            withContext(Dispatchers.EDT) {
+                (!project.isDisposed && confirmExistingPlan(plan)).also { accepted ->
+                    if (accepted) {
+                        check(
+                            isProjectTrusted(project) && !project.isDisposed,
+                        ) { "The WebStorm project is no longer trusted or open." }
+                        saveWorkspaceDocuments(plan.workspace.root)
+                    }
+                }
+            }
+
+        if (!confirmed) {
+            return output.result("cancelled", "The user declined the migration.")
+        }
+
+        withBackgroundProgress(project, TITLE) {
+            withContext(Dispatchers.IO) {
+                check(
+                    isProjectTrusted(project) && !project.isDisposed,
+                ) { "The WebStorm project is no longer trusted or open." }
+                check(prepare() == plan) { "The workspace or migration plan changed. Inspect the plan again." }
+                try {
+                    plan.run { arguments ->
+                        runMigrationCommand(node, plan.workspace, arguments) { text, _ -> output.append(text) }
+                    }
+                } finally {
+                    VirtualFileManager.getInstance().asyncRefresh()
+                }
+            }
+        }
+
+        return output.result("success", "Migration completed. Review the changes and migration TODOs.", 0)
     }
 
     private suspend fun execute(
@@ -97,7 +173,11 @@ internal class TaigaMigrationRunner(
                     check(prepare() == plan) {
                         "The workspace or migration plan changed. Open the migration action again."
                     }
-                    plan.run { arguments -> console.runMigrationCommand(node, plan.workspace, arguments) }
+                    plan.run { arguments ->
+                        runMigrationCommand(node, plan.workspace, arguments) { text, key ->
+                            console.print(text, ConsoleViewContentType.getConsoleViewType(key))
+                        }
+                    }
                 }
             }
             console.print(
@@ -190,10 +270,34 @@ private data class PreparedMigration(
     }
 }
 
-private suspend fun ConsoleView.runMigrationCommand(
+private fun requireLocalNode(project: Project): File {
+    val configured = NodeJsInterpreterManager.getInstance(project).getInterpreter(false) as? NodeJsLocalInterpreter
+
+    return configured?.interpreterSystemDependentPath?.let(::File)?.takeIf(File::isFile)
+        ?: PathEnvironmentVariableUtil.findExecutableInPathOnAnyOS("node")
+        ?: error("Select a local Node.js runtime in WebStorm or add Node.js to its PATH.")
+}
+
+private fun saveWorkspaceDocuments(root: Path) {
+    val manager = FileDocumentManager.getInstance()
+
+    for (document in manager.unsavedDocuments) {
+        val file = manager.getFile(document)
+
+        if (file?.isInLocalFileSystem == true && file.toNioPath().normalize().startsWith(root)) {
+            check(file.toNioPath() != root.resolve("migrations.json")) {
+                "Save migrations.json and inspect the plan again before running it."
+            }
+            manager.saveDocument(document)
+        }
+    }
+}
+
+internal suspend fun runMigrationCommand(
     node: File,
     plan: TaigaMigrationPlan,
     arguments: List<String>,
+    onOutput: (String, Key<*>) -> Unit,
 ) {
     currentCoroutineContext().ensureActive()
 
@@ -207,14 +311,14 @@ private suspend fun ConsoleView.runMigrationCommand(
     val display = (listOf(plan.cli.command) + arguments).joinToString(" ")
     val handler = OSProcessHandler(command).apply { setShouldDestroyProcessRecursively(true) }
 
-    print("> $display\n", ConsoleViewContentType.SYSTEM_OUTPUT)
+    onOutput("> $display\n", ProcessOutputTypes.SYSTEM)
     handler.addProcessListener(
         object : ProcessListener {
             override fun onTextAvailable(
                 event: ProcessEvent,
                 outputType: Key<*>,
             ) {
-                print(event.text, ConsoleViewContentType.getConsoleViewType(outputType))
+                onOutput(event.text, outputType)
             }
         },
     )
@@ -233,9 +337,16 @@ private suspend fun ConsoleView.runMigrationCommand(
         }
     }
 
-    check(handler.exitCode == 0) {
-        "$display failed (exit code ${handler.exitCode}). See the Run window for details."
+    val exitCode = checkNotNull(handler.exitCode)
+
+    if (exitCode != 0) {
+        throw MigrationCommandFailed(display, exitCode)
     }
 }
+
+private class MigrationCommandFailed(
+    command: String,
+    val exitCode: Int,
+) : IllegalStateException("$command failed (exit code $exitCode).")
 
 private const val TITLE = "Taiga UI Migration"

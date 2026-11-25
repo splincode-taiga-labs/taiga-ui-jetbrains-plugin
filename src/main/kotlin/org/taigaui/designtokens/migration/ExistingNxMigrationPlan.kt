@@ -6,12 +6,28 @@ import com.google.gson.JsonParseException
 import com.google.gson.JsonParser
 import java.nio.file.Files
 import java.nio.file.Path
+import java.security.MessageDigest
+import java.util.HexFormat
 
 internal data class ExistingNxMigrationPlan(
     val workspace: TaigaMigrationPlan,
     val snapshot: String,
-    val migrations: List<String>,
+    val entries: List<NxMigrationEntry>,
 ) {
+    val migrations: List<String>
+        get() = entries.map { "${it.packageName}: ${it.name}" }
+
+    val revision: String
+        get() {
+            val bytes = "${workspace.root}\u0000$snapshot".toByteArray()
+
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes))
+        }
+
+    fun requireRevision(expected: String) {
+        check(revision == expected) { "The workspace or migration plan changed. Inspect the plan again." }
+    }
+
     suspend fun run(execute: suspend (List<String>) -> Unit) {
         execute(RUN_NX_MIGRATIONS)
         workspace.checkInstalledV5()
@@ -41,7 +57,7 @@ internal fun prepareExistingNxMigration(
         "migrations.json does not contain the Taiga UI v4 to v5 migration."
     }
 
-    return ExistingNxMigrationPlan(workspace, snapshot, entries.map { "${it.packageName}: ${it.name}" })
+    return ExistingNxMigrationPlan(workspace, snapshot, entries)
 }
 
 private fun readMigrationEntries(snapshot: String): List<NxMigrationEntry> {
@@ -71,7 +87,7 @@ private fun JsonObject.readString(key: String): String? =
         ?.asString
         ?.takeIf(String::isNotBlank)
 
-private data class NxMigrationEntry(
+internal data class NxMigrationEntry(
     val packageName: String,
     val name: String,
     val version: String?,

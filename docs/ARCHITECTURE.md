@@ -98,6 +98,11 @@ The saved-plan action resolves the same workspace, requires the Taiga UI v5 migr
 `migrations.json`, and previews every entry. It rechecks the full file after confirmation and runs the plan through
 Nx without regenerating it or relying on the initially installed Taiga UI major.
 
+The optional WebStorm MCP toolset uses the same project directory rules, plan reader, confirmation dialog, project
+migration lock, and CLI process. Inspection returns ordered plan entries and a revision derived from the workspace
+and file contents. Execution checks the revision before confirmation and reloads the plan again before launching Nx.
+The MCP response reports the result and a bounded tail of CLI output.
+
 The Doctor migration analysis uses the same application scope and native results view with a temporary profile for Taiga UI 5.
 It adds inspections for the schematics' exact TODO marker and static legacy imports. PSI distinguishes comments and
 imports from string literals, and the stylesheet inspection also recognizes the line marker that the schematics emit in
