@@ -83,7 +83,14 @@ Click **Analyze App** to run the Taiga UI inspections for the active application
 unknown or deprecated design tokens, and invalid event modifiers in its inspection results. Select a finding to jump to
 the source and use the existing quick fix when one is available.
 
-With Taiga UI 5 installed, click **Analyze v4 to v5 Migration** after running the official schematics. The results
+To upgrade from Taiga UI 4, right-click a workspace folder in the Project view and select **Taiga UI → Run v4 to v5 Migration**.
+Confirm the workspace directory to run the official Angular CLI or Nx migration. Follow the output in the **Run** window.
+The workspace must have Taiga UI CDK 4 and its local CLI installed.
+
+If Nx has already generated a plan, use **Taiga UI → Run Existing Nx Migration Plan** to review and run
+`migrations.json` for the workspace. Nx runs the entire file. Steps that already ran may run again.
+
+With Taiga UI 5 installed, click **Analyze v4 to v5 Migration** to review the remaining findings. The results
 include migration TODOs, remaining `@taiga-ui/legacy` imports, deprecated design tokens, and wrong-package imports.
 Select a finding to open the source. The guide is available in the Doctor tab and in the migration inspection descriptions.
 

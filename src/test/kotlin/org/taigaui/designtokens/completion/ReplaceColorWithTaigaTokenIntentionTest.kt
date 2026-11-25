@@ -151,6 +151,8 @@ class ReplaceColorWithTaigaTokenIntentionTest : BasePlatformTestCase() {
         assertTrue(group.templatePresentation.isHideGroupIfEmpty)
         assertNotNull(group.templatePresentation.icon)
         assertTrue(action in group.getChildren(null))
+        assertTrue(actions.getAction("TaigaUI.RunMigration") in group.getChildren(null))
+        assertTrue(actions.getAction("TaigaUI.RunExistingNxMigration") in group.getChildren(null))
 
         action.update(event)
         assertTrue(event.presentation.isEnabledAndVisible)
