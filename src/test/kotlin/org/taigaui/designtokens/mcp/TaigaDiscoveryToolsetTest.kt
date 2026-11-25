@@ -349,6 +349,42 @@ class TaigaDiscoveryToolsetTest : HeavyPlatformTestCase() {
         }
     }
 
+    fun testFolderColorPreviewForAnEmptyDirectoryHasNoChanges() {
+        val root = getOrCreateProjectBaseDir()
+        PsiTestUtil.addContentRoot(module, root)
+        Files.createDirectories(root.toNioPath().resolve("empty"))
+        root.refresh(false, true)
+
+        val preview =
+            tool("taiga_ui_preview_folder_colors")
+                .callInProject(buildJsonObject { put("directory", "empty") })
+                .successData()
+        assertEquals("0", preview["totalFiles"]?.jsonPrimitive?.content)
+        assertTrue(requireNotNull(preview["files"]).jsonArray.isEmpty())
+
+        val result =
+            tool("taiga_ui_apply_folder_colors")
+                .callInProject(
+                    buildJsonObject {
+                        put("directory", "empty")
+                        put("revision", requireNotNull(preview["revision"]?.jsonPrimitive?.content))
+                    },
+                ).successData()
+        assertEquals("no_changes", result["status"]?.jsonPrimitive?.content)
+    }
+
+    fun testRemConversionValidatesDecimalInput() {
+        val convert = tool("taiga_ui_convert_rem")
+        for ((rem, css) in listOf("-0.5" to "-8px", ".25" to "4px", "0" to "0px")) {
+            val result = convert.callInProject(buildJsonObject { put("rem", rem) }).successData()
+            assertEquals(css, result["css"]?.jsonPrimitive?.content)
+        }
+
+        for (rem in listOf("", "1px", "NaN", "1".repeat(41))) {
+            assertTrue(convert.callInProject(buildJsonObject { put("rem", rem) }).isError)
+        }
+    }
+
     private fun withRevision(preview: JsonObject): JsonObject =
         buildJsonObject {
             put("directory", ".")
