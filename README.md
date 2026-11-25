@@ -39,7 +39,8 @@
 
 **Taiga xUI Community** is developed in the open by **splincode-taiga-labs**. It helps developers work with Taiga UI projects in JetBrains IDEs while remaining independently maintained.
 
-The project aims to make the information that already exists in a Taiga UI codebase — design tokens, icons, event-plugin modifiers, local overrides, and CSS units — discoverable directly in the editor, without maintaining a separate hard-coded catalog.
+Use the plugin to look up installed APIs in Quick Documentation or Search Everywhere, browse icons and design tokens,
+fix package imports, and diagnose or migrate an Angular or Nx workspace from WebStorm.
 
 This is an **independent community project**, not affiliated with or endorsed by Taiga UI, Pineopticone, or T-Bank. The name Taiga UI is used only to describe compatibility. Contributions, bug reports, and ideas are welcome through GitHub issues and pull requests.
 
@@ -57,7 +58,7 @@ Hovering `iconEnd`, `iconStart`, or another icon input with a static `@tui.*` va
 
 Cards can add a missing required input with an empty expression ready to fill in, or rename a deprecated binding when the installed declaration explicitly identifies a compatible replacement. Both actions support Undo and check that the element has not changed. Adding a required input keeps keyboard focus in the editor so its expression can be entered immediately. Cards link to locally resolved source definitions and official documentation; examples are opened on demand.
 
-Use the Inputs, Outputs and Examples tabs to inspect the installed API. A parameter opens its focused card; Back returns to the previous view. The header links to the official documentation. Code examples use the editor color scheme and flattened single-element examples receive readable indentation. Cards have no Details disclosure or clipboard buttons. Angular quick fixes opens the IDE's context actions at the tracked source target, including available import fixes. Standard Quick Documentation and completion documentation remain available.
+Use the Inputs, Outputs and Examples tabs to inspect the installed API. A parameter opens its focused card; Back returns to the previous view. The header links to the official documentation. Code examples use the editor color scheme and flattened single-element examples receive readable indentation. Cards have no Details disclosure or clipboard buttons. Angular quick fixes opens the IDE's context actions at the tracked source target, including available import fixes. Use WebStorm's **Quick Documentation** action or open documentation from the completion list for the native view.
 
 Use **Show Taiga UI Card** from Find Action or the editor context menu, or press **Alt+Shift+Q**, to open the same interactive card at the caret without mouse hover. Use **Tab/Shift+Tab** to reach its actions, **Enter/Space** to activate buttons and links, **Escape** to close it. The explicit action works even when mouse-hover documentation is disabled in IDE settings. Loading and indexing show progress; an unavailable caret target offers Angular quick fixes.
 
@@ -89,6 +90,9 @@ The workspace must have Taiga UI CDK 4 and its local CLI installed.
 
 If Nx has already generated a plan, use **Taiga UI → Run Existing Nx Migration Plan** to review and run
 `migrations.json` for the workspace. Nx runs the entire file. Steps that already ran may run again.
+
+With WebStorm's MCP Server enabled, a connected agent can inspect the saved plan and run it after you confirm in the
+IDE. See the [MCP sandbox guide](docs/local-debugging.md#verify-the-nx-migration-mcp-tools) for setup.
 
 With Taiga UI 5 installed, click **Analyze v4 to v5 Migration** to review the remaining findings. The results
 include migration TODOs, remaining `@taiga-ui/legacy` imports, deprecated design tokens, and wrong-package imports.
