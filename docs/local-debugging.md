@@ -60,21 +60,28 @@ Open a project in the sandbox and enable **Settings | AI | MCP Server**. Use the
 the configuration snippet for your client, then list the available `taiga_ui_*` tools. On a monorepo, pass a source
 file from the specific app you want to inspect.
 
-| Tool                       | Example arguments                                            |
-| -------------------------- | ------------------------------------------------------------ |
-| `taiga_ui_inspect_project` | `{"source":"."}`                                             |
-| `taiga_ui_search_api`      | `{"source":"src/app.html","query":"tuiButton"}`              |
-| `taiga_ui_api_at`          | `{"source":"src/app.html","line":1,"column":9}`              |
-| `taiga_ui_search_tokens`   | `{"source":"src/styles.css","query":"background"}`           |
-| `taiga_ui_resolve_token`   | `{"source":"src/styles.css","name":"--tui-background-base"}` |
-| `taiga_ui_match_color`     | `{"source":"src/styles.css","color":"#fff"}`                 |
-| `taiga_ui_search_icons`    | `{"source":"src/app.html","query":"search"}`                 |
-| `taiga_ui_convert_rem`     | `{"rem":"1.25"}`                                             |
-| `taiga_ui_check_release`   | `{"source":"."}`                                             |
+| Tool                             | Example arguments                                            |
+| -------------------------------- | ------------------------------------------------------------ |
+| `taiga_ui_inspect_project`       | `{"source":"."}`                                             |
+| `taiga_ui_search_api`            | `{"source":"src/app.html","query":"tuiButton"}`              |
+| `taiga_ui_api_at`                | `{"source":"src/app.html","line":1,"column":9}`              |
+| `taiga_ui_search_tokens`         | `{"source":"src/styles.css","query":"background"}`           |
+| `taiga_ui_resolve_token`         | `{"source":"src/styles.css","name":"--tui-background-base"}` |
+| `taiga_ui_match_color`           | `{"source":"src/styles.css","color":"#fff"}`                 |
+| `taiga_ui_preview_folder_colors` | `{"directory":"src"}`                                        |
+| `taiga_ui_search_icons`          | `{"source":"src/app.html","query":"search"}`                 |
+| `taiga_ui_convert_rem`           | `{"rem":"1.25"}`                                             |
+| `taiga_ui_check_release`         | `{"source":"."}`                                             |
+| `taiga_ui_inspect_migration`     | `{"directory":"."}`                                          |
 
 Use the files and token names from your workspace. Compare versions and sources with Project Doctor, match token
 values with Token Explorer, and check a binding against native Quick Documentation. For import, token, and event
 modifier warnings, call WebStorm's `get_file_problems` with the source file path.
+
+For folder color replacement, pass the preview's `revision` and the same directory to `taiga_ui_apply_folder_colors`.
+Review the diff in WebStorm. To start an Angular or Nx migration from v4, use `taiga_ui_inspect_migration` followed
+by `taiga_ui_run_migration` with the same directory and revision. Verify that declining the confirmation leaves the
+workspace unchanged in both cases.
 
 ## Verify the Nx migration MCP tools
 

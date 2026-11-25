@@ -30,8 +30,8 @@ internal class FolderColorReplacement private constructor(
 ) {
     val previews: List<FolderColorPreview> = files.map(FileColorEdits::preview)
 
-    fun apply(project: Project): String {
-        if (files.isEmpty()) return "No stylesheet colors to update."
+    fun apply(project: Project): FolderColorApplyResult {
+        if (files.isEmpty()) return FolderColorApplyResult(true, "No stylesheet colors to update.")
 
         val applied =
             WriteCommandAction
@@ -44,7 +44,11 @@ internal class FolderColorReplacement private constructor(
                     }
                 }
 
-        return if (applied) summary() else "Stylesheets or tokens changed since the scan started. Run the action again."
+        return if (applied) {
+            FolderColorApplyResult(true, summary())
+        } else {
+            FolderColorApplyResult(false, "Stylesheets or tokens changed since the scan started. Run the action again.")
+        }
     }
 
     private fun summary(): String {
@@ -109,6 +113,11 @@ internal data class FolderColorPreview(
     val fileType: FileType,
     val original: String,
     val proposed: String,
+)
+
+internal data class FolderColorApplyResult(
+    val applied: Boolean,
+    val message: String,
 )
 
 private fun Project.stylesheetsUnder(directory: VirtualFile): List<VirtualFile> =

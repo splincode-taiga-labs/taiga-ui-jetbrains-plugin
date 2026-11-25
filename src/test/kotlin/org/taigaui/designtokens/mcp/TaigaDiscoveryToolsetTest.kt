@@ -7,6 +7,9 @@ import com.intellij.mcpserver.McpTool
 import com.intellij.mcpserver.McpToolCallResult
 import com.intellij.mcpserver.impl.McpServerService
 import com.intellij.mcpserver.impl.ReflectionToolsProvider
+import com.intellij.openapi.command.WriteCommandAction
+import com.intellij.openapi.fileEditor.FileDocumentManager
+import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.testFramework.HeavyPlatformTestCase
 import com.intellij.testFramework.PlatformTestUtil
 import com.intellij.testFramework.PsiTestUtil
@@ -37,8 +40,12 @@ class TaigaDiscoveryToolsetTest : HeavyPlatformTestCase() {
             "search_tokens",
             "resolve_token",
             "match_color",
+            "preview_folder_colors",
+            "apply_folder_colors",
             "search_icons",
             "convert_rem",
+            "inspect_migration",
+            "run_migration",
             "inspect_nx_migration_plan",
             "run_nx_migration_plan",
         )) {
@@ -85,6 +92,86 @@ class TaigaDiscoveryToolsetTest : HeavyPlatformTestCase() {
             assertEquals("@tui.$app-search", match?.get("name")?.jsonPrimitive?.content)
         }
     }
+
+    fun testNewMigrationChecksTheRevisionBeforeRequestingApproval() {
+        val root = getOrCreateProjectBaseDir()
+        PsiTestUtil.addContentRoot(module, root)
+        val path = root.toNioPath()
+        val cdk = Files.createDirectories(path.resolve("node_modules/@taiga-ui/cdk"))
+        val cli = Files.createDirectories(path.resolve("node_modules/@angular/cli/bin"))
+        val manifest = path.resolve("package.json")
+        Files.writeString(cdk.resolve("package.json"), """{"name":"@taiga-ui/cdk","version":"4.110.0"}""")
+        Files.writeString(cli.resolve("ng.js"), "")
+        Files.writeString(path.resolve("angular.json"), "{}")
+        Files.writeString(manifest, "{}")
+
+        val previewArgs = buildJsonObject { put("directory", ".") }
+        val preview = tool("taiga_ui_inspect_migration").callInProject(previewArgs).successData()
+        assertEquals("ng", preview["cli"]?.jsonPrimitive?.content)
+        val run = tool("taiga_ui_run_migration")
+        val runArgs = withRevision(preview)
+        assertEquals(
+            "confirmation_required",
+            run
+                .callInProject(runArgs)
+                .successData()["status"]
+                ?.jsonPrimitive
+                ?.content,
+        )
+
+        Files.writeString(manifest, """{"name":"changed"}""")
+        val stale = run.callInProject(runArgs)
+        assertTrue(stale.isError)
+        assertTrue(stale.toString().contains("Inspect the plan again"))
+    }
+
+    fun testFolderColorReplacementChecksTheDiffAndRequiresApproval() {
+        val root = getOrCreateProjectBaseDir()
+        PsiTestUtil.addContentRoot(module, root)
+        val path = root.toNioPath()
+        val tokens = Files.createDirectories(path.resolve("node_modules/@taiga-ui/design-tokens"))
+        Files.writeString(tokens.resolve("package.json"), """{"name":"@taiga-ui/design-tokens","version":"0.310.0"}""")
+        Files.writeString(tokens.resolve("tokens.css"), ":root { --tui-white: #fff; }")
+        val css = path.resolve("card.css")
+        val original = ".card { color: #fff; }"
+        Files.writeString(css, original)
+        root.refresh(false, true)
+
+        val previewArgs = buildJsonObject { put("directory", ".") }
+        val preview = tool("taiga_ui_preview_folder_colors").callInProject(previewArgs).successData()
+        assertEquals(
+            "card.css",
+            preview["files"]
+                ?.jsonArray
+                ?.single()
+                ?.jsonPrimitive
+                ?.content,
+        )
+        val apply = tool("taiga_ui_apply_folder_colors")
+        val applyArgs = withRevision(preview)
+        assertEquals(
+            "confirmation_required",
+            apply
+                .callInProject(applyArgs)
+                .successData()["status"]
+                ?.jsonPrimitive
+                ?.content,
+        )
+        val file = requireNotNull(LocalFileSystem.getInstance().findFileByNioFile(css))
+        val document = requireNotNull(FileDocumentManager.getInstance().getDocument(file))
+        assertEquals(original, document.text)
+
+        WriteCommandAction.runWriteCommandAction(project) { document.setText(".card { color: #000; }") }
+        val stale = apply.callInProject(applyArgs)
+        assertTrue(stale.isError)
+        assertTrue(stale.toString().contains("Preview the folder again"))
+    }
+
+    private fun withRevision(preview: JsonObject): JsonObject =
+        buildJsonObject {
+            put("directory", ".")
+            put("revision", requireNotNull(preview["revision"]?.jsonPrimitive?.content))
+        }
 
     private fun writeApp(
         path: Path,

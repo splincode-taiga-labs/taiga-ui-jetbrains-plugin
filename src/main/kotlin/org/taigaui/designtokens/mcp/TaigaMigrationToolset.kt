@@ -16,19 +16,64 @@ import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.taigaui.designtokens.migration.ExistingNxMigrationPlan
+import org.taigaui.designtokens.migration.RUN_NX_MIGRATIONS
+import org.taigaui.designtokens.migration.TaigaMigrationCli
+import org.taigaui.designtokens.migration.TaigaMigrationResult
 import org.taigaui.designtokens.migration.TaigaMigrationRunner
 import org.taigaui.designtokens.migration.prepareExistingNxMigration
+import org.taigaui.designtokens.migration.prepareNewTaigaMigration
 import java.io.IOException
 import java.nio.file.Path
 
 @Suppress("FunctionName", "unused")
-class TaigaNxMigrationToolset : McpToolset {
+class TaigaMigrationToolset : McpToolset {
+    @McpTool
+    @McpDescription("Preview a new official Taiga UI v4 to v5 migration in the selected Angular or Nx workspace.")
+    suspend fun taiga_ui_inspect_migration(
+        @McpDescription(MIGRATION_DIRECTORY) directory: String,
+    ): McpToolCallResult =
+        taigaSourceResult(directory) { project, folder ->
+            check(folder.isDirectory) { "Select a project directory for the migration." }
+            val plan = prepareNewTaigaMigration(folder.toNioPath(), project.migrationRoot())
+            val cli = plan.workspace.cli
+
+            buildJsonObject {
+                put("workspace", plan.workspace.root.toString())
+                put("cli", cli.command)
+                put("updateArguments", cli.updateArguments.jsonStrings())
+                if (cli == TaigaMigrationCli.NX) {
+                    put("runGeneratedPlanArguments", RUN_NX_MIGRATIONS.jsonStrings())
+                }
+                put("revision", plan.revision)
+            }
+        }
+
+    @McpTool
+    @McpDescription(
+        "Start the official Taiga UI v4 to v5 migration after the user approves in WebStorm. " +
+            "May install dependencies and edit workspace files. Inspect first. Returns status and bounded CLI output.",
+    )
+    suspend fun taiga_ui_run_migration(
+        @McpDescription(MIGRATION_DIRECTORY) directory: String,
+        @McpDescription("Revision returned by taiga_ui_inspect_migration for the same directory.") revision: String,
+    ): McpToolCallResult {
+        val project = currentCoroutineContext().project
+        val result =
+            project.service<TaigaMigrationRunner>().runNewMigration(revision) {
+                withContext(Dispatchers.IO) {
+                    prepareNewTaigaMigration(project.migrationFolder(directory), project.migrationRoot())
+                }
+            }
+
+        return result.toMcpResult()
+    }
+
     @McpTool
     @McpDescription(
         "Read the existing Taiga UI v4 to v5 Nx plan. Returns the workspace, plan path, ordered steps, and plan revision.",
     )
     suspend fun taiga_ui_inspect_nx_migration_plan(
-        @McpDescription("Folder relative to the open IDE project root. Use '.' for the root.")
+        @McpDescription(MIGRATION_DIRECTORY)
         directory: String,
     ): McpToolCallResult {
         val project = currentCoroutineContext().project
@@ -81,28 +126,38 @@ class TaigaNxMigrationToolset : McpToolset {
     ): McpToolCallResult {
         val project = currentCoroutineContext().project
         val result = project.service<TaigaMigrationRunner>().runSavedNxPlan(revision) { project.loadPlan(directory) }
-        val data =
-            buildJsonObject {
-                put("status", result.status)
-                put("message", result.message)
-                put("exitCode", result.exitCode)
-                put("output", result.output)
-                put("outputTruncated", result.outputTruncated)
-            }
 
-        return if (result.status == "failed") {
-            McpToolCallResult.error(data.toString(), data)
-        } else {
-            McpToolCallResult.text(data.toString(), data)
-        }
+        return result.toMcpResult()
     }
 }
 
 private suspend fun Project.loadPlan(directory: String): ExistingNxMigrationPlan =
-    withContext(Dispatchers.IO) {
-        val root = Path.of(checkNotNull(basePath) { "The open project has no local root." })
-        val folder = taigaMcpSource(directory)
-        check(folder.isDirectory) { "Select a project directory for the Nx migration." }
+    withContext(Dispatchers.IO) { prepareExistingNxMigration(migrationFolder(directory), migrationRoot()) }
 
-        prepareExistingNxMigration(folder.toNioPath(), root)
+private fun Project.migrationRoot(): Path = Path.of(checkNotNull(basePath) { "The open project has no local root." })
+
+private suspend fun Project.migrationFolder(directory: String): Path {
+    val folder = taigaMcpSource(directory)
+    check(folder.isDirectory) { "Select a project directory for the migration." }
+
+    return folder.toNioPath()
+}
+
+private fun TaigaMigrationResult.toMcpResult(): McpToolCallResult {
+    val data =
+        buildJsonObject {
+            put("status", status)
+            put("message", message)
+            put("exitCode", exitCode)
+            put("output", output)
+            put("outputTruncated", outputTruncated)
+        }
+
+    return if (status == "failed") {
+        McpToolCallResult.error(data.toString(), data)
+    } else {
+        data.toMcpResult()
     }
+}
+
+private const val MIGRATION_DIRECTORY = "Folder relative to the open IDE project root. Use '.' for the root."

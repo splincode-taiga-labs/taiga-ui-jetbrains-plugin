@@ -1,8 +1,9 @@
 <idea-plugin>
     <extensions defaultExtensionNs="com.intellij">
-        <mcpServer.mcpToolset implementation="org.taigaui.designtokens.mcp.TaigaNxMigrationToolset" />
+        <mcpServer.mcpToolset implementation="org.taigaui.designtokens.mcp.TaigaMigrationToolset" />
         <mcpServer.mcpToolset implementation="org.taigaui.designtokens.mcp.TaigaProjectToolset" />
         <mcpServer.mcpToolset implementation="org.taigaui.designtokens.mcp.TaigaApiToolset" />
         <mcpServer.mcpToolset implementation="org.taigaui.designtokens.mcp.TaigaTokenToolset" />
+        <mcpServer.mcpToolset implementation="org.taigaui.designtokens.mcp.TaigaFolderColorToolset" />
     </extensions>
 </idea-plugin>

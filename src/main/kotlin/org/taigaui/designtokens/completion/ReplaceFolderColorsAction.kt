@@ -40,9 +40,9 @@ internal class ReplaceFolderColorsAction(
 
                 if (!shouldApply || project.isDisposed) return
 
-                val message = replacement.apply(project)
+                val result = replacement.apply(project)
 
-                WindowManager.getInstance().getStatusBar(project)?.setInfo(message)
+                WindowManager.getInstance().getStatusBar(project)?.setInfo(result.message)
             }
         }.queue()
     }

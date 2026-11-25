@@ -98,10 +98,10 @@ The saved-plan action resolves the same workspace, requires the Taiga UI v5 migr
 `migrations.json`, and previews every entry. It rechecks the full file after confirmation and runs the plan through
 Nx without regenerating it or relying on the initially installed Taiga UI major.
 
-The optional WebStorm MCP toolset uses the same project directory rules, plan reader, confirmation dialog, project
-migration lock, and CLI process. Inspection returns ordered plan entries and a revision derived from the workspace
-and file contents. Execution checks the revision before confirmation and reloads the plan again before launching Nx.
-The MCP response reports the result and a bounded tail of CLI output.
+The optional WebStorm MCP toolset uses the same project directory rules, plan readers, confirmation dialogs, project
+migration lock, and CLI process. Inspection returns commands for a new migration or ordered entries for a saved
+plan, with a revision derived from the workspace and file contents. Execution checks the revision before
+confirmation and reloads the plan before launching the CLI. The MCP response includes a bounded tail of CLI output.
 
 The Doctor migration analysis uses the same application scope and native results view with a temporary profile for Taiga UI 5.
 It adds inspections for the schematics' exact TODO marker and static legacy imports. PSI distinguishes comments and
@@ -119,8 +119,9 @@ a smart read action over committed PSI.
 
 Catalog documentation describes published APIs for the installed major. Source-position lookup resolves against actual
 installed declarations and identifies when a binding's type comes from those declarations. WebStorm supplies file
-inspection results through its built-in MCP tool. The saved Nx plan runner is the MCP operation that changes the
-workspace and continues to require confirmation in the IDE.
+inspection results through its built-in MCP tool. Folder color replacement uses the same scanner, IDE diff dialog,
+and undoable write command as the folder action. The MCP preview binds a revision to the folder and proposed
+changes. Apply rescans and compares revisions before showing the diff, then checks the original snapshots before writing.
 
 ## Release notifications
 
