@@ -10,6 +10,7 @@
     <depends>JavaScript</depends>
     <depends>AngularJS</depends>
     <depends>com.intellij.css</depends>
+    <depends optional="true" config-file="taiga-mcp.xml">com.intellij.mcpServer</depends>
 
     <actions>
         <action

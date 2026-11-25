@@ -1,0 +1,5 @@
+<idea-plugin>
+    <extensions defaultExtensionNs="com.intellij">
+        <mcpServer.mcpToolset implementation="org.taigaui.designtokens.mcp.TaigaNxMigrationToolset" />
+    </extensions>
+</idea-plugin>
