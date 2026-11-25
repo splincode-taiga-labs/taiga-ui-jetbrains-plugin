@@ -5,10 +5,8 @@ import com.intellij.mcpserver.McpToolset
 import com.intellij.mcpserver.annotations.McpDescription
 import com.intellij.mcpserver.annotations.McpTool
 import com.intellij.mcpserver.project
-import com.intellij.openapi.application.readAction
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.vfs.LocalFileSystem
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
@@ -20,9 +18,7 @@ import kotlinx.serialization.json.put
 import org.taigaui.designtokens.migration.ExistingNxMigrationPlan
 import org.taigaui.designtokens.migration.TaigaMigrationRunner
 import org.taigaui.designtokens.migration.prepareExistingNxMigration
-import org.taigaui.designtokens.project.isSelectableProjectDirectory
 import java.io.IOException
-import java.nio.file.InvalidPathException
 import java.nio.file.Path
 
 @Suppress("FunctionName", "unused")
@@ -105,22 +101,8 @@ class TaigaNxMigrationToolset : McpToolset {
 private suspend fun Project.loadPlan(directory: String): ExistingNxMigrationPlan =
     withContext(Dispatchers.IO) {
         val root = Path.of(checkNotNull(basePath) { "The open project has no local root." })
-        val relative =
-            try {
-                Path.of(directory)
-            } catch (error: InvalidPathException) {
-                throw IllegalStateException("Invalid project-relative directory.", error)
-            }
+        val folder = taigaMcpSource(directory)
+        check(folder.isDirectory) { "Select a project directory for the Nx migration." }
 
-        check(!relative.isAbsolute) { "Use a directory relative to the open IDE project root." }
-        val selected = root.resolve(relative).normalize()
-        check(selected.startsWith(root.normalize()) && relative.none { it.toString() == ".." }) {
-            "Select a directory inside the IDE project."
-        }
-
-        val folder = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(selected)
-        check(readAction { folder?.isSelectableProjectDirectory(this@loadPlan) == true }) {
-            "Select a local project directory outside dependencies and symlinks."
-        }
-        prepareExistingNxMigration(selected, root)
+        prepareExistingNxMigration(folder.toNioPath(), root)
     }

@@ -110,7 +110,7 @@ internal class TaigaReleaseNotifications(
 
             notification.addAction(
                 NotificationAction.createSimple("View release on GitHub") {
-                    BrowserUtil.browse("https://github.com/taiga-family/taiga-ui/releases/tag/${available.tag}")
+                    BrowserUtil.browse(available.url)
                 },
             )
             notification.notify(project)

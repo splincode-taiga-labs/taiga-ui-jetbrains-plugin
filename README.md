@@ -92,7 +92,7 @@ If Nx has already generated a plan, use **Taiga UI → Run Existing Nx Migration
 `migrations.json` for the workspace. Nx runs the entire file. Steps that already ran may run again.
 
 With WebStorm's MCP Server enabled, a connected agent can inspect the saved plan and run it after you confirm in the
-IDE. See the [MCP sandbox guide](docs/local-debugging.md#verify-the-nx-migration-mcp-tools) for setup.
+IDE. The [MCP tools](#mcp-tools-for-coding-agents) also expose project diagnostics, API lookup, tokens, and icons.
 
 With Taiga UI 5 installed, click **Analyze v4 to v5 Migration** to review the remaining findings. The results
 include migration TODOs, remaining `@taiga-ui/legacy` imports, deprecated design tokens, and wrong-package imports.
@@ -106,6 +106,23 @@ status. It contains no local file paths, so it can be shared in an issue or team
 WebStorm's **Notifications** tool window shows when a newer stable release is available for the Taiga UI major version
 used by your active workspace. Select **View release on GitHub** to see the release notes. Manage these entries under
 **Settings → Appearance & Behavior → Notifications → Taiga UI Releases**.
+
+## MCP tools for coding agents
+
+Connect an agent to WebStorm's **MCP Server** to inspect the same project data used by the plugin. Pass a file path
+relative to the project root to select the right Angular or Nx app when a monorepo contains multiple versions.
+
+| Area                                  | MCP tools                                                                  |
+| ------------------------------------- | -------------------------------------------------------------------------- |
+| Project Doctor and releases           | `taiga_ui_inspect_project`, `taiga_ui_check_release`                       |
+| API docs and installed bindings       | `taiga_ui_search_api`, `taiga_ui_read_api`, `taiga_ui_api_at`              |
+| Design tokens and exact color matches | `taiga_ui_search_tokens`, `taiga_ui_resolve_token`, `taiga_ui_match_color` |
+| Icon catalog and CSS units            | `taiga_ui_search_icons`, `taiga_ui_convert_rem`                            |
+| Saved Nx migrations                   | `taiga_ui_inspect_nx_migration_plan`, `taiga_ui_run_nx_migration_plan`     |
+
+WebStorm's built-in `get_file_problems` tool also reports enabled Taiga UI inspections, including incorrect imports,
+unknown or deprecated design tokens, and invalid event modifiers. See the [MCP sandbox guide](docs/local-debugging.md#mcp-tools)
+for setup and sample calls.
 
 ## TypeScript imports
 

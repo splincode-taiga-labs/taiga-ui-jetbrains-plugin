@@ -109,6 +109,19 @@ imports from string literals, and the stylesheet inspection also recognizes the 
 plain CSS. Existing deprecated-token and wrong-package inspections provide their usual fixes from local package data.
 The migration inspections link to the official guide and report locations for manual review.
 
+## WebStorm MCP
+
+The optional MCP adapters use the Project Doctor, versioned documentation, installed-API resolver, token resolver,
+exact color matching, icon catalog, and release feed from the IDE workflows. Tools accept explicit project-relative
+paths so an agent's app selection is independent of the active editor. MCP source validation rejects dependencies and
+symbolic links. Expensive filesystem work and result assembly run in the background, and source-level API lookup uses
+a smart read action over committed PSI.
+
+Catalog documentation describes published APIs for the installed major. Source-position lookup resolves against actual
+installed declarations and identifies when a binding's type comes from those declarations. WebStorm supplies file
+inspection results through its built-in MCP tool. The saved Nx plan runner is the MCP operation that changes the
+workspace and continues to require confirmation in the IDE.
+
 ## Release notifications
 
 A project-scoped background job uses the Project Doctor package report for the active file, with the project root as
