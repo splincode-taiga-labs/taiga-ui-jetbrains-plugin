@@ -90,7 +90,12 @@ or the nearest npm package boundary. It passes that directory and a temporary pr
 inspections to WebStorm's batch inspection runner. WebStorm owns background analysis, cancellation, the results view,
 and quick fixes. The temporary profile leaves the user's inspection profile unchanged.
 
-The migration action uses the same application scope and native results view with a temporary profile for Taiga UI 5.
+The Project view migration action resolves the nearest Angular or Nx CLI workspace above the selected folder and
+shows the workspace root before running the official v4 to v5 update. The project service serializes migrations and
+runs the local CLI in the background. Nx generates and executes its migration plan in separate steps.
+The Run window streams CLI output and the IDE refreshes files after the process finishes or is cancelled.
+
+The Doctor migration analysis uses the same application scope and native results view with a temporary profile for Taiga UI 5.
 It adds inspections for the schematics' exact TODO marker and static legacy imports. PSI distinguishes comments and
 imports from string literals, and the stylesheet inspection also recognizes the line marker that the schematics emit in
 plain CSS. Existing deprecated-token and wrong-package inspections provide their usual fixes from local package data.

@@ -30,6 +30,12 @@
         >
             <add-to-group group-id="ProjectViewPopupMenu" anchor="last" />
             <action
+                id="TaigaUI.RunMigration"
+                class="org.taigaui.designtokens.migration.RunTaigaMigrationAction"
+                text="Run v4 to v5 Migration..."
+                description="Run the official Taiga UI migration for this Angular or Nx workspace"
+            />
+            <action
                 id="TaigaUI.ReplaceFolderColors"
                 class="org.taigaui.designtokens.completion.ReplaceFolderColorsAction"
                 text="Replace Colors with Taiga UI Tokens"
