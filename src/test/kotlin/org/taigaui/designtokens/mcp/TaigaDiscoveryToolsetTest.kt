@@ -1,5 +1,6 @@
 package org.taigaui.designtokens.mcp
 
+import com.intellij.execution.ExecutionException
 import com.intellij.mcpserver.ClientInfo
 import com.intellij.mcpserver.McpCallAdditionalDataElement
 import com.intellij.mcpserver.McpCallInfo
@@ -8,19 +9,29 @@ import com.intellij.mcpserver.McpToolCallResult
 import com.intellij.mcpserver.impl.McpServerService
 import com.intellij.mcpserver.impl.ReflectionToolsProvider
 import com.intellij.openapi.command.WriteCommandAction
+import com.intellij.openapi.components.service
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.testFramework.HeavyPlatformTestCase
 import com.intellij.testFramework.PlatformTestUtil
 import com.intellij.testFramework.PsiTestUtil
 import com.intellij.util.concurrency.AppExecutorUtil
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import org.taigaui.designtokens.documentation.TaigaDocsCache
+import org.taigaui.designtokens.documentation.TaigaDocsService
+import org.taigaui.designtokens.documentation.TaigaDocsSources
+import org.taigaui.designtokens.migration.TaigaMigrationRunner
+import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.Callable
@@ -165,6 +176,280 @@ class TaigaDiscoveryToolsetTest : HeavyPlatformTestCase() {
         val stale = apply.callInProject(applyArgs)
         assertTrue(stale.isError)
         assertTrue(stale.toString().contains("Preview the folder again"))
+    }
+
+    fun testTokenSearchResolutionAndColorMatching() {
+        val root = getOrCreateProjectBaseDir()
+        PsiTestUtil.addContentRoot(module, root)
+        val path = root.toNioPath()
+        val tokens = Files.createDirectories(path.resolve("node_modules/@taiga-ui/design-tokens"))
+        Files.writeString(tokens.resolve("package.json"), """{"name":"@taiga-ui/design-tokens","version":"0.310.0"}""")
+        Files.writeString(tokens.resolve("tokens.css"), ":root { --tui-fixture-white: #fff; }")
+        Files.writeString(path.resolve("card.css"), ".card { color: #fff; }")
+        root.refresh(false, true)
+
+        val search = tool("taiga_ui_search_tokens")
+        val searchArgs =
+            buildJsonObject {
+                put("source", "card.css")
+                put("query", "FIXTURE-WHITE")
+                put("limit", 1)
+            }
+        val found = search.callInProject(searchArgs).successData()
+        val match = found["matches"]?.jsonArray?.single()?.jsonObject
+        assertEquals("1", found["total"]?.jsonPrimitive?.content)
+        assertEquals("--tui-fixture-white", match?.get("name")?.jsonPrimitive?.content)
+        assertEquals("false", match?.get("deprecated")?.jsonPrimitive?.content)
+
+        for (limit in listOf(0, 51)) {
+            val invalid =
+                buildJsonObject {
+                    put("source", "card.css")
+                    put("query", "white")
+                    put("limit", limit)
+                }
+            assertTrue(search.callInProject(invalid).isError)
+        }
+
+        val resolve = tool("taiga_ui_resolve_token")
+        val resolved =
+            resolve
+                .callInProject(
+                    buildJsonObject {
+                        put("source", "card.css")
+                        put("name", "--tui-fixture-white")
+                    },
+                ).successData()
+        assertEquals(match, resolved["token"]?.jsonObject)
+        assertTrue(requireNotNull(resolved["sections"]).jsonArray.isNotEmpty())
+        val missing =
+            resolve.callInProject(
+                buildJsonObject {
+                    put("source", "card.css")
+                    put("name", "--tui-fixture-missing")
+                },
+            )
+        assertTrue(missing.isError)
+
+        val color = tool("taiga_ui_match_color")
+        val matches =
+            color
+                .callInProject(
+                    buildJsonObject {
+                        put("source", "card.css")
+                        put("color", " #ffffff ")
+                    },
+                ).successData()
+        val matchedColor = matches["matches"]?.jsonArray?.single()
+        assertEquals("--tui-fixture-white", matchedColor?.jsonPrimitive?.content)
+        assertEquals("false", matches["ambiguous"]?.jsonPrimitive?.content)
+        for ((source, literal) in listOf("." to "#fff", "card.css" to "not-a-color")) {
+            val invalid =
+                color.callInProject(
+                    buildJsonObject {
+                        put("source", source)
+                        put("color", literal)
+                    },
+                )
+            assertTrue(invalid.isError)
+        }
+    }
+
+    fun testApiToolsReadCachedDocumentationForTheSelectedApp() {
+        val root = getOrCreateProjectBaseDir()
+        PsiTestUtil.addContentRoot(module, root)
+        writeApp(root.toNioPath(), "5.34.1", "search")
+        val source = requireNotNull(TaigaDocsSources.forMajor(5))
+        val cache = TaigaDocsCache()
+        val original = cache.read(source)
+        val service = project.service<TaigaDocsService>()
+
+        try {
+            assertTrue(
+                cache.write(
+                    source,
+                    """
+                    # components/Input
+                    - **Package**: CORE
+
+                    Input description.
+
+                    ### API - Inputs
+                    | Property | Type | Description |
+                    | --- | --- | --- |
+                    | value | string | Current value |
+
+                    ### API - Outputs
+                    | Property | Type | Description |
+                    | --- | --- | --- |
+                    | valueChange | string | Changed value |
+                    """.trimIndent(),
+                ),
+            )
+            service.clearMemory()
+
+            val search =
+                tool("taiga_ui_search_api")
+                    .callInProject(
+                        buildJsonObject {
+                            put("source", ".")
+                            put("query", "Input")
+                        },
+                    ).successData()
+            assertEquals("5.34.1", search["installedVersion"]?.jsonPrimitive?.content)
+            val entry = requireNotNull(search["matches"]?.jsonArray?.single()?.jsonObject)
+            val section = requireNotNull(entry["sectionId"]?.jsonPrimitive?.content)
+            assertEquals("Input", entry["title"]?.jsonPrimitive?.content)
+
+            val read = tool("taiga_ui_read_api")
+            val data =
+                read
+                    .callInProject(
+                        buildJsonObject {
+                            put("source", ".")
+                            put("sectionId", section)
+                        },
+                    ).successData()
+            assertEquals("Input description.", data["description"]?.jsonPrimitive?.content)
+            val input = data["documentedInputs"]?.jsonArray?.single()?.jsonObject
+            val output = data["documentedOutputs"]?.jsonArray?.single()?.jsonObject
+            assertEquals("value", input?.get("name")?.jsonPrimitive?.content)
+            assertEquals("valueChange", output?.get("name")?.jsonPrimitive?.content)
+            assertEquals("string", input?.get("type")?.jsonPrimitive?.content)
+
+            val missing =
+                read.callInProject(
+                    buildJsonObject {
+                        put("source", ".")
+                        put("sectionId", "components/missing")
+                    },
+                )
+            assertTrue(missing.isError)
+        } finally {
+            service.clearMemory()
+            if (original == null) {
+                cache.invalidate(source)
+            } else {
+                cache.write(source, original)
+            }
+        }
+    }
+
+    fun testSourceValidationAndApiLocations() {
+        val root = getOrCreateProjectBaseDir()
+        PsiTestUtil.addContentRoot(module, root)
+        val path = root.toNioPath()
+        Files.writeString(path.resolve("plain.ts"), "export const value = 1;")
+        root.refresh(false, true)
+
+        val inspect = tool("taiga_ui_inspect_project")
+        for (source in listOf("", path.toString(), "missing.ts", "../outside")) {
+            assertTrue(inspect.callInProject(buildJsonObject { put("source", source) }).isError)
+        }
+
+        val api = tool("taiga_ui_api_at")
+        for ((line, column) in listOf(0 to 1, 1 to 0, 1 to 100, 1 to 1)) {
+            val result =
+                api.callInProject(
+                    buildJsonObject {
+                        put("source", "plain.ts")
+                        put("line", line)
+                        put("column", column)
+                    },
+                )
+            assertTrue(result.isError)
+        }
+    }
+
+    fun testFolderColorPreviewForAnEmptyDirectoryHasNoChanges() {
+        val root = getOrCreateProjectBaseDir()
+        PsiTestUtil.addContentRoot(module, root)
+        Files.createDirectories(root.toNioPath().resolve("empty"))
+        root.refresh(false, true)
+
+        val preview =
+            tool("taiga_ui_preview_folder_colors")
+                .callInProject(buildJsonObject { put("directory", "empty") })
+                .successData()
+        assertEquals("0", preview["totalFiles"]?.jsonPrimitive?.content)
+        assertTrue(requireNotNull(preview["files"]).jsonArray.isEmpty())
+
+        val result =
+            tool("taiga_ui_apply_folder_colors")
+                .callInProject(
+                    buildJsonObject {
+                        put("directory", "empty")
+                        put("revision", requireNotNull(preview["revision"]?.jsonPrimitive?.content))
+                    },
+                ).successData()
+        assertEquals("no_changes", result["status"]?.jsonPrimitive?.content)
+    }
+
+    fun testRemConversionValidatesDecimalInput() {
+        val convert = tool("taiga_ui_convert_rem")
+        for ((rem, css) in listOf("-0.5" to "-8px", ".25" to "4px", "0" to "0px")) {
+            val result = convert.callInProject(buildJsonObject { put("rem", rem) }).successData()
+            assertEquals(css, result["css"]?.jsonPrimitive?.content)
+        }
+
+        for (rem in listOf("", "1px", "NaN", "1".repeat(41))) {
+            assertTrue(convert.callInProject(buildJsonObject { put("rem", rem) }).isError)
+        }
+    }
+
+    fun testMigrationRunnerReturnsFailuresAndReleasesItsLock() {
+        val runner = project.service<TaigaMigrationRunner>()
+        val failures =
+            listOf(
+                IllegalStateException("Invalid migration"),
+                IOException("Unreadable plan"),
+                ExecutionException("Cannot start CLI"),
+            )
+
+        runBlocking {
+            for (failure in failures) {
+                val result = runner.runConfirmedPlan("revision") { throw failure }
+
+                assertEquals("failed", result.status)
+                assertEquals(failure.message, result.message)
+            }
+        }
+    }
+
+    fun testMigrationRunnerReturnsCancelledForAnAbortedPlan() {
+        val runner = project.service<TaigaMigrationRunner>()
+        val result =
+            runBlocking {
+                runner.runConfirmedPlan("revision") { throw CancellationException("Cancelled") }
+            }
+
+        assertEquals("cancelled", result.status)
+    }
+
+    fun testMigrationRunnerRejectsConcurrentRequests() {
+        val runner = project.service<TaigaMigrationRunner>()
+
+        runBlocking {
+            val entered = CompletableDeferred<Unit>()
+            val release = CompletableDeferred<Unit>()
+            val running =
+                async {
+                    runner.runConfirmedPlan("revision") {
+                        entered.complete(Unit)
+                        release.await()
+                        error("Stopped")
+                    }
+                }
+
+            try {
+                withTimeout(5_000) { entered.await() }
+                val busy = runner.runConfirmedPlan("revision") { error("Must not prepare a second migration") }
+                assertEquals("busy", busy.status)
+            } finally {
+                release.complete(Unit)
+            }
+            assertEquals("failed", running.await().status)
+        }
     }
 
     private fun withRevision(preview: JsonObject): JsonObject =

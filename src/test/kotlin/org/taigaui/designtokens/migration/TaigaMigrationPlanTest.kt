@@ -2,7 +2,9 @@ package org.taigaui.designtokens.migration
 
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -189,6 +191,102 @@ class TaigaMigrationPlanTest {
         assertEquals("done", result.output.takeLast(4))
         assertEquals(true, result.outputTruncated)
         assertEquals(7, result.exitCode)
+    }
+
+    @Test
+    fun stopsNxMigrationWhenTheCliDoesNotGenerateAPlan() {
+        val root = workspace(temporaryFolder.root.toPath(), TaigaMigrationCli.NX)
+        val plan = prepareTaigaMigration(root, root)
+        val commands = mutableListOf<List<String>>()
+
+        val failure =
+            assertThrows(IllegalStateException::class.java) {
+                runBlocking { plan.run { commands.add(it) } }
+            }
+
+        assertEquals(listOf(TaigaMigrationCli.NX.updateArguments), commands)
+        assertTrue(requireNotNull(failure.message).contains("did not generate migrations.json"))
+    }
+
+    @Test
+    fun rejectsSuccessfulCliExitWithoutInstallingV5() {
+        val root = workspace(temporaryFolder.root.toPath(), TaigaMigrationCli.ANGULAR)
+        val plan = prepareTaigaMigration(root, root)
+        val failure =
+            assertThrows(IllegalStateException::class.java) {
+                runBlocking { plan.run {} }
+            }
+
+        assertTrue(requireNotNull(failure.message).contains("does not have Taiga UI CDK v5 installed"))
+    }
+
+    @Test
+    fun rejectsFoldersOutsideTheProjectAndMissingWorkspaceDependencies() {
+        val root = workspace(temporaryFolder.newFolder("project").toPath(), TaigaMigrationCli.ANGULAR)
+        val outside = temporaryFolder.newFolder("outside").toPath()
+
+        assertThrows(IllegalStateException::class.java) { resolveTaigaMigrationWorkspace(outside, root) }
+
+        val file = Files.writeString(root.resolve("source.ts"), "")
+        assertThrows(IllegalStateException::class.java) { resolveTaigaMigrationWorkspace(file, root) }
+
+        Files.delete(root.resolve("node_modules").resolve(TaigaMigrationCli.ANGULAR.script))
+        assertThrows(IllegalStateException::class.java) { resolveTaigaMigrationWorkspace(root, root) }
+
+        Files.delete(root.resolve("angular.json"))
+        assertThrows(IllegalStateException::class.java) { resolveTaigaMigrationWorkspace(root, root) }
+    }
+
+    @Test
+    fun bindsNewMigrationRevisionToManifestAndInstalledCdk() {
+        val root = workspace(temporaryFolder.root.toPath(), TaigaMigrationCli.ANGULAR)
+        val first = prepareNewTaigaMigration(root, root)
+        val prepared = PreparedMigration(first.workspace, newRevision = first.revision)
+
+        prepared.requireRevision(first.revision)
+        write(root.resolve("package.json"), """{"name":"changed"}""")
+        val second = prepareNewTaigaMigration(root, root)
+        assertThrows(IllegalStateException::class.java) { prepared.requireRevision(second.revision) }
+
+        installCdk(root, "4.70.0")
+        val third = prepareNewTaigaMigration(root, root)
+        assertNotEquals(second.revision, third.revision)
+    }
+
+    @Test
+    fun preservesExactOutputLimitAndReplacesTheTailWithLargerChunks() {
+        val output = MigrationOutput()
+        val exact = "x".repeat(16_000)
+
+        output.append(exact)
+        assertEquals(TaigaMigrationResult("success", null, 0, exact), output.result("success", null, 0))
+
+        val replacement = "y".repeat(16_000)
+        output.append(replacement)
+        assertEquals(TaigaMigrationResult("failed", null, 1, replacement, true), output.result("failed", null, 1))
+
+        val oversized = MigrationOutput()
+        oversized.append("discard" + exact)
+        assertEquals(TaigaMigrationResult("failed", null, 1, exact, true), oversized.result("failed", null, 1))
+    }
+
+    @Test
+    fun rejectsInvalidExistingMigrationEntryFields() {
+        val root = workspace(temporaryFolder.root.toPath(), TaigaMigrationCli.NX)
+        val file = root.resolve("migrations.json")
+
+        for (content in listOf(
+            "[]",
+            "{}",
+            """{"migrations":{}}""",
+            """{"migrations":[{}]}""",
+            """{"migrations":[{"package":123,"name":"updateToV5"}]}""",
+            """{"migrations":[{"package":"@taiga-ui/cdk","name":" ","version":"5.0.0"}]}""",
+            """{"migrations":[{"package":"@taiga-ui/cdk","name":"updateToV5","version":5}]}""",
+        )) {
+            write(file, content)
+            assertThrows(IllegalStateException::class.java) { prepareExistingNxMigration(root, root) }
+        }
     }
 
     private fun workspace(
