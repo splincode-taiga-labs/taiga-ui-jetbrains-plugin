@@ -226,6 +226,47 @@ class TaigaQuickDocumentationMouseHoverTest : TaigaQuickDocumentationControllerT
         }
     }
 
+    fun testSwitchingVisibleHoverTargetsReusesThePopup() {
+        configure("<button tuiButton size=\"m\" [enabled]=\"true\">Save</button>", "size")
+        val settings = EditorSettingsExternalizable.getInstance()
+        val previous = settings.isShowQuickDocOnMouseOverElement
+
+        try {
+            settings.isShowQuickDocOnMouseOverElement = true
+            controller.mouseMoved(mouseMoveOver("size"))
+            await("first member documentation") { panelOrNull() != null }
+            val first = panel()
+            val popup = documentationField<JBPopup>(controller, "popup")
+            val visible = documentationPopupWithGeometry(popup, Dimension(380, 240), Point(100, 100))
+            controller.javaClass
+                .getDeclaredField("popup")
+                .apply { isAccessible = true }
+                .set(controller, visible)
+
+            controller.mouseMoved(mouseMoveOver("enabled"))
+            assertSame(first, panel())
+            await("second member documentation") { panelOrNull()?.let { it !== first } == true }
+
+            assertSame(visible, documentationField<JBPopup>(controller, "popup"))
+            assertEquals("enabled", (view().resolved as TaigaResolvedDocumentation.Member).property.name)
+            assertEquals(1, shown.size)
+        } finally {
+            controller.dismissHover(force = true)
+            settings.isShowQuickDocOnMouseOverElement = previous
+        }
+    }
+
+    fun testPinnedCardIgnoresMouseMovementOverAnotherMember() {
+        open("<button tuiButton size=\"m\" [enabled]=\"true\">Save</button>", "size")
+        requireNotNull(actions().togglePin).invoke()
+        val pinned = panel()
+
+        controller.mouseMoved(mouseMoveOver("enabled"))
+
+        assertSame(pinned, panel())
+        assertEquals("size", (view().resolved as TaigaResolvedDocumentation.Member).property.name)
+    }
+
     private fun mouseMoveOver(
         needle: String,
         middle: Boolean = true,

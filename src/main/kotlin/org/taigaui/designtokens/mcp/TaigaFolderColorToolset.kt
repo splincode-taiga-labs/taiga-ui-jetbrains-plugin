@@ -81,11 +81,12 @@ private suspend fun scanFolderColors(
     }
 }
 
-private suspend fun confirmAndApply(
+internal suspend fun confirmAndApply(
     project: Project,
     replacement: FolderColorReplacement,
+    confirm: () -> Boolean = { FolderColorPreviewDialog(project, replacement.previews).showAndGet() },
 ) = withContext(Dispatchers.EDT) {
-    if (project.isDisposed || !FolderColorPreviewDialog(project, replacement.previews).showAndGet()) {
+    if (project.isDisposed || !confirm()) {
         return@withContext folderColorResult("cancelled", "The folder colors were not changed.")
     }
     currentCoroutineContext().ensureActive()

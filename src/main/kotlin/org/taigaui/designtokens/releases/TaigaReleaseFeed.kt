@@ -24,7 +24,7 @@ internal class TaigaReleaseFeed {
 
     suspend fun latestFor(
         major: Int,
-        fetch: () -> Map<Int, TaigaReleaseVersion> = ::fetchStableReleases,
+        fetch: () -> Map<Int, TaigaReleaseVersion> = { fetchStableReleases() },
         clock: TimeSource = TimeSource.Monotonic,
     ): TaigaReleaseVersion? =
         mutex.withLock {
@@ -41,10 +41,12 @@ internal class TaigaReleaseFeed {
 
 internal val RELEASE_CHECK_INTERVAL = 6.hours
 
-private fun fetchStableReleases(): Map<Int, TaigaReleaseVersion> =
+internal fun fetchStableReleases(
+    url: String = "https://api.github.com/repos/taiga-family/taiga-ui/releases?per_page=100",
+): Map<Int, TaigaReleaseVersion> =
     try {
         HttpRequests
-            .request("https://api.github.com/repos/taiga-family/taiga-ui/releases?per_page=100")
+            .request(url)
             .productNameAsUserAgent()
             .accept("application/vnd.github+json")
             .connectTimeout(3_000)

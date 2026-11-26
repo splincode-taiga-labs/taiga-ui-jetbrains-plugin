@@ -11,6 +11,7 @@ import com.intellij.mcpserver.impl.ReflectionToolsProvider
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.components.service
 import com.intellij.openapi.fileEditor.FileDocumentManager
+import com.intellij.openapi.progress.EmptyProgressIndicator
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.testFramework.HeavyPlatformTestCase
 import com.intellij.testFramework.PlatformTestUtil
@@ -27,6 +28,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import org.taigaui.designtokens.completion.FolderColorReplacement
 import org.taigaui.designtokens.documentation.TaigaDocsCache
 import org.taigaui.designtokens.documentation.TaigaDocsService
 import org.taigaui.designtokens.documentation.TaigaDocsSources
@@ -533,6 +535,44 @@ class TaigaDiscoveryToolsetTest : HeavyPlatformTestCase() {
         assertTrue(search.isError)
         assertTrue(search.toString().contains("documentation is unavailable"))
     }
+
+    fun testFolderColorApprovalAppliesOnlyAfterConfirmation() {
+        val root = getOrCreateProjectBaseDir()
+        PsiTestUtil.addContentRoot(module, root)
+        val path = root.toNioPath()
+        val tokens = Files.createDirectories(path.resolve("node_modules/@taiga-ui/design-tokens"))
+        Files.writeString(tokens.resolve("package.json"), """{"name":"@taiga-ui/design-tokens","version":"0.310.0"}""")
+        Files.writeString(tokens.resolve("tokens.css"), ":root { --tui-white: #fff; }")
+        val css = Files.writeString(path.resolve("card.css"), ".card { color: #fff; }")
+        root.refresh(false, true)
+        val file = requireNotNull(LocalFileSystem.getInstance().findFileByNioFile(css))
+        val document = requireNotNull(FileDocumentManager.getInstance().getDocument(file))
+        val replacement =
+            PlatformTestUtil.waitForFuture(
+                AppExecutorUtil.getAppExecutorService().submit(
+                    Callable { FolderColorReplacement.scan(project, root, EmptyProgressIndicator()) },
+                ),
+            )
+        assertEquals(1, replacement.previews.size)
+
+        val cancelled = approveFolderColors(replacement, false)
+        assertEquals("cancelled", cancelled["status"]?.jsonPrimitive?.content)
+        assertEquals(".card { color: #fff; }", document.text)
+
+        val applied = approveFolderColors(replacement, true)
+        assertEquals("applied", applied["status"]?.jsonPrimitive?.content)
+        assertEquals(".card { color: var(--tui-white); }", document.text)
+    }
+
+    private fun approveFolderColors(
+        replacement: FolderColorReplacement,
+        approved: Boolean,
+    ): JsonObject =
+        PlatformTestUtil.waitForFuture(
+            AppExecutorUtil.getAppExecutorService().submit(
+                Callable { runBlocking { confirmAndApply(project, replacement) { approved } } },
+            ),
+        )
 
     private fun withRevision(preview: JsonObject): JsonObject =
         buildJsonObject {
