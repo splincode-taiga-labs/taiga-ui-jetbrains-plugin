@@ -555,14 +555,24 @@ class TaigaDiscoveryToolsetTest : HeavyPlatformTestCase() {
             )
         assertEquals(1, replacement.previews.size)
 
-        val cancelled = runBlocking { confirmAndApply(project, replacement) { false } }
+        val cancelled = approveFolderColors(replacement, false)
         assertEquals("cancelled", cancelled["status"]?.jsonPrimitive?.content)
         assertEquals(".card { color: #fff; }", document.text)
 
-        val applied = runBlocking { confirmAndApply(project, replacement) { true } }
+        val applied = approveFolderColors(replacement, true)
         assertEquals("applied", applied["status"]?.jsonPrimitive?.content)
         assertEquals(".card { color: var(--tui-white); }", document.text)
     }
+
+    private fun approveFolderColors(
+        replacement: FolderColorReplacement,
+        approved: Boolean,
+    ): JsonObject =
+        PlatformTestUtil.waitForFuture(
+            AppExecutorUtil.getAppExecutorService().submit(
+                Callable { runBlocking { confirmAndApply(project, replacement) { approved } } },
+            ),
+        )
 
     private fun withRevision(preview: JsonObject): JsonObject =
         buildJsonObject {
