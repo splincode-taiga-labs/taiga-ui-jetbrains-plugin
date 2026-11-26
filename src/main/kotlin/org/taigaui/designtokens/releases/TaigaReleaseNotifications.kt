@@ -91,9 +91,10 @@ internal class TaigaReleaseNotifications(
         return file?.takeIf { it.isInLocalFileSystem }?.path?.let(Path::of) ?: project.basePath?.let(Path::of)
     }
 
-    private fun showRelease(
+    internal fun showRelease(
         installed: TaigaReleaseVersion,
         available: TaigaReleaseVersion,
+        notify: (Notification) -> Unit = { it.notify(project) },
     ) {
         val properties = PropertiesComponent.getInstance(project)
         val key = "org.taigaui.designtokens.lastNotifiedRelease.${available.major}"
@@ -113,7 +114,7 @@ internal class TaigaReleaseNotifications(
                     BrowserUtil.browse(available.url)
                 },
             )
-            notification.notify(project)
+            notify(notification)
             properties.setValue(key, available.tag)
         }
     }
