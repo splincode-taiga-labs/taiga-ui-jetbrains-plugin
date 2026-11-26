@@ -24,7 +24,8 @@ class TaigaMigrationActionTest : HeavyPlatformTestCase() {
 
         for (action in listOf(RunTaigaMigrationAction(), RunExistingNxMigrationAction())) {
             assertEquals(ActionUpdateThread.BGT, action.getActionUpdateThread())
-            val invalid = listOf(event(action, null, root), event(action, project, null), event(action, project, source))
+            val invalid =
+                listOf(event(action, null, root), event(action, project, null), event(action, project, source))
             for (event in invalid) {
                 action.update(event)
                 assertFalse(event.presentation.isEnabledAndVisible)
@@ -58,7 +59,8 @@ class TaigaMigrationActionTest : HeavyPlatformTestCase() {
         action.update(event)
         assertFalse(event.presentation.isEnabledAndVisible)
 
-        Files.writeString(plan, """{"migrations":[{"package":"@taiga-ui/cdk","name":"updateToV5","version":"5.0.0"}]}""")
+        val content = """{"migrations":[{"package":"@taiga-ui/cdk","name":"updateToV5","version":"5.0.0"}]}"""
+        Files.writeString(plan, content)
         action.update(event)
         assertTrue(event.presentation.isEnabledAndVisible)
     }
