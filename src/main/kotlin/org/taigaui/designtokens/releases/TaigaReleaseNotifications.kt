@@ -68,7 +68,10 @@ internal class TaigaReleaseNotifications(
         changes.trySend(Unit)
     }
 
-    private suspend fun checkRelease() {
+    internal suspend fun checkRelease(
+        latestFor: suspend (Int) -> TaigaReleaseVersion? = { service<TaigaReleaseFeed>().latestFor(it) },
+        notify: (Notification) -> Unit = { it.notify(project) },
+    ) {
         val source = withContext(Dispatchers.EDT) { selectedSource() }
         val installed =
             source
@@ -76,11 +79,11 @@ internal class TaigaReleaseNotifications(
                 ?.reference
                 ?.version
                 ?.let(TaigaReleaseVersion::parse) ?: return
-        val available = service<TaigaReleaseFeed>().latestFor(installed.major) ?: return
+        val available = latestFor(installed.major) ?: return
 
         withContext(Dispatchers.EDT) {
             if (!project.isDisposed && source == selectedSource()) {
-                showRelease(installed, available)
+                showRelease(installed, available, notify)
             }
         }
     }
