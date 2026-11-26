@@ -1,5 +1,6 @@
 package org.taigaui.designtokens.mcp
 
+import com.intellij.execution.ExecutionException
 import com.intellij.mcpserver.ClientInfo
 import com.intellij.mcpserver.McpCallAdditionalDataElement
 import com.intellij.mcpserver.McpCallInfo
@@ -15,7 +16,11 @@ import com.intellij.testFramework.HeavyPlatformTestCase
 import com.intellij.testFramework.PlatformTestUtil
 import com.intellij.testFramework.PsiTestUtil
 import com.intellij.util.concurrency.AppExecutorUtil
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
@@ -25,6 +30,8 @@ import kotlinx.serialization.json.put
 import org.taigaui.designtokens.documentation.TaigaDocsCache
 import org.taigaui.designtokens.documentation.TaigaDocsService
 import org.taigaui.designtokens.documentation.TaigaDocsSources
+import org.taigaui.designtokens.migration.TaigaMigrationRunner
+import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.Callable
@@ -387,6 +394,51 @@ class TaigaDiscoveryToolsetTest : HeavyPlatformTestCase() {
 
         for (rem in listOf("", "1px", "NaN", "1".repeat(41))) {
             assertTrue(convert.callInProject(buildJsonObject { put("rem", rem) }).isError)
+        }
+    }
+
+    fun testMigrationRunnerReturnsFailuresAndReleasesItsLock() {
+        val runner = project.service<TaigaMigrationRunner>()
+
+        val results =
+            runBlocking {
+                listOf(
+                    runner.runConfirmedPlan("revision") { error("Invalid migration") },
+                    runner.runConfirmedPlan("revision") { throw IOException("Unreadable plan") },
+                    runner.runConfirmedPlan("revision") { throw ExecutionException("Cannot start CLI") },
+                    runner.runConfirmedPlan("revision") { throw CancellationException("Cancelled") },
+                )
+            }
+
+        assertEquals(listOf("failed", "failed", "failed", "cancelled"), results.map { it.status })
+        assertEquals("Invalid migration", results[0].message)
+        assertEquals("Unreadable plan", results[1].message)
+        assertEquals("Cannot start CLI", results[2].message)
+    }
+
+    fun testMigrationRunnerRejectsConcurrentRequests() {
+        val runner = project.service<TaigaMigrationRunner>()
+
+        runBlocking {
+            val entered = CompletableDeferred<Unit>()
+            val release = CompletableDeferred<Unit>()
+            val running =
+                async {
+                    runner.runConfirmedPlan("revision") {
+                        entered.complete(Unit)
+                        release.await()
+                        error("Stopped")
+                    }
+                }
+
+            try {
+                withTimeout(5_000) { entered.await() }
+                val busy = runner.runConfirmedPlan("revision") { error("Must not prepare a second migration") }
+                assertEquals("busy", busy.status)
+            } finally {
+                release.complete(Unit)
+            }
+            assertEquals("failed", running.await().status)
         }
     }
 
