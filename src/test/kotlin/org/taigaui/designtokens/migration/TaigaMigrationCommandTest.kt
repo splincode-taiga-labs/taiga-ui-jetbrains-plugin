@@ -7,7 +7,6 @@ import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import org.junit.Assert.assertThrows
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -46,7 +45,7 @@ class TaigaMigrationCommandTest : BasePlatformTestCase() {
     fun testNonZeroExitCodeIsReportedAsFailure() {
         withScript("process.exitCode = 7;") { plan ->
             val failure =
-                assertThrows(IllegalStateException::class.java) {
+                org.junit.Assert.assertThrows(IllegalStateException::class.java) {
                     runBlocking {
                         withContext(Dispatchers.IO) {
                             runMigrationCommand(node(), plan, listOf("update")) { _, _ -> }
