@@ -399,21 +399,31 @@ class TaigaDiscoveryToolsetTest : HeavyPlatformTestCase() {
 
     fun testMigrationRunnerReturnsFailuresAndReleasesItsLock() {
         val runner = project.service<TaigaMigrationRunner>()
+        val failures =
+            listOf(
+                IllegalStateException("Invalid migration"),
+                IOException("Unreadable plan"),
+                ExecutionException("Cannot start CLI"),
+            )
 
-        val results =
+        runBlocking {
+            for (failure in failures) {
+                val result = runner.runConfirmedPlan("revision") { throw failure }
+
+                assertEquals("failed", result.status)
+                assertEquals(failure.message, result.message)
+            }
+        }
+    }
+
+    fun testMigrationRunnerReturnsCancelledForAnAbortedPlan() {
+        val runner = project.service<TaigaMigrationRunner>()
+        val result =
             runBlocking {
-                listOf(
-                    runner.runConfirmedPlan("revision") { error("Invalid migration") },
-                    runner.runConfirmedPlan("revision") { throw IOException("Unreadable plan") },
-                    runner.runConfirmedPlan("revision") { throw ExecutionException("Cannot start CLI") },
-                    runner.runConfirmedPlan("revision") { throw CancellationException("Cancelled") },
-                )
+                runner.runConfirmedPlan("revision") { throw CancellationException("Cancelled") }
             }
 
-        assertEquals(listOf("failed", "failed", "failed", "cancelled"), results.map { it.status })
-        assertEquals("Invalid migration", results[0].message)
-        assertEquals("Unreadable plan", results[1].message)
-        assertEquals("Cannot start CLI", results[2].message)
+        assertEquals("cancelled", result.status)
     }
 
     fun testMigrationRunnerRejectsConcurrentRequests() {
