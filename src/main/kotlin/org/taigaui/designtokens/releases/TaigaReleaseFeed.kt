@@ -22,13 +22,17 @@ internal class TaigaReleaseFeed {
     private var checkedAt: TimeMark? = null
     private var latest = emptyMap<Int, TaigaReleaseVersion>()
 
-    suspend fun latestFor(major: Int): TaigaReleaseVersion? =
+    suspend fun latestFor(
+        major: Int,
+        fetch: () -> Map<Int, TaigaReleaseVersion> = ::fetchStableReleases,
+        clock: TimeSource = TimeSource.Monotonic,
+    ): TaigaReleaseVersion? =
         mutex.withLock {
             val interval = if (latest.isEmpty()) 15.minutes else RELEASE_CHECK_INTERVAL
 
             if (checkedAt?.elapsedNow()?.let { it < interval } != true) {
-                latest = runInterruptible(Dispatchers.IO) { fetchStableReleases() }
-                checkedAt = TimeSource.Monotonic.markNow()
+                latest = runInterruptible(Dispatchers.IO) { fetch() }
+                checkedAt = clock.markNow()
             }
 
             latest[major]
