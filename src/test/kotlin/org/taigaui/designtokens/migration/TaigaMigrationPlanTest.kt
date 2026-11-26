@@ -289,6 +289,41 @@ class TaigaMigrationPlanTest {
         }
     }
 
+    @Test
+    fun preparedMigrationRunsNewAngularPlan() =
+        runBlocking {
+            val root = workspace(temporaryFolder.root.toPath(), TaigaMigrationCli.ANGULAR)
+            val plan = prepareNewTaigaMigration(root, root)
+            val prepared = PreparedMigration(plan.workspace, newRevision = plan.revision)
+            val commands = mutableListOf<List<String>>()
+
+            prepared.run {
+                commands.add(it)
+                installCdk(root, "5.34.0")
+            }
+
+            assertEquals(listOf(TaigaMigrationCli.ANGULAR.updateArguments), commands)
+        }
+
+    @Test
+    fun preparedMigrationRunsOnlyTheExistingNxPlan() =
+        runBlocking {
+            val root = workspace(temporaryFolder.root.toPath(), TaigaMigrationCli.NX)
+            val content = """{"migrations":[{"package":"@taiga-ui/cdk","name":"updateToV5","version":"5.0.0"}]}"""
+            write(root.resolve("migrations.json"), content)
+            val plan = prepareExistingNxMigration(root, root)
+            val prepared = PreparedMigration(plan.workspace, existing = plan)
+            val commands = mutableListOf<List<String>>()
+
+            prepared.run {
+                commands.add(it)
+                installCdk(root, "5.34.0")
+            }
+
+            assertEquals(listOf(RUN_NX_MIGRATIONS), commands)
+            assertEquals(content, Files.readString(root.resolve("migrations.json")))
+        }
+
     private fun workspace(
         root: Path,
         cli: TaigaMigrationCli,

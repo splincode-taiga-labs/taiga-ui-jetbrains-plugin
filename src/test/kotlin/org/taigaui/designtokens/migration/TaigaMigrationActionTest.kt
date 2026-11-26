@@ -5,6 +5,8 @@ import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.actionSystem.DataContext
+import com.intellij.openapi.command.WriteCommandAction
+import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.testFramework.HeavyPlatformTestCase
@@ -63,6 +65,59 @@ class TaigaMigrationActionTest : HeavyPlatformTestCase() {
         Files.writeString(plan, content)
         action.update(event)
         assertTrue(event.presentation.isEnabledAndVisible)
+    }
+
+    fun testMigrationSavesWorkspaceDocumentsWithoutTouchingOtherFolders() {
+        val root = getOrCreateProjectBaseDir()
+        val path = root.toNioPath()
+        val workspace = Files.createDirectories(path.resolve("app"))
+        Files.writeString(workspace.resolve("source.ts"), "original")
+        Files.writeString(path.resolve("outside.ts"), "original")
+        root.refresh(false, true)
+        val manager = FileDocumentManager.getInstance()
+        val inside = requireNotNull(root.findFileByRelativePath("app/source.ts"))
+        val outside = requireNotNull(root.findChild("outside.ts"))
+        val insideDocument = requireNotNull(manager.getDocument(inside))
+        val outsideDocument = requireNotNull(manager.getDocument(outside))
+
+        WriteCommandAction.runWriteCommandAction(project) {
+            insideDocument.setText("changed")
+            outsideDocument.setText("changed")
+        }
+
+        try {
+            saveWorkspaceDocuments(workspace)
+            assertFalse(manager.isDocumentUnsaved(insideDocument))
+            assertTrue(manager.isDocumentUnsaved(outsideDocument))
+            assertEquals("changed", Files.readString(workspace.resolve("source.ts")))
+            assertEquals("original", Files.readString(path.resolve("outside.ts")))
+        } finally {
+            manager.saveDocument(outsideDocument)
+        }
+    }
+
+    fun testMigrationRejectsUnsavedMigrationPlan() {
+        val root = getOrCreateProjectBaseDir()
+        val path = root.toNioPath()
+        Files.writeString(path.resolve("migrations.json"), "{}")
+        root.refresh(false, true)
+        val manager = FileDocumentManager.getInstance()
+        val file = requireNotNull(root.findChild("migrations.json"))
+        val document = requireNotNull(manager.getDocument(file))
+
+        WriteCommandAction.runWriteCommandAction(project) { document.setText("""{"migrations":[]}""") }
+
+        try {
+            val failure =
+                org.junit.Assert.assertThrows(IllegalStateException::class.java) {
+                    saveWorkspaceDocuments(path)
+                }
+            assertTrue(requireNotNull(failure.message).contains("Save migrations.json"))
+            assertTrue(manager.isDocumentUnsaved(document))
+            assertEquals("{}", Files.readString(path.resolve("migrations.json")))
+        } finally {
+            manager.saveDocument(document)
+        }
     }
 
     private fun event(

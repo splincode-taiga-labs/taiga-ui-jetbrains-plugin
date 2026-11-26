@@ -287,7 +287,7 @@ private fun requireLocalNode(project: Project): File {
         ?: error("Select a local Node.js runtime in WebStorm or add Node.js to its PATH.")
 }
 
-private fun saveWorkspaceDocuments(root: Path) {
+internal fun saveWorkspaceDocuments(root: Path) {
     val manager = FileDocumentManager.getInstance()
 
     for (document in manager.unsavedDocuments) {
