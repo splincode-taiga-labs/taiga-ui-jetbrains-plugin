@@ -4,7 +4,10 @@ import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.event.EditorMouseEvent
 import com.intellij.openapi.editor.event.EditorMouseEventArea
 import com.intellij.openapi.editor.ex.EditorSettingsExternalizable
+import com.intellij.openapi.ui.popup.JBPopup
 import kotlinx.coroutines.Job
+import java.awt.Dimension
+import java.awt.Point
 import java.awt.event.MouseEvent
 
 class TaigaQuickDocumentationMouseHoverTest : TaigaQuickDocumentationControllerTestCase() {
@@ -188,6 +191,35 @@ class TaigaQuickDocumentationMouseHoverTest : TaigaQuickDocumentationControllerT
             assertNull(panelOrNull())
             assertNull(documentationField<Any?>(controller, "pendingKey"))
             assertTrue(shown.isEmpty())
+        } finally {
+            controller.dismissHover(force = true)
+            settings.isShowQuickDocOnMouseOverElement = previous
+        }
+    }
+
+    fun testLeavingVisibleHoverCardClearsItAfterTheGracePeriod() {
+        configure("<button tuiButton size=\"m\">Save</button>", "size")
+        val settings = EditorSettingsExternalizable.getInstance()
+        val previous = settings.isShowQuickDocOnMouseOverElement
+
+        try {
+            settings.isShowQuickDocOnMouseOverElement = true
+            controller.mouseMoved(mouseMoveOver("size"))
+            await("passive member documentation") { panelOrNull() != null }
+            val card = panel()
+            val popup = documentationField<JBPopup>(controller, "popup")
+            val visible = documentationPopupWithGeometry(popup, Dimension(380, 240), Point(100, 100))
+            controller.javaClass
+                .getDeclaredField("popup")
+                .apply { isAccessible = true }
+                .set(controller, visible)
+
+            controller.mouseExited(myFixture.editor)
+            assertNotNull(documentationField<Job?>(controller, "hideJob"))
+            assertSame(card, panel())
+            await("hover grace period") { panelOrNull() == null }
+            assertNull(documentationField<Any?>(controller, "currentRequest"))
+            assertNull(documentationField<Any?>(controller, "hideJob"))
         } finally {
             controller.dismissHover(force = true)
             settings.isShowQuickDocOnMouseOverElement = previous
