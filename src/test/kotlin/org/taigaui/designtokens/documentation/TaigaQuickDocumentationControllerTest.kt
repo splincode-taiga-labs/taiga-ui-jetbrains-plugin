@@ -10,9 +10,11 @@ import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.EditorFactory
 import com.intellij.openapi.editor.RangeMarker
 import com.intellij.openapi.fileEditor.FileDocumentManager
+import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.impl.text.TextEditorProvider
 import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.ui.popup.JBPopup
+import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.platform.backend.documentation.DocumentationTarget
 import com.intellij.platform.backend.documentation.impl.computeDocumentationBlocking
 import com.intellij.psi.PsiDocumentManager
@@ -453,6 +455,35 @@ class TaigaQuickDocumentationControllerTest : TaigaQuickDocumentationControllerT
 
         controller.dismissHover(myFixture.editor, force = true)
         assertNull(panelOrNull())
+    }
+
+    fun testUnpinningAfterDocumentChangeDismissesStaleCard() {
+        open("<button tuiButton size=\"m\">Save</button>", "size")
+        button("Pin").doClick()
+        val unpin = requireNotNull(actions().togglePin)
+
+        WriteCommandAction.runWriteCommandAction(project) {
+            myFixture.editor.document.insertString(0, "<!-- changed -->")
+        }
+        PsiDocumentManager.getInstance(project).commitAllDocuments()
+        unpin.invoke()
+
+        assertNull(panelOrNull())
+        assertNull(documentationField<Any?>(controller, "currentRequest"))
+        assertFalse(documentationField<Boolean>(controller, "pinned"))
+    }
+
+    fun testSourceActionClosesCardAndNavigatesToInstalledDeclaration() {
+        open("<button tuiButton size=\"m\">Save</button>", "tuiButton")
+        val source = requireNotNull(view().resolved.source)
+        val file = requireNotNull(LocalFileSystem.getInstance().findFileByNioFile(source.file))
+
+        requireNotNull(actions().navigateToSource).invoke()
+
+        assertNull(panelOrNull())
+        await("installed declaration navigation") {
+            FileEditorManager.getInstance(project).selectedFiles.contains(file)
+        }
     }
 
     private fun statusPanel(): TaigaDocumentationStatusPanel = documentationField(status(), "panel")
