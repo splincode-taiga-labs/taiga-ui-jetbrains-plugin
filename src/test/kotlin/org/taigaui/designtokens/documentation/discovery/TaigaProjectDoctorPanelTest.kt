@@ -3,6 +3,7 @@ package org.taigaui.designtokens.documentation.discovery
 import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.testFramework.DumbModeTestUtils
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.ui.components.ActionLink
 import com.intellij.ui.components.JBLabel
@@ -176,6 +177,34 @@ class TaigaProjectDoctorPanelTest : BasePlatformTestCase() {
                 summary(panel) == "Open a file in an application with Taiga UI 5 installed."
             }
             assertTrue(migration.isEnabled)
+        } finally {
+            workspace.toFile().deleteRecursively()
+        }
+    }
+
+    fun testAnalysisDuringIndexingDoesNotStartAndKeepsActionsEnabled() {
+        val workspace = Files.createTempDirectory("taiga-doctor-indexing")
+        val source = Files.writeString(workspace.resolve("component.ts"), "export class Example {}")
+
+        try {
+            install(workspace, "core", "5.18.0")
+            val panel = openPanel(source)
+            val analyze = button(panel, "Analyze App")
+            val migration = button(panel, "Analyze v4 to v5 Migration")
+
+            button(panel, "Reload").doClick()
+            await("Doctor actions") { analyze.isEnabled && migration.isEnabled }
+
+            DumbModeTestUtils.runInDumbModeSynchronously(project) {
+                analyze.doClick()
+                assertTrue(
+                    panel.descendants().filterIsInstance<JBLabel>().any {
+                        it.text == "Wait for WebStorm indexing before analyzing the application."
+                    },
+                )
+                assertTrue(analyze.isEnabled)
+                assertTrue(migration.isEnabled)
+            }
         } finally {
             workspace.toFile().deleteRecursively()
         }
