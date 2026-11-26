@@ -452,6 +452,67 @@ class TaigaDiscoveryToolsetTest : HeavyPlatformTestCase() {
         }
     }
 
+    fun testNxMigrationToolsInspectAndValidateTheSavedPlan() {
+        val root = getOrCreateProjectBaseDir()
+        PsiTestUtil.addContentRoot(module, root)
+        val path = root.toNioPath()
+        val cdk = Files.createDirectories(path.resolve("node_modules/@taiga-ui/cdk"))
+        val nx = Files.createDirectories(path.resolve("node_modules/nx/bin"))
+        Files.writeString(cdk.resolve("package.json"), """{"name":"@taiga-ui/cdk","version":"4.110.0"}""")
+        Files.writeString(nx.resolve("nx.js"), "")
+        Files.writeString(path.resolve("nx.json"), "{}")
+        Files.writeString(path.resolve("package.json"), "{}")
+        root.refresh(false, true)
+
+        val args = buildJsonObject { put("directory", ".") }
+        val preview = tool("taiga_ui_inspect_migration").callInProject(args).successData()
+        assertEquals("nx", preview["cli"]?.jsonPrimitive?.content)
+        assertEquals(
+            listOf("migrate", "--run-migrations=migrations.json"),
+            preview["runGeneratedPlanArguments"]?.jsonArray?.map { it.jsonPrimitive.content },
+        )
+
+        val inspect = tool("taiga_ui_inspect_nx_migration_plan")
+        assertTrue(inspect.callInProject(args).isError)
+        val plan = path.resolve("migrations.json")
+        val content = """{"migrations":[{"package":"@taiga-ui/cdk","name":"updateToV5","version":"5.0.0"}]}"""
+        Files.writeString(plan, content)
+        root.refresh(false, true)
+
+        val saved = inspect.callInProject(args).successData()
+        assertEquals(plan.toRealPath().toString(), saved["planPath"]?.jsonPrimitive?.content)
+        val step = saved["steps"]?.jsonArray?.single()?.jsonObject
+        assertEquals("@taiga-ui/cdk", step?.get("package")?.jsonPrimitive?.content)
+        assertEquals("updateToV5", step?.get("name")?.jsonPrimitive?.content)
+        assertEquals("5.0.0", step?.get("version")?.jsonPrimitive?.content)
+
+        val run = tool("taiga_ui_run_nx_migration_plan")
+        val runArgs = withRevision(saved)
+        val pending = run.callInProject(runArgs).successData()
+        assertEquals("confirmation_required", pending["status"]?.jsonPrimitive?.content)
+        assertEquals(content, Files.readString(plan))
+
+        Files.writeString(plan, "$content\n")
+        val stale = run.callInProject(runArgs)
+        assertTrue(stale.isError)
+        assertTrue(stale.toString().contains("Inspect the plan again"))
+        assertEquals("$content\n", Files.readString(plan))
+    }
+
+    fun testMigrationToolsRejectAFileInsteadOfADirectory() {
+        val root = getOrCreateProjectBaseDir()
+        PsiTestUtil.addContentRoot(module, root)
+        Files.writeString(root.toNioPath().resolve("source.ts"), "")
+        root.refresh(false, true)
+
+        val args = buildJsonObject { put("directory", "source.ts") }
+        for (name in listOf("taiga_ui_inspect_migration", "taiga_ui_inspect_nx_migration_plan")) {
+            val result = tool(name).callInProject(args)
+            assertTrue(result.isError)
+            assertTrue(result.toString().contains("Select a project directory"))
+        }
+    }
+
     private fun withRevision(preview: JsonObject): JsonObject =
         buildJsonObject {
             put("directory", ".")
