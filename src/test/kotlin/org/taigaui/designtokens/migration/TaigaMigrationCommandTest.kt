@@ -4,9 +4,13 @@ import com.intellij.execution.configurations.PathEnvironmentVariableUtil
 import com.intellij.execution.process.ProcessOutputTypes
 import com.intellij.openapi.util.Key
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -54,6 +58,36 @@ class TaigaMigrationCommandTest : BasePlatformTestCase() {
                 }
 
             assertEquals("ng update failed (exit code 7).", failure.message)
+        }
+    }
+
+    fun testCancellingMigrationTerminatesTheRunningProcess() {
+        withScript(
+            """
+            console.log(process.pid);
+            setInterval(() => {}, 1000);
+            """.trimIndent(),
+        ) { plan ->
+            runBlocking {
+                val pid = CompletableDeferred<Long>()
+                val process =
+                    launch(Dispatchers.IO) {
+                        runMigrationCommand(node(), plan, listOf("update")) { text, key ->
+                            if (key == ProcessOutputTypes.STDOUT) {
+                                text.trim().toLongOrNull()?.let { pid.complete(it) }
+                            }
+                        }
+                    }
+
+                try {
+                    val handle = withTimeout(10_000) { ProcessHandle.of(pid.await()).orElseThrow() }
+                    assertTrue(handle.isAlive)
+                    process.cancelAndJoin()
+                    assertFalse(handle.isAlive)
+                } finally {
+                    process.cancelAndJoin()
+                }
+            }
         }
     }
 
