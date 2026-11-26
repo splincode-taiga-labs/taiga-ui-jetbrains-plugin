@@ -45,12 +45,12 @@ class TaigaDoctorAnalysisPreparationTest : HeavyPlatformTestCase() {
         }
     }
 
-    fun testPreparesMigrationAnalysisOnlyForVersionFour() {
+    fun testPreparesMigrationAnalysisOnlyForVersionFive() {
         val root = getOrCreateProjectBaseDir()
         PsiTestUtil.addContentRoot(module, root)
         val path = root.toNioPath()
         val cdk = Files.createDirectories(path.resolve("node_modules/@taiga-ui/cdk"))
-        Files.writeString(cdk.resolve("package.json"), """{"name":"@taiga-ui/cdk","version":"4.110.0"}""")
+        Files.writeString(cdk.resolve("package.json"), """{"name":"@taiga-ui/cdk","version":"5.34.1"}""")
         Files.writeString(path.resolve("package.json"), "{}")
         Files.writeString(path.resolve("angular.json"), """{"projects":{"demo":{"root":""}}}""")
         root.refresh(false, true)
