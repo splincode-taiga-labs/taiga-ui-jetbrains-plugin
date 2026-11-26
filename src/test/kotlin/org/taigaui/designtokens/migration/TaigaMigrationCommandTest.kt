@@ -38,7 +38,8 @@ class TaigaMigrationCommandTest : BasePlatformTestCase() {
             assertTrue(stdout, stdout.contains(plan.root.toString()))
             assertTrue(stdout, stdout.contains("NO_COLOR=1"))
             assertTrue(stderr, stderr.contains("fixture stderr"))
-            assertTrue(output.any { it.first == "> ng update @taiga-ui/cdk@5\n" && it.second == ProcessOutputTypes.SYSTEM })
+            val command = "> ng update @taiga-ui/cdk@5\n"
+            assertTrue(output.any { it.first == command && it.second == ProcessOutputTypes.SYSTEM })
         }
     }
 
