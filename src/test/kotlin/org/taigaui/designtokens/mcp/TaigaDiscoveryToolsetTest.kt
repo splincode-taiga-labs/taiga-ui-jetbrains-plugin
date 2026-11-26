@@ -513,6 +513,27 @@ class TaigaDiscoveryToolsetTest : HeavyPlatformTestCase() {
         }
     }
 
+    fun testDocumentationAndReleaseToolsRejectWorkspaceWithoutTaigaUi() {
+        val root = getOrCreateProjectBaseDir()
+        PsiTestUtil.addContentRoot(module, root)
+        Files.writeString(root.toNioPath().resolve("package.json"), """{"name":"standalone"}""")
+        root.refresh(false, true)
+
+        val release = tool("taiga_ui_check_release").callInProject(buildJsonObject { put("source", ".") })
+        assertTrue(release.isError)
+        assertTrue(release.toString().contains("No installed Taiga UI release version"))
+
+        val search =
+            tool("taiga_ui_search_api").callInProject(
+                buildJsonObject {
+                    put("source", ".")
+                    put("query", "")
+                },
+            )
+        assertTrue(search.isError)
+        assertTrue(search.toString().contains("documentation is unavailable"))
+    }
+
     private fun withRevision(preview: JsonObject): JsonObject =
         buildJsonObject {
             put("directory", ".")

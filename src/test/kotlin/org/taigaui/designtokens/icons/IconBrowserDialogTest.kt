@@ -5,6 +5,7 @@ import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.ui.components.JBLabel
+import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.UIUtil
 import java.awt.BorderLayout
@@ -208,6 +209,40 @@ class IconBrowserDialogTest : BasePlatformTestCase() {
             assertFalse(completed.contains(name))
             assertNull(list.selectedValue)
             assertEquals("1 of 1 icons", status.text)
+        } finally {
+            dialog.close(1)
+        }
+    }
+
+    fun testVisibleGridLoadsLocalSvgPreviewsAndRetainsCompletedResults() {
+        val source = openEditorWithIcons()
+        val dialog = IconBrowserDialog(project, source)
+
+        try {
+            val list = field<JList<String>>(dialog, "list")
+            val scroll = field<JBScrollPane>(dialog, "scrollPane")
+            val previews = field<MutableMap<String, javax.swing.Icon>>(dialog, "previews")
+            val completed = field<MutableSet<String>>(dialog, "completedPreviews")
+
+            awaitUi { list.model.size == 2 }
+            scroll.parent.remove(scroll)
+            scroll.setSize(400, 300)
+            scroll.doLayout()
+            list.size = scroll.viewport.extentSize
+            list.doLayout()
+            assertEquals(0, list.firstVisibleIndex)
+            assertEquals(1, list.lastVisibleIndex)
+
+            val request = dialog.javaClass.getDeclaredMethod("requestVisiblePreviews")
+            request.isAccessible = true
+            request.invoke(dialog)
+            awaitUi { completed.size == 2 }
+            assertEquals(setOf("@tui.actions.arrow", "@tui.actions.check"), previews.keys)
+
+            val previous = previews.toMap()
+            request.invoke(dialog)
+            awaitUi { field<kotlinx.coroutines.Job>(dialog, "previewJob").isCompleted }
+            assertEquals(previous, previews)
         } finally {
             dialog.close(1)
         }
