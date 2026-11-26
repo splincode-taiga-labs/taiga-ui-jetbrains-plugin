@@ -47,5 +47,27 @@ class TaigaReleaseFeedTest {
         assertFalse(shouldShowRelease(version("5.35.0-rc.0"), version("v5.34.1"), null))
     }
 
+    @Test
+    fun ignoresNonCanonicalTagsAndInvalidReleaseMetadata() {
+        val json =
+            """
+            [
+                {"tag_name":"5.40.0","draft":false,"prerelease":false},
+                {"tag_name":"v5.40.0+build","draft":false,"prerelease":false},
+                {"tag_name":"v5.40.0","draft":"false","prerelease":false},
+                {"tag_name":"v5.40.0","draft":false,"prerelease":0},
+                {"tag_name":null,"draft":false,"prerelease":false},
+                {"tag_name":{},"draft":false,"prerelease":false},
+                {"draft":false,"prerelease":false},
+                {"tag_name":"v999999999999.0.0","draft":false,"prerelease":false},
+                {"tag_name":"v5.34.1","draft":false,"prerelease":false},
+                {"tag_name":"v5.33.0","draft":false,"prerelease":false}
+            ]
+            """.trimIndent()
+
+        assertEquals(mapOf(5 to version("5.34.1")), parseTaigaReleases(json))
+        assertEquals("https://github.com/taiga-family/taiga-ui/releases/tag/v5.34.1", version("5.34.1").url)
+    }
+
     private fun version(value: String): TaigaReleaseVersion = requireNotNull(TaigaReleaseVersion.parse(value))
 }
