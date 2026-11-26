@@ -13,8 +13,10 @@ import com.intellij.ui.components.JBTextField
 import com.intellij.ui.components.labels.LinkLabel
 import com.intellij.util.ui.JBUI
 import java.awt.event.ActionEvent
+import java.awt.image.BufferedImage
 import javax.swing.JButton
 import javax.swing.JComponent
+import javax.swing.JPanel
 import javax.swing.JTabbedPane
 import javax.swing.JViewport
 import javax.swing.KeyStroke
@@ -76,6 +78,33 @@ class TaigaQuickDocumentationPopupPanelTest : TaigaDocumentationPopupTestCase() 
         host.showCard(TaigaQuickDocumentationPopupPanel(directive(), compactHover = true))
         assertEquals(locked, host.preferredSize)
         host.stopTransition()
+    }
+
+    fun testVisibleHoverHostReplacesCardAndClearsTransitionOnRemoval() {
+        val initial = TaigaQuickDocumentationPopupPanel(directive(), compactHover = true)
+        val next = TaigaQuickDocumentationPopupPanel(component(), compactHover = true)
+        val host = TaigaDocumentationPopupHost(initial, stabilizesHoverSize = true)
+        val parent = JPanel().apply { add(host) }
+        parent.addNotify()
+        host.size = host.preferredSize
+        layoutDocumentation(host)
+
+        try {
+            assertTrue(host.isShowing)
+            host.showCard(next)
+            assertSame(next, host.card)
+            assertNotNull(documentationField<BufferedImage?>(host, "previousFrame"))
+            val image = BufferedImage(host.width, host.height, BufferedImage.TYPE_INT_ARGB)
+            val graphics = image.createGraphics()
+            try {
+                host.paint(graphics)
+            } finally {
+                graphics.dispose()
+            }
+        } finally {
+            parent.removeNotify()
+        }
+        assertNull(documentationField<BufferedImage?>(host, "previousFrame"))
     }
 
     fun testSizeHintDescriptionsDoNotGuessUnknownValues() {
