@@ -1,9 +1,14 @@
 package org.taigaui.designtokens.releases
 
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TestTimeSource
 
 class TaigaReleaseFeedTest {
     @Test
@@ -68,6 +73,52 @@ class TaigaReleaseFeedTest {
         assertEquals(mapOf(5 to version("5.34.1")), parseTaigaReleases(json))
         assertEquals("https://github.com/taiga-family/taiga-ui/releases/tag/v5.34.1", version("5.34.1").url)
     }
+
+    @Test
+    fun cachesStableReleasesAcrossMajorVersionsUntilTheRefreshInterval() =
+        runBlocking {
+            val feed = TaigaReleaseFeed()
+            val clock = TestTimeSource()
+            var requests = 0
+            val fetch = {
+                requests++
+                mapOf(4 to version("4.110.0"), 5 to version("5.34.$requests"))
+            }
+
+            assertEquals(version("5.34.1"), feed.latestFor(5, fetch, clock))
+            assertEquals(version("4.110.0"), feed.latestFor(4, fetch, clock))
+            assertNull(feed.latestFor(6, fetch, clock))
+            clock += RELEASE_CHECK_INTERVAL - 1.seconds
+            assertEquals(version("5.34.1"), feed.latestFor(5, fetch, clock))
+            assertEquals(1, requests)
+
+            clock += 1.seconds
+            assertEquals(version("5.34.2"), feed.latestFor(5, fetch, clock))
+            assertEquals(2, requests)
+        }
+
+    @Test
+    fun retriesAnEmptyReleaseFeedAfterFifteenMinutes() =
+        runBlocking {
+            val feed = TaigaReleaseFeed()
+            val clock = TestTimeSource()
+            var requests = 0
+            val fetch = {
+                requests++
+                if (requests == 1) emptyMap() else mapOf(5 to version("5.34.1"))
+            }
+
+            assertNull(feed.latestFor(5, fetch, clock))
+            clock += 15.minutes - 1.seconds
+            assertNull(feed.latestFor(5, fetch, clock))
+            assertEquals(1, requests)
+
+            clock += 1.seconds
+            assertEquals(version("5.34.1"), feed.latestFor(5, fetch, clock))
+            clock += 15.minutes
+            assertEquals(version("5.34.1"), feed.latestFor(5, fetch, clock))
+            assertEquals(2, requests)
+        }
 
     private fun version(value: String): TaigaReleaseVersion = requireNotNull(TaigaReleaseVersion.parse(value))
 }
