@@ -216,18 +216,18 @@ class TaigaDiscoveryToolsetTest : HeavyPlatformTestCase() {
         assertEquals(match, resolved["token"]?.jsonObject)
         assertTrue(requireNotNull(resolved["sections"]).jsonArray.isNotEmpty())
         val missing =
-            resolve
-                .callInProject(
-                    buildJsonObject {
-                        put("source", "card.css")
-                        put("name", "--tui-fixture-missing")
-                    },
-                )
-            assertTrue(missing.isError)
+            resolve.callInProject(
+                buildJsonObject {
+                    put("source", "card.css")
+                    put("name", "--tui-fixture-missing")
+                },
+            )
+        assertTrue(missing.isError)
 
-            val color = tool("taiga_ui_match_color")
-            val matches =
-                color.callInProject(
+        val color = tool("taiga_ui_match_color")
+        val matches =
+            color
+                .callInProject(
                     buildJsonObject {
                         put("source", "card.css")
                         put("color", " #ffffff ")
@@ -311,71 +311,70 @@ class TaigaDiscoveryToolsetTest : HeavyPlatformTestCase() {
             assertEquals("string", input?.get("type")?.jsonPrimitive?.content)
 
             val missing =
-                read
-                    .callInProject(
-                        buildJsonObject {
-                            put("source", ".")
-                            put("sectionId", "components/missing")
-                        },
-                    )
-                assertTrue(missing.isError)
-            } finally {
-                service.clearMemory()
-                if (original == null) {
-                    cache.invalidate(source)
-                } else {
-                    cache.write(source, original)
-                }
+                read.callInProject(
+                    buildJsonObject {
+                        put("source", ".")
+                        put("sectionId", "components/missing")
+                    },
+                )
+            assertTrue(missing.isError)
+        } finally {
+            service.clearMemory()
+            if (original == null) {
+                cache.invalidate(source)
+            } else {
+                cache.write(source, original)
             }
         }
+    }
 
-        fun testSourceValidationAndApiLocations() {
-            val root = getOrCreateProjectBaseDir()
-            PsiTestUtil.addContentRoot(module, root)
-            val path = root.toNioPath()
-            Files.writeString(path.resolve("plain.ts"), "export const value = 1;")
-            root.refresh(false, true)
+    fun testSourceValidationAndApiLocations() {
+        val root = getOrCreateProjectBaseDir()
+        PsiTestUtil.addContentRoot(module, root)
+        val path = root.toNioPath()
+        Files.writeString(path.resolve("plain.ts"), "export const value = 1;")
+        root.refresh(false, true)
 
-            val inspect = tool("taiga_ui_inspect_project")
-            for (source in listOf("", path.toString(), "missing.ts", "../outside")) {
-                assertTrue(inspect.callInProject(buildJsonObject { put("source", source) }).isError)
-            }
-
-            val api = tool("taiga_ui_api_at")
-            for ((line, column) in listOf(0 to 1, 1 to 0, 1 to 100, 1 to 1)) {
-                val result =
-                    api.callInProject(
-                        buildJsonObject {
-                            put("source", "plain.ts")
-                            put("line", line)
-                            put("column", column)
-                        },
-                    )
-                assertTrue(result.isError)
-            }
+        val inspect = tool("taiga_ui_inspect_project")
+        for (source in listOf("", path.toString(), "missing.ts", "../outside")) {
+            assertTrue(inspect.callInProject(buildJsonObject { put("source", source) }).isError)
         }
 
-        fun testFolderColorPreviewForAnEmptyDirectoryHasNoChanges() {
-            val root = getOrCreateProjectBaseDir()
-            PsiTestUtil.addContentRoot(module, root)
-            Files.createDirectories(root.toNioPath().resolve("empty"))
-            root.refresh(false, true)
-
-            val preview =
-                tool("taiga_ui_preview_folder_colors")
-                    .callInProject(buildJsonObject { put("directory", "empty") })
-                    .successData()
-            assertEquals("0", preview["totalFiles"]?.jsonPrimitive?.content)
-            assertTrue(requireNotNull(preview["files"]).jsonArray.isEmpty())
-
+        val api = tool("taiga_ui_api_at")
+        for ((line, column) in listOf(0 to 1, 1 to 0, 1 to 100, 1 to 1)) {
             val result =
-                tool("taiga_ui_apply_folder_colors")
-                    .callInProject(
-                        buildJsonObject {
-                            put("directory", "empty")
-                            put("revision", requireNotNull(preview["revision"]?.jsonPrimitive?.content))
-                        },
-                    ).successData()
+                api.callInProject(
+                    buildJsonObject {
+                        put("source", "plain.ts")
+                        put("line", line)
+                        put("column", column)
+                    },
+                )
+            assertTrue(result.isError)
+        }
+    }
+
+    fun testFolderColorPreviewForAnEmptyDirectoryHasNoChanges() {
+        val root = getOrCreateProjectBaseDir()
+        PsiTestUtil.addContentRoot(module, root)
+        Files.createDirectories(root.toNioPath().resolve("empty"))
+        root.refresh(false, true)
+
+        val preview =
+            tool("taiga_ui_preview_folder_colors")
+                .callInProject(buildJsonObject { put("directory", "empty") })
+                .successData()
+        assertEquals("0", preview["totalFiles"]?.jsonPrimitive?.content)
+        assertTrue(requireNotNull(preview["files"]).jsonArray.isEmpty())
+
+        val result =
+            tool("taiga_ui_apply_folder_colors")
+                .callInProject(
+                    buildJsonObject {
+                        put("directory", "empty")
+                        put("revision", requireNotNull(preview["revision"]?.jsonPrimitive?.content))
+                    },
+                ).successData()
         assertEquals("no_changes", result["status"]?.jsonPrimitive?.content)
     }
 
