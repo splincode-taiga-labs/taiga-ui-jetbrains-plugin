@@ -225,6 +225,7 @@ class IconBrowserDialogTest : BasePlatformTestCase() {
             val completed = field<MutableSet<String>>(dialog, "completedPreviews")
 
             awaitUi { list.model.size == 2 }
+            scroll.parent.remove(scroll)
             scroll.setSize(400, 300)
             scroll.doLayout()
             list.size = scroll.viewport.extentSize
@@ -240,6 +241,7 @@ class IconBrowserDialogTest : BasePlatformTestCase() {
 
             val previous = previews.toMap()
             request.invoke(dialog)
+            awaitUi { field<kotlinx.coroutines.Job>(dialog, "previewJob").isCompleted }
             assertEquals(previous, previews)
         } finally {
             dialog.close(1)
