@@ -138,7 +138,7 @@ private fun documentationRequest(
         .expireWith(project)
         .executeSynchronously()
 
-private fun resolvedApi(value: TaigaResolvedDocumentation) =
+internal fun resolvedApi(value: TaigaResolvedDocumentation) =
     buildJsonObject {
         put("name", value.presentationName)
         put("package", value.packageName)
