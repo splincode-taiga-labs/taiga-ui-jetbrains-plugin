@@ -27,6 +27,7 @@ import com.intellij.util.ui.UIUtil
 import kotlinx.coroutines.Job
 import java.awt.Dimension
 import java.awt.Point
+import java.nio.file.Files
 import javax.swing.JButton
 
 class TaigaQuickDocumentationControllerTest : TaigaQuickDocumentationControllerTestCase() {
@@ -473,16 +474,53 @@ class TaigaQuickDocumentationControllerTest : TaigaQuickDocumentationControllerT
         assertFalse(documentationField<Boolean>(controller, "pinned"))
     }
 
-    fun testSourceActionClosesCardAndNavigatesToInstalledDeclaration() {
+    fun testSourceActionClosesCardWhenDeclarationIsNotInLocalFileSystem() {
         open("<button tuiButton size=\"m\">Save</button>", "tuiButton")
-        val source = requireNotNull(view().resolved.source)
-        val file = requireNotNull(LocalFileSystem.getInstance().findFileByNioFile(source.file))
 
+        assertNotNull(view().resolved.source)
         requireNotNull(actions().navigateToSource).invoke()
 
         assertNull(panelOrNull())
-        await("installed declaration navigation") {
-            FileEditorManager.getInstance(project).selectedFiles.contains(file)
+        assertNull(documentationField<Any?>(controller, "currentRequest"))
+    }
+
+    fun testSourceActionClosesCardAndNavigatesToInstalledDeclaration() {
+        open("<button tuiButton size=\"m\">Save</button>", "tuiButton")
+        val path = Files.createTempFile("taiga-declaration", ".d.ts")
+        val manager = FileEditorManager.getInstance(project)
+
+        try {
+            Files.writeString(path, "export declare class TuiButton {}")
+            val file = requireNotNull(LocalFileSystem.getInstance().refreshAndFindFileByNioFile(path))
+            val original = view().resolved as TaigaResolvedDocumentation.Entity
+            val resolved =
+                original.copy(
+                    subject =
+                        original.subject.copy(
+                            localDocumentation =
+                                original.subject.localDocumentation.copy(
+                                    source = TaigaDocumentationSource(file.toNioPath(), 0),
+                                ),
+                        ),
+                )
+            val request = documentationField<TaigaQuickDocumentationHoverRequest>(controller, "currentRequest")
+            val method =
+                controller.javaClass
+                    .getDeclaredMethod(
+                        "popupActions",
+                        TaigaQuickDocumentationHoverRequest::class.java,
+                        TaigaResolvedDocumentation::class.java,
+                        Boolean::class.java,
+                    ).apply { isAccessible = true }
+            val actions = method.invoke(controller, request, resolved, false) as TaigaDocumentationPopupActions
+
+            requireNotNull(actions.navigateToSource).invoke()
+
+            assertNull(panelOrNull())
+            await("installed declaration navigation") { manager.isFileOpen(file) }
+        } finally {
+            LocalFileSystem.getInstance().findFileByNioFile(path)?.let(manager::closeFile)
+            Files.deleteIfExists(path)
         }
     }
 
