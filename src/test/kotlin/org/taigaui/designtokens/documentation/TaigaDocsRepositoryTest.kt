@@ -5,6 +5,8 @@ import org.junit.Assert.assertNull
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import org.taigaui.designtokens.settings.TaigaNetworkAccess
+import org.taigaui.designtokens.settings.TaigaNetworkMode
 import java.util.concurrent.atomic.AtomicInteger
 
 class TaigaDocsRepositoryTest {
@@ -85,6 +87,58 @@ class TaigaDocsRepositoryTest {
                 cache = TaigaDocsCache(temporaryFolder.newFolder("malformed").toPath()),
             ).load(source),
         )
+    }
+
+    @Test
+    fun offlineColdStartUsesMatchingBundleWithoutAnyFetchIncludingManualRefresh() {
+        val cache = TaigaDocsCache(temporaryFolder.newFolder("offline").toPath())
+        var attempts = 0
+        val repository =
+            TaigaDocsRepository(
+                fetcher =
+                    TaigaDocsFetcher {
+                        attempts++
+                        null
+                    },
+                cache = cache,
+                network = TaigaNetworkAccess { TaigaNetworkMode.OFFLINE_ONLY },
+                bundled = TaigaBundledDocs::load,
+            )
+
+        for (major in listOf(4, 5)) {
+            val docsSource = requireNotNull(TaigaDocsSources.forMajor(major))
+            cache.write(docsSource, "corrupt snapshot")
+            val loaded = requireNotNull(repository.load(docsSource))
+
+            assertEquals(TaigaDocsLoadOrigin.BUNDLED, loaded.origin)
+            assertEquals(major, loaded.index.source.majorVersion)
+            assertEquals("components/button", loaded.index.findBySectionId("components/button")?.sectionId)
+            assertEquals(TaigaDocsLoadOrigin.BUNDLED, repository.refresh(docsSource)?.origin)
+        }
+        assertEquals(0, attempts)
+    }
+
+    @Test
+    fun cacheFirstPrefersDiskAndOnlyExplicitRefreshCanFetch() {
+        val cache = TaigaDocsCache(temporaryFolder.newFolder("cache-first").toPath())
+        var attempts = 0
+        val repository =
+            TaigaDocsRepository(
+                fetcher =
+                    TaigaDocsFetcher {
+                        attempts++
+                        docs()
+                    },
+                cache = cache,
+                network = TaigaNetworkAccess { TaigaNetworkMode.CACHE_FIRST },
+                bundled = TaigaBundledDocs::load,
+            )
+
+        cache.write(source, docs())
+        assertEquals(TaigaDocsLoadOrigin.DISK_CACHE, repository.load(source)?.origin)
+        assertEquals(0, attempts)
+        assertEquals(TaigaDocsLoadOrigin.REMOTE, repository.refresh(source)?.origin)
+        assertEquals(1, attempts)
     }
 
     private fun docs(): String =

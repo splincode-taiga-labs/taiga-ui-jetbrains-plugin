@@ -41,7 +41,7 @@ internal class TaigaDocumentationHoverResolver(
         val snapshot =
             request?.let {
                 val service = project.service<TaigaDocsService>()
-                if (refreshing) service.snapshotFor(it.sourceFile) else service.cachedSnapshotFor(it.sourceFile)
+                if (refreshing) service.refresh(it.sourceFile) else service.cachedSnapshotFor(it.sourceFile)
             }
         val resolved = request?.let { resolveDocumentation(it.documentationRequest, snapshot) }
         if (request != null && snapshot == null) project.service<TaigaDocsService>().warmUp(request.sourceFile)

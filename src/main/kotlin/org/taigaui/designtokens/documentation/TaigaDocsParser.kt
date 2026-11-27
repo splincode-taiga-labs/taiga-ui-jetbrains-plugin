@@ -5,6 +5,7 @@ internal class TaigaDocsParser {
     fun parse(
         source: TaigaDocsSource,
         content: String,
+        provenance: TaigaDocsProvenance? = null,
     ): TaigaDocsIndex? {
         val lines =
             content
@@ -18,7 +19,7 @@ internal class TaigaDocsParser {
                 parseEntity(source, section, imports)
             }
 
-        return entities.takeIf(List<TaigaEntityDoc>::isNotEmpty)?.let { TaigaDocsIndex(source, it) }
+        return entities.takeIf(List<TaigaEntityDoc>::isNotEmpty)?.let { TaigaDocsIndex(source, it, provenance) }
     }
 
     private fun parseImportMap(lines: List<String>): List<ImportEntry> {

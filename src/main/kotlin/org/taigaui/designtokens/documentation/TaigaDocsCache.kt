@@ -69,12 +69,10 @@ internal class TaigaDocsCache(
     fun isFresh(
         source: TaigaDocsSource,
         maxAge: Duration,
-    ): Boolean =
-        runCatching {
-            val modifiedAt = Files.getLastModifiedTime(cacheFile(source)).toInstant()
+    ): Boolean = modifiedAt(source)?.isAfter(Instant.now().minus(maxAge)) == true
 
-            modifiedAt.isAfter(Instant.now().minus(maxAge))
-        }.getOrDefault(false)
+    fun modifiedAt(source: TaigaDocsSource): Instant? =
+        runCatching { Files.getLastModifiedTime(cacheFile(source)).toInstant() }.getOrNull()
 
     fun invalidate(source: TaigaDocsSource): Boolean =
         runCatching { Files.deleteIfExists(cacheFile(source)) }.getOrDefault(false)

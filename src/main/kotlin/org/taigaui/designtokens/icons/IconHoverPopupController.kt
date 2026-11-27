@@ -23,6 +23,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.taigaui.designtokens.documentation.DesignTokenReferenceHitTester
 import org.taigaui.designtokens.documentation.TaigaQuickDocumentationUnderline
+import org.taigaui.designtokens.settings.taigaNetworkAccess
 import java.awt.Point
 import java.nio.file.Path
 import javax.swing.Icon
@@ -34,7 +35,7 @@ internal class IconHoverPopupController(
     private val project: Project,
     private val coroutineScope: CoroutineScope,
 ) {
-    private val renderer = IconSvgPreviewRenderer()
+    private val renderer = IconSvgPreviewRenderer(network = taigaNetworkAccess())
     private val hoverHighlight = TaigaQuickDocumentationUnderline()
     private var activeKey: IconHoverKey? = null
     private var hoverJob: Job? = null

@@ -34,6 +34,7 @@ import org.taigaui.designtokens.diagnostics.prepareTaigaDoctorAnalysis
 import org.taigaui.designtokens.diagnostics.toMarkdown
 import org.taigaui.designtokens.documentation.TaigaDocsService
 import org.taigaui.designtokens.migration.TAIGA_V5_MIGRATION_GUIDE
+import org.taigaui.designtokens.settings.TaigaDesignTokensSettings
 import java.awt.BorderLayout
 import java.awt.FlowLayout
 import java.awt.GridLayout
@@ -62,6 +63,7 @@ internal class TaigaProjectDoctorPanel(
     private val tokenSources = JBLabel()
     private val iconSource = JBLabel()
     private val docsSource = JBLabel()
+    private val networkPolicy = JBLabel()
     private val openDocs =
         ActionLink("Open documentation") {
             currentReport?.sources?.documentation?.source?.let {
@@ -76,6 +78,7 @@ internal class TaigaProjectDoctorPanel(
             border = JBUI.Borders.empty(4, 0, 0, 0)
             add(tokenSources)
             add(iconSource)
+            add(networkPolicy)
             add(
                 JPanel(BorderLayout(JBUI.scale(8), 0)).apply {
                     add(docsSource, BorderLayout.CENTER)
@@ -208,6 +211,7 @@ internal class TaigaProjectDoctorPanel(
         sources.isVisible = status != null
 
         if (status != null) {
+            networkPolicy.text = "Network policy: ${service<TaigaDesignTokensSettings>().networkMode}"
             tokenSources.text = "Design tokens: ${status.designTokenSummary}"
             iconSource.text = "Icons: ${status.icons}"
             docsSource.text = "Documentation: ${status.documentationSummary}"

@@ -68,7 +68,7 @@ Code changes invalidate the card's source-changing actions, including changes to
 
 Open **Taiga UI** on the right-hand tool window bar to browse components, directives, pipes and other APIs by category. The search field filters the tree by name, public symbol or selector. Select an entry to see its package and summary, then press **Enter** in the tree or click **Open Documentation**.
 
-Open the **Taiga UI** tab in Search Everywhere (press **Shift** twice) for the same results without leaving the editor. Both views use the cached documentation for the Taiga UI version installed for the active file, or the project root when no file is selected.
+Open the **Taiga UI** tab in Search Everywhere (press **Shift** twice) for the same results without leaving the editor. Both views use documentation for the Taiga UI major installed for the active file, or the project root when no file is selected. Taiga UI 4 and 5 documentation is available from built-in snapshots on a fresh offline installation. Choose **Cache first**, **Online**, or **Offline only** in **Settings | Tools | Taiga UI**.
 
 ## Project Doctor
 

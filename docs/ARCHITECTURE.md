@@ -81,7 +81,7 @@ manifests in the background. It compares common packages that share the Taiga UI
 the report without participating in the comparison. The tab supports explicit reload after dependency changes.
 
 The report reuses the active package scope for design-token source discovery, icon source selection, and documentation
-major-version detection. Source status checks run off the EDT. They use package metadata, icon directories, the
+major-version detection. It also displays the application-wide Taiga UI network policy and bundled snapshot availability. Source status checks run off the EDT. They use package metadata, icon directories, the
 in-memory documentation index, and the presence of its disk cache file. They do not load catalogs, parse cached
 documentation, or make network requests.
 
@@ -119,9 +119,23 @@ a smart read action over committed PSI.
 
 Catalog documentation describes published APIs for the installed major. Source-position lookup resolves against actual
 installed declarations and identifies when a binding's type comes from those declarations. WebStorm supplies file
-inspection results through its built-in MCP tool. Folder color replacement uses the same scanner, IDE diff dialog,
+inspection results through its built-in MCP tool. Taiga UI's bounded app inspection uses the Doctor's application
+scope and inspection profiles to return app or migration findings. Folder color replacement uses the same scanner, IDE diff dialog,
 and undoable write command as the folder action. The MCP preview binds a revision to the folder and proposed
 changes. Apply rescans and compares revisions before showing the diff, then checks the original snapshots before writing.
+
+## Network policy
+
+**Settings | Tools | Taiga UI** controls the plugin-owned outbound requests for documentation, the T-Bank icon
+catalog and SVG previews, and the GitHub release feed. **Cache first** is the default: background work reads
+local sources and existing caches, and an explicit API documentation reload can request a fresh snapshot.
+**Online** allows automatic requests. **Offline only** also blocks explicit refreshes.
+The shared request guard checks the policy at the transport boundary, cancels admitted requests when the mode changes,
+and blocks subsequent mirror attempts while requests are disabled. Release polling subscribes to policy changes and
+runs only in Online mode. Existing successful cache entries remain usable across policy changes.
+
+Browser links and official Angular/Nx CLI migration processes follow the user's browser and CLI configuration.
+JetBrains MCP transport and AI model connectivity are governed by the IDE and connected client.
 
 ## Release notifications
 
@@ -269,10 +283,11 @@ The project-level docs store:
 
 - keeps immutable in-memory indexes keyed by versioned documentation source;
 - coalesces concurrent cold loads and concurrent refreshes for the same source;
+- uses a same-major bundled snapshot when the disk snapshot is missing or fails parsing;
 - persists only successfully parsed remote content as the last-known-good disk snapshot;
 - can serve that disk snapshot offline;
 - keeps the last usable snapshot when refresh returns empty, malformed, or fails;
-- performs a background refresh after publishing a disk-cached snapshot;
+- schedules a background refresh after publishing a stale disk snapshot or a bundled snapshot in Online mode;
 - uses a generation guard so invalidated work cannot publish stale results;
 - supports targeted invalidation per documented Taiga major.
 

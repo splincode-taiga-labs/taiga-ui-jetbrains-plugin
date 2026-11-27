@@ -1,6 +1,7 @@
 package org.taigaui.designtokens.icons
 
 import org.taigaui.designtokens.packageinfo.TaigaUiPackageLocator
+import org.taigaui.designtokens.settings.TaigaNetworkAccess
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -65,6 +66,8 @@ internal class IconCatalogLoader(
 
     constructor(remoteFetcher: IconCatalogFetcher = TbankIconCatalogFetcher()) :
         this(defaultIconCatalogSources(remoteFetcher))
+
+    constructor(network: TaigaNetworkAccess) : this(TbankIconCatalogFetcher(network))
 
     fun resolveScopeRoot(sourceFile: Path): Path? =
         packageLocator
@@ -182,7 +185,9 @@ internal object TbankIconCatalogParser {
     private val ICON_NAME = Regex("\\\"([^\\\"]+)\\\"")
 }
 
-private class TbankIconCatalogFetcher : IconCatalogFetcher {
+private class TbankIconCatalogFetcher(
+    private val network: TaigaNetworkAccess? = null,
+) : IconCatalogFetcher {
     private val client =
         HttpClient
             .newBuilder()
@@ -199,15 +204,22 @@ private class TbankIconCatalogFetcher : IconCatalogFetcher {
                         .timeout(REQUEST_TIMEOUT)
                         .GET()
                         .build()
-                val response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
-                val body = response.body()
+                val response =
+                    if (network == null) {
+                        send(request)
+                    } else {
+                        network.request { send(request) }
+                    }
 
-                body.takeIf {
+                response?.body()?.takeIf {
                     response.statusCode() in HTTP_SUCCESS &&
                         TbankIconCatalogParser.parseEntries(it).isNotEmpty()
                 }
             }.getOrNull()
         }
+
+    private fun send(request: HttpRequest): HttpResponse<String> =
+        client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
 
     private companion object {
         val CONNECT_TIMEOUT: Duration = Duration.ofSeconds(3)

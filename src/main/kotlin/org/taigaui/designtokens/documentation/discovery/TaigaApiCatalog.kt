@@ -49,6 +49,7 @@ internal class TaigaApiCatalog(
     snapshot: TaigaDocsSnapshot,
 ) {
     val version: String = snapshot.projectContext.version
+    val index = snapshot.index
     private val entries: List<TaigaApiEntry> =
         snapshot.entities
             .distinctBy(TaigaEntityDoc::sectionId)
@@ -96,9 +97,13 @@ internal class TaigaApiCatalog(
         suspend fun load(
             project: Project,
             source: Path,
+            refresh: Boolean = false,
         ): TaigaApiCatalog? =
             withContext(Dispatchers.Default) {
-                project.service<TaigaDocsService>().snapshotFor(source)?.let(::TaigaApiCatalog)
+                val docs = project.service<TaigaDocsService>()
+                val snapshot = if (refresh) docs.refresh(source) else docs.snapshotFor(source)
+
+                snapshot?.let(::TaigaApiCatalog)
             }
     }
 }

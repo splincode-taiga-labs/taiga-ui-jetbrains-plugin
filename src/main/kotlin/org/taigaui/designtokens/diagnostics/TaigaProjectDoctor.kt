@@ -1,5 +1,6 @@
 package org.taigaui.designtokens.diagnostics
 
+import org.taigaui.designtokens.documentation.TaigaBundledDocs
 import org.taigaui.designtokens.documentation.TaigaDocsCacheStatus
 import org.taigaui.designtokens.documentation.TaigaDocsSource
 import org.taigaui.designtokens.documentation.TaigaDocsSources
@@ -45,13 +46,17 @@ internal data class TaigaDoctorDocumentation(
     val source: TaigaDocsSource,
     val cacheStatus: TaigaDocsCacheStatus,
 ) {
+    val bundledAvailable: Boolean
+        get() = TaigaBundledDocs.hasSnapshot(source)
+
     val summary: String
         get() {
             val status =
                 when (cacheStatus) {
                     TaigaDocsCacheStatus.IN_MEMORY -> "Loaded in memory"
                     TaigaDocsCacheStatus.ON_DISK -> "Disk cache present"
-                    TaigaDocsCacheStatus.NOT_CACHED -> "Not cached"
+                    TaigaDocsCacheStatus.NOT_CACHED ->
+                        if (bundledAvailable) "Bundled snapshot available" else "Not cached"
                 }
 
             return "v${source.majorVersion} · $status"

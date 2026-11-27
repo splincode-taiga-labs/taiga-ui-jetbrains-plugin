@@ -17,6 +17,7 @@ import kotlinx.coroutines.withContext
 import org.taigaui.designtokens.icons.ICON_PREVIEW_LOGICAL_SIZE
 import org.taigaui.designtokens.icons.IconCompletionService
 import org.taigaui.designtokens.icons.IconSvgPreviewRenderer
+import org.taigaui.designtokens.settings.taigaNetworkAccess
 import java.nio.file.Path
 
 /** Loads previews and performs guarded icon edits without retaining the popup controller. */
@@ -24,7 +25,7 @@ internal class TaigaDocumentationIcons(
     private val project: Project,
     private val coroutineScope: CoroutineScope,
 ) {
-    private val renderer = IconSvgPreviewRenderer()
+    private val renderer = IconSvgPreviewRenderer(network = taigaNetworkAccess())
 
     fun loadPreviews(
         sourceFile: Path,

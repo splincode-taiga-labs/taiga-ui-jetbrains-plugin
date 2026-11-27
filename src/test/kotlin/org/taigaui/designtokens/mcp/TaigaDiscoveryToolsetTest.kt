@@ -1,12 +1,6 @@
 package org.taigaui.designtokens.mcp
 
 import com.intellij.execution.ExecutionException
-import com.intellij.mcpserver.ClientInfo
-import com.intellij.mcpserver.McpCallAdditionalDataElement
-import com.intellij.mcpserver.McpCallInfo
-import com.intellij.mcpserver.McpTool
-import com.intellij.mcpserver.McpToolCallResult
-import com.intellij.mcpserver.impl.McpServerService
 import com.intellij.mcpserver.impl.ReflectionToolsProvider
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.command.WriteCommandAction
@@ -14,7 +8,6 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.progress.EmptyProgressIndicator
 import com.intellij.openapi.vfs.LocalFileSystem
-import com.intellij.testFramework.HeavyPlatformTestCase
 import com.intellij.testFramework.PlatformTestUtil
 import com.intellij.testFramework.PsiTestUtil
 import com.intellij.testFramework.replaceService
@@ -40,10 +33,9 @@ import org.taigaui.designtokens.releases.TaigaReleaseFeed
 import org.taigaui.designtokens.releases.TaigaReleaseVersion
 import java.io.IOException
 import java.nio.file.Files
-import java.nio.file.Path
 import java.util.concurrent.Callable
 
-class TaigaDiscoveryToolsetTest : HeavyPlatformTestCase() {
+class TaigaDiscoveryToolsetTest : TaigaMcpTestCase() {
     override fun isCreateDirectoryBasedProject(): Boolean = true
 
     fun testAllDiscoveryToolsAreRegisteredWithTheBundledMcpProvider() {
@@ -51,6 +43,7 @@ class TaigaDiscoveryToolsetTest : HeavyPlatformTestCase() {
 
         for (name in listOf(
             "inspect_project",
+            "inspect_app",
             "check_release",
             "search_api",
             "read_api",
@@ -331,7 +324,7 @@ class TaigaDiscoveryToolsetTest : HeavyPlatformTestCase() {
                         put("sectionId", "components/missing")
                     },
                 )
-            assertTrue(missing.isError)
+            assertEquals("unavailable", missing.successData()["status"]?.jsonPrimitive?.content)
         } finally {
             service.clearMemory()
             if (original == null) {
@@ -520,7 +513,7 @@ class TaigaDiscoveryToolsetTest : HeavyPlatformTestCase() {
         }
     }
 
-    fun testDocumentationAndReleaseToolsRejectWorkspaceWithoutTaigaUi() {
+    fun testDocumentationAndReleaseToolsReportWorkspaceWithoutTaigaUi() {
         val root = getOrCreateProjectBaseDir()
         PsiTestUtil.addContentRoot(module, root)
         Files.writeString(root.toNioPath().resolve("package.json"), """{"name":"standalone"}""")
@@ -537,8 +530,17 @@ class TaigaDiscoveryToolsetTest : HeavyPlatformTestCase() {
                     put("query", "")
                 },
             )
-        assertTrue(search.isError)
-        assertTrue(search.toString().contains("documentation is unavailable"))
+        val data = search.successData()
+        assertEquals(JsonNull, data["installedVersion"])
+        assertEquals(
+            "false",
+            data["documentation"]
+                ?.jsonObject
+                ?.get("available")
+                ?.jsonPrimitive
+                ?.content,
+        )
+        assertEquals("0", data["total"]?.jsonPrimitive?.content)
     }
 
     fun testFolderColorApprovalAppliesOnlyAfterConfirmation() {
@@ -626,45 +628,4 @@ class TaigaDiscoveryToolsetTest : HeavyPlatformTestCase() {
             put("directory", ".")
             put("revision", requireNotNull(preview["revision"]?.jsonPrimitive?.content))
         }
-
-    private fun writeApp(
-        path: Path,
-        version: String,
-        icon: String,
-    ) {
-        val scoped = path.resolve("node_modules/@taiga-ui")
-        val core = Files.createDirectories(scoped.resolve("core"))
-        val icons = Files.createDirectories(scoped.resolve("icons/src"))
-        Files.writeString(core.resolve("package.json"), """{"name":"@taiga-ui/core","version":"$version"}""")
-        Files.writeString(icons.parent.resolve("package.json"), """{"name":"@taiga-ui/icons","version":"$version"}""")
-        Files.writeString(icons.resolve("$icon.svg"), """<svg xmlns="http://www.w3.org/2000/svg"/>""")
-    }
-
-    private fun McpToolCallResult.successData(): JsonObject {
-        assertFalse(toString(), isError)
-
-        return requireNotNull(structuredContent)
-    }
-
-    private fun tool(name: String): McpTool = ReflectionToolsProvider().getTools().single { it.descriptor.name == name }
-
-    private fun McpTool.callInProject(args: JsonObject): McpToolCallResult {
-        val info =
-            McpCallInfo(
-                callId = 1,
-                clientInfo = ClientInfo("test", "1"),
-                project = project,
-                mcpToolDescriptor = descriptor,
-                rawArguments = args,
-                meta = buildJsonObject {},
-                mcpSessionOptions = McpServerService.McpSessionOptions(McpServerService.AskCommandExecutionMode.ASK),
-                headers = emptyMap(),
-            )
-
-        return PlatformTestUtil.waitForFuture(
-            AppExecutorUtil.getAppExecutorService().submit(
-                Callable { runBlocking(McpCallAdditionalDataElement(info)) { call(args) } },
-            ),
-        )
-    }
 }

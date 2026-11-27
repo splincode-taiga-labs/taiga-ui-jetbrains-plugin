@@ -13,6 +13,14 @@ import com.intellij.openapi.components.Storage
 )
 internal class TaigaDesignTokensSettings :
     SimplePersistentStateComponent<TaigaDesignTokensSettings.SettingsState>(SettingsState()) {
+    val networkAccess = TaigaNetworkAccess { state.networkMode }
+
+    var networkMode: TaigaNetworkMode
+        get() = state.networkMode
+        set(value) = networkAccess.changeMode { state.networkMode = value }
+
+    override fun loadState(state: SettingsState) = networkAccess.changeMode { super.loadState(state) }
+
     var showCompletionPreview: Boolean
         get() = state.showCompletionPreview
         set(value) {
@@ -26,6 +34,7 @@ internal class TaigaDesignTokensSettings :
         }
 
     internal class SettingsState : BaseState() {
+        var networkMode by enum(TaigaNetworkMode.CACHE_FIRST)
         var showCompletionPreview by property(true)
         var showHoverPopup by property(true)
     }
