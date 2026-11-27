@@ -8,6 +8,7 @@ import com.intellij.mcpserver.McpTool
 import com.intellij.mcpserver.McpToolCallResult
 import com.intellij.mcpserver.impl.McpServerService
 import com.intellij.mcpserver.impl.ReflectionToolsProvider
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.components.service
 import com.intellij.openapi.fileEditor.FileDocumentManager
@@ -16,12 +17,14 @@ import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.testFramework.HeavyPlatformTestCase
 import com.intellij.testFramework.PlatformTestUtil
 import com.intellij.testFramework.PsiTestUtil
+import com.intellij.testFramework.replaceService
 import com.intellij.util.concurrency.AppExecutorUtil
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
@@ -33,6 +36,8 @@ import org.taigaui.designtokens.documentation.TaigaDocsCache
 import org.taigaui.designtokens.documentation.TaigaDocsService
 import org.taigaui.designtokens.documentation.TaigaDocsSources
 import org.taigaui.designtokens.migration.TaigaMigrationRunner
+import org.taigaui.designtokens.releases.TaigaReleaseFeed
+import org.taigaui.designtokens.releases.TaigaReleaseVersion
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
@@ -562,6 +567,48 @@ class TaigaDiscoveryToolsetTest : HeavyPlatformTestCase() {
         val applied = approveFolderColors(replacement, true)
         assertEquals("applied", applied["status"]?.jsonPrimitive?.content)
         assertEquals(".card { color: var(--tui-white); }", document.text)
+    }
+
+    fun testReleaseLookupUsesCachedFeedForInstalledMajor() {
+        val root = getOrCreateProjectBaseDir()
+        PsiTestUtil.addContentRoot(module, root)
+        val path = root.toNioPath()
+        writeApp(path.resolve("legacy"), "4.110.0", "legacy")
+        writeApp(path.resolve("modern"), "5.34.0", "modern")
+        writeApp(path.resolve("future"), "6.0.0", "future")
+        root.refresh(false, true)
+
+        val feed = TaigaReleaseFeed()
+        ApplicationManager.getApplication().replaceService(TaigaReleaseFeed::class.java, feed, testRootDisposable)
+        runBlocking {
+            feed.latestFor(
+                5,
+                fetch = {
+                    mapOf(
+                        4 to requireNotNull(TaigaReleaseVersion.parse("4.110.0")),
+                        5 to requireNotNull(TaigaReleaseVersion.parse("5.35.0")),
+                    )
+                },
+            )
+        }
+        val checkRelease = tool("taiga_ui_check_release")
+
+        val modern = checkRelease.callInProject(buildJsonObject { put("source", "modern") }).successData()
+        assertEquals("5.34.0", modern["installed"]?.jsonPrimitive?.content)
+        assertEquals("v5.35.0", modern["latest"]?.jsonPrimitive?.content)
+        assertEquals("true", modern["updateAvailable"]?.jsonPrimitive?.content)
+        assertEquals(
+            "https://github.com/taiga-family/taiga-ui/releases/tag/v5.35.0",
+            modern["releaseUrl"]?.jsonPrimitive?.content,
+        )
+
+        val legacy = checkRelease.callInProject(buildJsonObject { put("source", "legacy") }).successData()
+        assertEquals("v4.110.0", legacy["latest"]?.jsonPrimitive?.content)
+        assertEquals("false", legacy["updateAvailable"]?.jsonPrimitive?.content)
+
+        val future = checkRelease.callInProject(buildJsonObject { put("source", "future") }).successData()
+        assertEquals(JsonNull, future["latest"])
+        assertEquals(JsonNull, future["updateAvailable"])
     }
 
     private fun approveFolderColors(

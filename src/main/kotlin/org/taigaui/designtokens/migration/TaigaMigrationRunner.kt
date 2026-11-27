@@ -118,15 +118,16 @@ internal class TaigaMigrationRunner(
         }
     }
 
-    private suspend fun confirmAndRunPlan(
+    internal suspend fun confirmAndRunPlan(
         plan: PreparedMigration,
         prepare: suspend () -> PreparedMigration,
         output: MigrationOutput,
+        confirmPlan: (PreparedMigration) -> Boolean = ::confirm,
     ): TaigaMigrationResult {
         val node = withContext(Dispatchers.IO) { requireLocalNode(project) }
         val confirmed =
             withContext(Dispatchers.EDT) {
-                (!project.isDisposed && confirm(plan)).also { accepted ->
+                (!project.isDisposed && confirmPlan(plan)).also { accepted ->
                     if (accepted) {
                         check(
                             isProjectTrusted(project) && !project.isDisposed,

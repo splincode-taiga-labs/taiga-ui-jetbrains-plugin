@@ -10,9 +10,11 @@ import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.EditorFactory
 import com.intellij.openapi.editor.RangeMarker
 import com.intellij.openapi.fileEditor.FileDocumentManager
+import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.impl.text.TextEditorProvider
 import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.ui.popup.JBPopup
+import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.platform.backend.documentation.DocumentationTarget
 import com.intellij.platform.backend.documentation.impl.computeDocumentationBlocking
 import com.intellij.psi.PsiDocumentManager
@@ -25,6 +27,7 @@ import com.intellij.util.ui.UIUtil
 import kotlinx.coroutines.Job
 import java.awt.Dimension
 import java.awt.Point
+import java.nio.file.Files
 import javax.swing.JButton
 
 class TaigaQuickDocumentationControllerTest : TaigaQuickDocumentationControllerTestCase() {
@@ -453,6 +456,72 @@ class TaigaQuickDocumentationControllerTest : TaigaQuickDocumentationControllerT
 
         controller.dismissHover(myFixture.editor, force = true)
         assertNull(panelOrNull())
+    }
+
+    fun testUnpinningAfterDocumentChangeDismissesStaleCard() {
+        open("<button tuiButton size=\"m\">Save</button>", "size")
+        button("Pin").doClick()
+        val unpin = requireNotNull(actions().togglePin)
+
+        WriteCommandAction.runWriteCommandAction(project) {
+            myFixture.editor.document.insertString(0, "<!-- changed -->")
+        }
+        PsiDocumentManager.getInstance(project).commitAllDocuments()
+        unpin.invoke()
+
+        assertNull(panelOrNull())
+        assertNull(documentationField<Any?>(controller, "currentRequest"))
+        assertFalse(documentationField<Boolean>(controller, "pinned"))
+    }
+
+    fun testSourceActionClosesCardWhenDeclarationIsNotInLocalFileSystem() {
+        open("<button tuiButton size=\"m\">Save</button>", "tuiButton")
+
+        assertNotNull(view().resolved.source)
+        requireNotNull(actions().navigateToSource).invoke()
+
+        assertNull(panelOrNull())
+        assertNull(documentationField<Any?>(controller, "currentRequest"))
+    }
+
+    fun testSourceActionClosesCardAndNavigatesToInstalledDeclaration() {
+        open("<button tuiButton size=\"m\">Save</button>", "tuiButton")
+        val path = Files.createTempFile("taiga-declaration", ".d.ts")
+        val manager = FileEditorManager.getInstance(project)
+
+        try {
+            Files.writeString(path, "export declare class TuiButton {}")
+            val file = requireNotNull(LocalFileSystem.getInstance().refreshAndFindFileByNioFile(path))
+            val original = view().resolved as TaigaResolvedDocumentation.Entity
+            val resolved =
+                original.copy(
+                    subject =
+                        original.subject.copy(
+                            localDocumentation =
+                                original.subject.localDocumentation.copy(
+                                    source = TaigaDocumentationSource(file.toNioPath(), 0),
+                                ),
+                        ),
+                )
+            val request = documentationField<TaigaQuickDocumentationHoverRequest>(controller, "currentRequest")
+            val method =
+                controller.javaClass
+                    .getDeclaredMethod(
+                        "popupActions",
+                        TaigaQuickDocumentationHoverRequest::class.java,
+                        TaigaResolvedDocumentation::class.java,
+                        Boolean::class.java,
+                    ).apply { isAccessible = true }
+            val actions = method.invoke(controller, request, resolved, false) as TaigaDocumentationPopupActions
+
+            requireNotNull(actions.navigateToSource).invoke()
+
+            assertNull(panelOrNull())
+            await("installed declaration navigation") { manager.isFileOpen(file) }
+        } finally {
+            LocalFileSystem.getInstance().findFileByNioFile(path)?.let(manager::closeFile)
+            Files.deleteIfExists(path)
+        }
     }
 
     private fun statusPanel(): TaigaDocumentationStatusPanel = documentationField(status(), "panel")
