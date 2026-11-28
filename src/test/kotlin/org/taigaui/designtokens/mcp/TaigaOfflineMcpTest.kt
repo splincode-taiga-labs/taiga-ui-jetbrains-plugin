@@ -143,12 +143,15 @@ class TaigaOfflineMcpTest : TaigaMcpTestCase() {
                 ?.content,
         )
         assertEquals("2", examples["matched"]?.jsonPrimitive?.content)
-        val (button, link, suggestions, missing) = requireNotNull(examples["results"]).jsonArray.map { it.jsonObject }
+        val results = requireNotNull(examples["results"]).jsonArray.map { it.jsonObject }
+        assertEquals(
+            listOf("available", "available", "choose_section", "not_found"),
+            results.map { it["status"]?.jsonPrimitive?.content },
+        )
+        val (button, link) = results
         assertEquals("components/button", button["sectionId"]?.jsonPrimitive?.content)
         assertEquals("components/link", link["sectionId"]?.jsonPrimitive?.content)
         assertTrue(requireNotNull(button["example"]).jsonPrimitive.content.contains("tuiButton"))
-        assertEquals("choose_section", suggestions["status"]?.jsonPrimitive?.content)
-        assertEquals("not_found", missing["status"]?.jsonPrimitive?.content)
         val exports = requireNotNull(button["verifiedExports"]).jsonArray
         if (app == "modern") {
             val verified = exports.single().jsonObject
