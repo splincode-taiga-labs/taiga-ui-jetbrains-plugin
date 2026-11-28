@@ -2,16 +2,22 @@ package org.taigaui.designtokens.icons
 
 import com.intellij.util.ImageLoader
 import com.intellij.util.ui.JBImageIcon
+import org.taigaui.designtokens.settings.TaigaNetworkAccess
 import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Duration
 import javax.swing.Icon
 import kotlin.math.roundToInt
 
 internal class IconSvgPreviewRenderer(
     private val maxCacheEntries: Int = DEFAULT_ICON_PREVIEW_CACHE_ENTRIES,
     private val svgReader: (URI) -> String = ::readSvg,
+    private val network: TaigaNetworkAccess? = null,
 ) {
     private val cache = IconPreviewCache(maxCacheEntries)
 
@@ -39,8 +45,13 @@ internal class IconSvgPreviewRenderer(
         runCatching {
             val svg =
                 source.candidateUris().firstNotNullOfOrNull { uri ->
-                    runCatching { svgReader(uri) }
-                        .getOrNull()
+                    runCatching {
+                        if (source is IconSvgSource.Remote && network != null) {
+                            network.request { svgReader(uri) }
+                        } else {
+                            svgReader(uri)
+                        }
+                    }.getOrNull()
                         ?.takeIf { readSvgSize(it) != null }
                 } ?: return@runCatching null
             val sourceSize = readSvgSize(svg) ?: return@runCatching null
@@ -62,12 +73,22 @@ internal class IconSvgPreviewRenderer(
 }
 
 private fun readSvg(uri: URI): String {
-    val connection = uri.toURL().openConnection()
+    if (uri.scheme == "file") {
+        return Files.readString(Path.of(uri), StandardCharsets.UTF_8)
+    }
 
-    connection.connectTimeout = 3_000
-    connection.readTimeout = 8_000
+    val request = HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(8)).build()
+    val response = svgHttpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
 
-    return connection.getInputStream().bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
+    return response.body().takeIf { response.statusCode() in 200..299 }.orEmpty()
+}
+
+private val svgHttpClient by lazy {
+    HttpClient
+        .newBuilder()
+        .connectTimeout(Duration.ofSeconds(3))
+        .followRedirects(HttpClient.Redirect.NORMAL)
+        .build()
 }
 
 private fun readSvgSize(svg: String): SvgSize? =

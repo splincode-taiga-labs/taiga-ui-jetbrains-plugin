@@ -10,6 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import org.taigaui.designtokens.settings.taigaNetworkAccess
 import java.io.IOException
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
@@ -20,23 +21,36 @@ import kotlin.time.TimeSource
 internal class TaigaReleaseFeed {
     private val mutex = Mutex()
     private var checkedAt: TimeMark? = null
+
+    @Volatile
     private var latest = emptyMap<Int, TaigaReleaseVersion>()
 
     suspend fun latestFor(
         major: Int,
-        fetch: () -> Map<Int, TaigaReleaseVersion> = { fetchStableReleases() },
+        fetch: (() -> Map<Int, TaigaReleaseVersion>)? = null,
         clock: TimeSource = TimeSource.Monotonic,
-    ): TaigaReleaseVersion? =
-        mutex.withLock {
+    ): TaigaReleaseVersion? {
+        val network = if (fetch == null) taigaNetworkAccess() else null
+        if (network?.allowsRequest() == false) return latest[major]
+
+        return mutex.withLock {
             val interval = if (latest.isEmpty()) 15.minutes else RELEASE_CHECK_INTERVAL
 
             if (checkedAt?.elapsedNow()?.let { it < interval } != true) {
-                latest = runInterruptible(Dispatchers.IO) { fetch() }
-                checkedAt = clock.markNow()
+                val updated =
+                    runInterruptible(Dispatchers.IO) {
+                        if (fetch != null) fetch() else network?.request { fetchStableReleases() }
+                    }
+
+                if (updated != null) {
+                    latest = updated.ifEmpty { latest }
+                    checkedAt = clock.markNow()
+                }
             }
 
             latest[major]
         }
+    }
 }
 
 internal val RELEASE_CHECK_INTERVAL = 6.hours

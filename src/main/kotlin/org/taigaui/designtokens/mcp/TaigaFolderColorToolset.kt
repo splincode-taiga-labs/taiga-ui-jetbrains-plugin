@@ -86,10 +86,12 @@ internal suspend fun confirmAndApply(
     replacement: FolderColorReplacement,
     confirm: () -> Boolean = { FolderColorPreviewDialog(project, replacement.previews).showAndGet() },
 ) = withContext(Dispatchers.EDT) {
+    requireTaigaMcpChanges()
     if (project.isDisposed || !confirm()) {
         return@withContext folderColorResult("cancelled", "The folder colors were not changed.")
     }
     currentCoroutineContext().ensureActive()
+    requireTaigaMcpChanges()
     check(!project.isDisposed) { "The project is closed." }
     val result = replacement.apply(project)
     check(result.applied) { result.message }

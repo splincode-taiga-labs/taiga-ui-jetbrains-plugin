@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, ElementRef, computed, signal, viewChild } from '@angular/core';
 
-type Category = 'All features' | 'Design tokens' | 'Icons' | 'CSS hints' | 'Events' | 'Angular API';
+type Category = 'All features' | 'Design tokens' | 'Icons' | 'CSS hints' | 'Events' | 'Angular API' | 'Settings';
 
 interface Feature {
   readonly category: Category;
@@ -27,6 +27,7 @@ export class App {
     'CSS hints',
     'Events',
     'Angular API',
+    'Settings',
   ];
   protected readonly category = signal<Category>('All features');
   protected readonly selectedFeature = signal<Feature | null>(null);
@@ -105,6 +106,14 @@ export class App {
       description: 'Get contextual Taiga UI event suggestions, including longtap, inside TypeScript host bindings.',
       image: 'screens/longtap-completion.webp',
       alt: 'WebStorm suggesting the longtap event with its description inside Angular component host metadata',
+    },
+    {
+      category: 'Settings',
+      label: 'Plugin settings',
+      title: 'Configure Taiga UI in WebStorm.',
+      description: 'Open Settings → Tools → Taiga UI to manage editor previews, network access, and MCP permissions.',
+      image: 'screens/plugin-settings.webp',
+      alt: 'Taiga UI settings showing design token previews, API cards, network access, and MCP controls',
     },
   ];
 

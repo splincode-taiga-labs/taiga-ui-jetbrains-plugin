@@ -9,9 +9,11 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiManager
+import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.taigaui.designtokens.documentation.TaigaApiProperty
+import org.taigaui.designtokens.documentation.TaigaDocsIndex
 import org.taigaui.designtokens.documentation.TaigaDocsService
 import org.taigaui.designtokens.documentation.TaigaDocumentationRequest
 import org.taigaui.designtokens.documentation.TaigaDocumentationResolver
@@ -29,7 +31,7 @@ import org.taigaui.designtokens.documentation.typeText
 class TaigaApiToolset : McpToolset {
     @McpTool
     @McpDescription(
-        "Search the version-aware Taiga UI API catalog using the same ranking as Search Everywhere. Results describe published documentation, which may fetch from taiga-ui.dev.",
+        "Search the version-aware Taiga UI API catalog using the same ranking as Search Everywhere. Results describe published APIs and examples for the installed major. Use taiga_ui_api_at to verify installed bindings.",
     )
     suspend fun taiga_ui_search_api(
         @McpDescription(TAIGA_SOURCE) source: String,
@@ -38,14 +40,21 @@ class TaigaApiToolset : McpToolset {
         @McpDescription(TAIGA_SEARCH_LIMIT) limit: Int = 20,
     ): McpToolCallResult =
         taigaSourceResult(source) { project, file ->
-            val catalog =
-                checkNotNull(TaigaApiCatalog.load(project, file.toNioPath())) {
-                    "Taiga UI documentation is unavailable for this workspace."
-                }
-            val matches = catalog.search(query)
+            val sourcePath = file.toNioPath()
+            val catalog = TaigaApiCatalog.load(project, sourcePath)
+            val installedVersion =
+                catalog?.version ?: project.service<TaigaDocsService>().detectContext(sourcePath)?.version
+            val matches = catalog?.search(query).orEmpty()
 
             buildJsonObject {
-                put("installedVersion", catalog.version)
+                put("installedVersion", installedVersion)
+                putDocumentation(catalog?.index)
+                if (catalog == null) {
+                    put(
+                        "message",
+                        "Documentation is unavailable. Use taiga_ui_api_at at a source location for installed API.",
+                    )
+                }
                 put("total", matches.size)
                 put(
                     "matches",
@@ -59,6 +68,7 @@ class TaigaApiToolset : McpToolset {
                             put("symbols", entry.entity.publicSymbols.jsonStrings())
                             put("selectors", entry.entity.selectors.jsonStrings())
                             put("summary", entry.summary)
+                            put("hasExample", entry.entity.example != null)
                             put("documentationUrl", entry.entity.documentationUri.toString())
                         }
                     },
@@ -75,13 +85,24 @@ class TaigaApiToolset : McpToolset {
         @McpDescription("Exact sectionId returned by taiga_ui_search_api.") sectionId: String,
     ): McpToolCallResult =
         taigaSourceResult(source) { project, file ->
-            val snapshot = project.service<TaigaDocsService>().snapshotFor(file.toNioPath())
-            val entry =
-                checkNotNull(snapshot?.findBySectionId(sectionId)) {
-                    "This documentation entry is unavailable in the selected workspace."
-                }
+            val docs = project.service<TaigaDocsService>()
+            val sourcePath = file.toNioPath()
+            val snapshot = docs.snapshotFor(sourcePath)
+            val entry = snapshot?.findBySectionId(sectionId)
+            val installedVersion = snapshot?.projectContext?.version ?: docs.detectContext(sourcePath)?.version
 
             buildJsonObject {
+                put("installedVersion", installedVersion)
+                putDocumentation(snapshot?.index)
+                put("status", if (entry == null) "unavailable" else "available")
+                if (entry == null) {
+                    put("sectionId", sectionId)
+                    put(
+                        "message",
+                        "This entry is unavailable. Use taiga_ui_api_at at a source location for installed API.",
+                    )
+                    return@buildJsonObject
+                }
                 put("sectionId", entry.sectionId)
                 put("title", entry.title)
                 put("kind", entry.kind.name)
@@ -90,6 +111,7 @@ class TaigaApiToolset : McpToolset {
                 put("documentedInputs", entry.inputs.jsonArray(::propertyInfo))
                 put("documentedOutputs", entry.outputs.jsonArray(::propertyInfo))
                 put("example", entry.example?.code?.take(6_000))
+                put("exampleLanguage", entry.example?.language)
             }
         }
 
@@ -107,13 +129,29 @@ class TaigaApiToolset : McpToolset {
                 checkNotNull(documentationRequest(project, file, line, column)) {
                     "No Taiga UI API was found at this location."
                 }
-            val snapshot = project.service<TaigaDocsService>().snapshotFor(file.toNioPath())
+            val docs = project.service<TaigaDocsService>()
+            val sourcePath = file.toNioPath()
+            val snapshot = docs.snapshotFor(sourcePath)
+            val installedVersion = snapshot?.projectContext?.version ?: docs.detectContext(sourcePath)?.version
             val resolved =
                 checkNotNull(resolveDocumentation(request, snapshot)) {
                     "No Taiga UI documentation is available at this location."
                 }
 
-            resolvedApi(resolved)
+            buildJsonObject {
+                resolvedApi(resolved).forEach { (key, value) -> put(key, value) }
+                put("installedVersion", installedVersion)
+                val origin =
+                    if (resolved.subject.localDocumentation.source ==
+                        null
+                    ) {
+                        "DOCUMENTATION"
+                    } else {
+                        "INSTALLED_DECLARATIONS"
+                    }
+                put("apiOrigin", origin)
+                putDocumentation(snapshot?.index)
+            }
         }
 }
 
@@ -149,6 +187,12 @@ internal fun resolvedApi(value: TaigaResolvedDocumentation) =
             is TaigaResolvedDocumentation.Entity -> {
                 put("kind", value.entity.kind.name)
                 put("installedBindings", value.subject.localDocumentation.angularResolved)
+                put(
+                    "requiredInputs",
+                    value.subject.localDocumentation.requiredInputs
+                        .sorted()
+                        .jsonStrings(),
+                )
                 put("inputs", value.entity.inputs.jsonArray(::propertyInfo))
                 put("outputs", value.entity.outputs.jsonArray(::propertyInfo))
                 put("type", value.typeText?.take(2_000))
@@ -171,6 +215,23 @@ internal fun resolvedApi(value: TaigaResolvedDocumentation) =
             }
         }
     }
+
+internal fun JsonObjectBuilder.putDocumentation(index: TaigaDocsIndex?) {
+    val provenance = index?.provenance
+
+    put(
+        "documentation",
+        buildJsonObject {
+            put("available", index != null)
+            put("major", index?.source?.majorVersion)
+            put("origin", provenance?.origin?.name)
+            put("stale", provenance?.isStale)
+            put("retrievedAt", provenance?.retrievedAt?.toString())
+            put("sourceRevision", provenance?.sourceRevision)
+            put("retrievedDate", provenance?.bundledDate?.toString())
+        },
+    )
+}
 
 private fun propertyInfo(value: TaigaApiProperty) =
     buildJsonObject {

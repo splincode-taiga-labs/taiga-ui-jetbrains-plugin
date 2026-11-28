@@ -7,26 +7,32 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.taigaui.designtokens.settings.taigaNetworkAccess
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
 
 @Service(Service.Level.PROJECT)
+@Suppress("TooManyFunctions")
 internal class TaigaDocsService(
     private val project: Project,
     private val coroutineScope: CoroutineScope,
 ) {
     private val versionDetector = TaigaUiVersionDetector()
     private val diskCache = TaigaDocsCache()
-    private val indexStore = TaigaDocsIndexStore(coroutineScope, TaigaDocsRepository(cache = diskCache))
+    private val indexStore =
+        TaigaDocsIndexStore(
+            coroutineScope,
+            TaigaDocsRepository(cache = diskCache, network = taigaNetworkAccess(), bundled = TaigaBundledDocs::load),
+        )
     private val projectContexts = ConcurrentHashMap<Path, TaigaUiProjectContext>()
 
     suspend fun snapshotFor(sourceFile: Path): TaigaDocsSnapshot? {
-        val context = detectContext(sourceFile)
-        val source = context?.let { TaigaDocsSources.forMajor(it.majorVersion) }
-        val index = source?.let { indexStore.indexFor(it) }
-
-        return if (context != null && index != null) TaigaDocsSnapshot(context, index) else null
+        val context = detectContext(sourceFile) ?: return null
+        return indexForMajor(context.majorVersion)?.let { TaigaDocsSnapshot(context, it) }
     }
+
+    suspend fun indexForMajor(major: Int): TaigaDocsIndex? =
+        TaigaDocsSources.forMajor(major)?.let { indexStore.indexFor(it) }
 
     suspend fun refresh(sourceFile: Path): TaigaDocsSnapshot? {
         val context = detectContext(sourceFile)
@@ -83,7 +89,7 @@ internal class TaigaDocsService(
         indexStore.clearMemory()
     }
 
-    private suspend fun detectContext(sourceFile: Path): TaigaUiProjectContext? {
+    suspend fun detectContext(sourceFile: Path): TaigaUiProjectContext? {
         val normalized = sourceFile.normalized()
         val context =
             withContext(Dispatchers.IO) {

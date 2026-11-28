@@ -1,10 +1,13 @@
 package org.taigaui.designtokens.documentation
 
+import org.taigaui.designtokens.settings.TaigaNetworkAccess
+import org.taigaui.designtokens.settings.TaigaNetworkMode
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.nio.charset.StandardCharsets
 import java.time.Duration
+import java.time.Instant
 
 internal fun interface TaigaDocsFetcher {
     fun fetch(source: TaigaDocsSource): String?
@@ -12,6 +15,7 @@ internal fun interface TaigaDocsFetcher {
 
 internal enum class TaigaDocsLoadOrigin {
     DISK_CACHE,
+    BUNDLED,
     REMOTE,
 }
 
@@ -25,16 +29,27 @@ internal class TaigaDocsRepository(
     private val fetcher: TaigaDocsFetcher = HttpTaigaDocsFetcher(),
     private val cache: TaigaDocsCache = TaigaDocsCache(),
     private val parser: TaigaDocsParser = TaigaDocsParser(),
+    private val network: TaigaNetworkAccess = TaigaNetworkAccess { TaigaNetworkMode.ONLINE },
+    private val bundled: (TaigaDocsSource) -> TaigaDocsLoadResult? = { null },
 ) {
-    fun load(source: TaigaDocsSource): TaigaDocsLoadResult? = loadCached(source) ?: loadFresh(source)
+    fun load(source: TaigaDocsSource): TaigaDocsLoadResult? = loadLocal(source) ?: loadFresh(source)
 
-    fun refresh(source: TaigaDocsSource): TaigaDocsLoadResult? = loadFresh(source) ?: loadCached(source)
+    fun refresh(source: TaigaDocsSource): TaigaDocsLoadResult? = loadFresh(source, explicit = true) ?: loadLocal(source)
+
+    fun loadLocal(source: TaigaDocsSource): TaigaDocsLoadResult? = loadCached(source) ?: bundled(source)
+
+    fun allowsAutomaticRefresh(): Boolean = network.allowsRequest()
 
     fun loadCached(source: TaigaDocsSource): TaigaDocsLoadResult? =
         cache
             .read(source)
-            ?.let { content -> parser.parse(source, content) }
-            ?.let { index ->
+            ?.let { content ->
+                parser.parse(
+                    source,
+                    content,
+                    TaigaDocsProvenance(TaigaDocsLoadOrigin.DISK_CACHE, retrievedAt = cache.modifiedAt(source)),
+                )
+            }?.let { index ->
                 TaigaDocsLoadResult(
                     index = index,
                     origin = TaigaDocsLoadOrigin.DISK_CACHE,
@@ -42,9 +57,13 @@ internal class TaigaDocsRepository(
                 )
             }
 
-    fun loadFresh(source: TaigaDocsSource): TaigaDocsLoadResult? {
-        val content = fetcher.fetch(source)?.takeIf(String::isNotBlank)
-        val index = content?.let { parser.parse(source, it) }
+    fun loadFresh(
+        source: TaigaDocsSource,
+        explicit: Boolean = false,
+    ): TaigaDocsLoadResult? {
+        val content = network.request(explicit) { fetcher.fetch(source) }?.takeIf(String::isNotBlank)
+        val provenance = TaigaDocsProvenance(TaigaDocsLoadOrigin.REMOTE, retrievedAt = Instant.now())
+        val index = content?.let { parser.parse(source, it, provenance) }
 
         if (content != null && index != null) {
             cache.write(source, content)

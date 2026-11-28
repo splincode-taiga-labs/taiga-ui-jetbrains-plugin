@@ -56,32 +56,95 @@ The local IDE build must remain compatible with the plugin's configured `sinceBu
 
 ## MCP tools
 
-Open a project in the sandbox and enable **Settings | AI | MCP Server**. Use the Codex auto-configuration option or
-the configuration snippet for your client, then list the available `taiga_ui_*` tools. On a monorepo, pass a source
-file from the specific app you want to inspect.
+Open the project in sandbox WebStorm. Enable the bundled **MCP Server** plugin, then turn on the server in
+**Settings | AI | MCP Server**. Auto-configure a detected client such as Codex or JetBrains Air when your IDE
+build offers it. For any compatible MCP client, copy the HTTP, SSE, or stdio configuration shown by the IDE
+and select a transport the client supports. Restart the client after changing its configuration. See the
+[JetBrains MCP Server guide](https://www.jetbrains.com/help/webstorm/mcp-server.html).
 
-| Tool                             | Example arguments                                            |
-| -------------------------------- | ------------------------------------------------------------ |
-| `taiga_ui_inspect_project`       | `{"source":"."}`                                             |
-| `taiga_ui_search_api`            | `{"source":"src/app.html","query":"tuiButton"}`              |
-| `taiga_ui_api_at`                | `{"source":"src/app.html","line":1,"column":9}`              |
-| `taiga_ui_search_tokens`         | `{"source":"src/styles.css","query":"background"}`           |
-| `taiga_ui_resolve_token`         | `{"source":"src/styles.css","name":"--tui-background-base"}` |
-| `taiga_ui_match_color`           | `{"source":"src/styles.css","color":"#fff"}`                 |
-| `taiga_ui_preview_folder_colors` | `{"directory":"src"}`                                        |
-| `taiga_ui_search_icons`          | `{"source":"src/app.html","query":"search"}`                 |
-| `taiga_ui_convert_rem`           | `{"rem":"1.25"}`                                             |
-| `taiga_ui_check_release`         | `{"source":"."}`                                             |
-| `taiga_ui_inspect_migration`     | `{"directory":"."}`                                          |
+Call `tools/list` from the client. On builds with **Exposed Tools**, confirm that the Taiga UI tools are enabled.
+If a tool is marked **Router-only** on a build that supports routing, use the JetBrains router and repeat a tool call
+through it. Direct discovery requires enabling the tool for direct exposure. Pass a source path relative to the
+opened project, picking a file from the intended app in a mixed monorepo.
 
-Use the files and token names from your workspace. Compare versions and sources with Project Doctor, match token
-values with Token Explorer, and check a binding against native Quick Documentation. For import, token, and event
-modifier warnings, call WebStorm's `get_file_problems` with the source file path.
+| Tool                                 | Example arguments                                            |
+| ------------------------------------ | ------------------------------------------------------------ |
+| `taiga_ui_inspect_project`           | `{"source":"."}`                                             |
+| `taiga_ui_inspect_app`               | `{"source":"src/app.html","mode":"migration"}`               |
+| `taiga_ui_search_api`                | `{"source":"src/app.html","query":"tuiButton"}`              |
+| `taiga_ui_read_api`                  | `{"source":"src/app.html","sectionId":"components/button"}`  |
+| `taiga_ui_api_at`                    | `{"source":"src/app.html","line":1,"column":9}`              |
+| `taiga_ui_get_generation_context`    | `{"source":"src/app.ts"}`                                    |
+| `taiga_ui_get_examples`              | `{"source":"src/app.ts","names":["tuiButton","Calendar"]}`   |
+| `taiga_ui_get_migration_guide`       | `{"source":"src/app.ts"}`                                    |
+| `taiga_ui_search_tokens`             | `{"source":"src/styles.css","query":"background"}`           |
+| `taiga_ui_resolve_token`             | `{"source":"src/styles.css","name":"--tui-background-base"}` |
+| `taiga_ui_match_color`               | `{"source":"src/styles.css","color":"#fff"}`                 |
+| `taiga_ui_preview_folder_colors`     | `{"directory":"src"}`                                        |
+| `taiga_ui_apply_folder_colors`       | `{"directory":"src","revision":"<preview revision>"}`        |
+| `taiga_ui_search_icons`              | `{"source":"src/app.html","query":"search"}`                 |
+| `taiga_ui_convert_rem`               | `{"rem":"1.25"}`                                             |
+| `taiga_ui_check_release`             | `{"source":"."}`                                             |
+| `taiga_ui_inspect_migration`         | `{"directory":"."}`                                          |
+| `taiga_ui_run_migration`             | `{"directory":".","revision":"<inspection revision>"}`       |
+| `taiga_ui_inspect_nx_migration_plan` | `{"directory":"."}`                                          |
+| `taiga_ui_run_nx_migration_plan`     | `{"directory":".","revision":"<plan revision>"}`             |
 
-For folder color replacement, pass the preview's `revision` and the same directory to `taiga_ui_apply_folder_colors`.
-Review the diff in WebStorm. To start an Angular or Nx migration from v4, use `taiga_ui_inspect_migration` followed
-by `taiga_ui_run_migration` with the same directory and revision. Verify that declining the confirmation leaves the
-workspace unchanged in both cases.
+Use paths and token names from a disposable test workspace. Compare the version and source information with Project
+Doctor, token values with Token Explorer, and a binding with Quick Documentation. WebStorm's built-in
+`get_file_problems` reports IDE inspection findings for individual files. The Doctor's **Analyze App** and
+**Analyze v4 to v5 Migration** actions run the existing batch inspections over the selected app in WebStorm.
+`taiga_ui_inspect_app` uses the same inspection sets and returns project-relative findings. A bounded result reports
+`partial: true` if it skips files larger than 1 MiB or reaches the file or finding limit.
+
+For an offline client smoke test, select **Offline only**, then request examples for the same API using a
+TypeScript source file from each app in a mixed v4/v5 workspace. Check the installed version and documentation
+major on each result, and compare `verifiedExports` with the app's installed declarations. Request the migration
+guide from the v4 app and check that its documentation major is 5, the target of the guide.
+
+For folder cleanup, pass the preview's revision to the apply tool, review the IDE diff, and confirm. Check cancellation,
+stale revision rejection, and IDE Undo in the disposable workspace. For migration, inspect the workspace before
+requesting execution and decline the first confirmation. Use a separate disposable workspace with pre-provisioned
+Angular/Nx dependencies for a successful run. The CLI uses its own registry and network configuration.
+
+### Offline smoke check
+
+1. Start a fresh IDE sandbox with local Taiga UI packages for v4 and v5, and select **Offline only** in
+   **Settings | Tools | Taiga UI**. Block external network access while keeping the local MCP connection available.
+2. With an empty IDE disk cache, start the IDE and connect a generic MCP client. List the tools and call the examples
+   above against the corresponding fixtures. Confirm API search and read report `BUNDLED` with the app's own major
+   and an upstream revision. Use `taiga_ui_api_at` to check installed declarations for a real binding.
+3. Repeat with a valid and then stale same-major disk cache. Check that the response reports `DISK_CACHE`, exposes
+   freshness, and uses the disk cache over the bundled version. Check an invalid cache falls back to the bundle.
+4. Reload the API tab and a contextual card, open the icon browser, call the release tool, and inspect outbound
+   connections. Confirm no access attempts to the Taiga UI documentation host, the T-Bank CDNs, or GitHub Releases.
+5. In a sandbox with network available, start a refresh in **Online**, switch to **Offline only**, then repeat
+   the lookups. Check that cached/local results remain available and the plugin stops initiating requests.
+6. Record the IDE build, client and version, transport, router support, and the result for each case. Repeat on
+   the oldest and newest supported IDE builds. Disable the optional **MCP Server** plugin and confirm the Taiga UI
+   editor, API browser and Doctor still work.
+
+**Cache first** is the default. It uses local data for automatic operations, including MCP calls. The API tab's
+**Reload** and an explicit card refresh can update the documentation cache. **Online** also enables automatic
+documentation refresh, uncached CDN icons and previews, and GitHub release polling. **Offline only** uses cached or
+bundled data even when the user clicks Reload. Cached release and remote icon data are available within the running IDE
+session when previously fetched. Missing remote-only data appears as unavailable. The network policy governs the plugin's
+data access. An AI client may still require an online model connection, and an external documentation link opens in the browser.
+
+### Update bundled documentation
+
+The v4 and v5 snapshots are generated documentation published by the Apache-2.0-licensed
+[Taiga UI project](https://github.com/taiga-family/taiga-ui). Keep the license and attribution alongside the archives.
+During release preparation, verify that the upstream GitHub Pages revision has the expected majors at
+`v4/llms-full.txt` and `llms-full.txt`, then run:
+
+```bash
+python3 scripts/update-docs-snapshots.py <gh-pages-commit-sha> --retrieved <yyyy-mm-dd>
+./gradlew test --tests '*TaigaDocsRepositoryTest'
+```
+
+Review the manifest and commit the archives with it. Plugin builds use the checked-in bytes. A snapshot identifies a
+documentation major and deployment revision. Use installed declarations to verify bindings for a specific minor version.
 
 ## Verify the Nx migration MCP tools
 

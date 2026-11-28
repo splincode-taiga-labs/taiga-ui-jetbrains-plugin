@@ -8,6 +8,7 @@ import com.intellij.lang.ecmascript6.psi.ES6ImportExportSpecifier.ImportExportSp
 import com.intellij.lang.ecmascript6.psi.ES6ImportSpecifier
 import com.intellij.lang.ecmascript6.psi.impl.ES6ImportPsiUtil
 import com.intellij.lang.javascript.psi.JSFile
+import com.intellij.openapi.fileTypes.FileTypeManager
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.VirtualFile
@@ -124,6 +125,43 @@ private fun ES6ImportSpecifier.uniqueReplacement(
 internal fun ES6ImportSpecifier.isTypeOnly(): Boolean =
     declaration?.importExportPrefixKind == ImportExportPrefixKind.IMPORT_TYPE ||
         specifierKind == ImportExportSpecifierKind.IMPORT_TYPE
+
+internal data class TaigaImportTarget(
+    val symbol: String,
+    val packageName: String,
+)
+
+internal fun PsiFile.verifyTaigaExports(candidates: Collection<TaigaImportTarget>): Set<TaigaImportTarget> {
+    val packages = originalFile.virtualFile?.installedTaigaPackages().orEmpty()
+    val targets = candidates.filter { it.packageName in packages && IDENTIFIER.matches(it.symbol) }
+    if (targets.isEmpty()) return emptySet()
+
+    val probes =
+        targets
+            .mapIndexed { index, target ->
+                "import {${target.symbol} as __TaigaImportProbe$index} from '${target.packageName}';"
+            }.joinToString("\n")
+    val factory = PsiFileFactory.getInstance(project)
+    val probeFile =
+        if (this is JSFile) {
+            factory.createFileFromText(probes, this)
+        } else {
+            val name = "taiga-mcp-probe.ts"
+            factory.createFileFromText(name, FileTypeManager.getInstance().getFileTypeByFileName(name), probes)
+        }
+    // Resolve imports as if they appeared in the requested app file, including its tsconfig and package scope.
+    (probeFile as? PsiFileImpl)?.setOriginalFile(originalFile)
+    val declarations = (probeFile as? JSFile)?.taigaImports().orEmpty()
+    return if (declarations.size == targets.size) {
+        targets.zip(declarations).mapNotNullTo(mutableSetOf()) { (target, declaration) ->
+            ProgressManager.checkCanceled()
+            val root = packages.getValue(target.packageName)
+            target.takeIf { declaration.resolvesWithin(root) && declaration.importSpecifiers.single().hasResolution() }
+        }
+    } else {
+        emptySet()
+    }
+}
 
 private fun ES6ImportSpecifier.hasResolution(): Boolean =
     multiResolve(false).any { result -> result.isValidResult && result.element != null }

@@ -15,6 +15,7 @@ import com.intellij.openapi.application.readAction
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectFileIndex
 import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.profile.codeInspection.InspectionProjectProfileManager
 import com.intellij.psi.PsiFileFactory
 import com.intellij.psi.PsiManager
@@ -42,16 +43,7 @@ internal suspend fun prepareTaigaDoctorAnalysis(
     source: Path,
     mode: TaigaDoctorMode,
 ): TaigaDoctorAnalysis? {
-    val workspace = project.basePath?.let(Path::of)
-    val directory =
-        withContext(Dispatchers.IO) {
-            val canAnalyze = mode == TaigaDoctorMode.APP || TaigaProjectDoctor().inspect(source).supportsV5Migration
-
-            workspace
-                ?.takeIf { canAnalyze }
-                ?.let { findTaigaDoctorApplication(source, it) { config -> readAngularProjectRoots(project, config) } }
-                ?.let(LocalFileSystem.getInstance()::refreshAndFindFileByNioFile)
-        } ?: return null
+    val directory = resolveTaigaDoctorDirectory(project, source, mode) ?: return null
 
     return readAction {
         PsiManager
@@ -62,15 +54,34 @@ internal suspend fun prepareTaigaDoctorAnalysis(
     }
 }
 
+internal suspend fun resolveTaigaDoctorDirectory(
+    project: Project,
+    source: Path,
+    mode: TaigaDoctorMode,
+): VirtualFile? {
+    val workspace = project.basePath?.let(Path::of)
+
+    return withContext(Dispatchers.IO) {
+        val canAnalyze = mode == TaigaDoctorMode.APP || TaigaProjectDoctor().inspect(source).supportsV5Migration
+
+        workspace
+            ?.takeIf { canAnalyze }
+            ?.let { findTaigaDoctorApplication(source, it) { config -> readAngularProjectRoots(project, config) } }
+            ?.let(LocalFileSystem.getInstance()::refreshAndFindFileByNioFile)
+    }
+}
+
+internal fun taigaDoctorInspections(mode: TaigaDoctorMode): List<LocalInspectionToolWrapper> =
+    LocalInspectionEP.LOCAL_INSPECTION.extensionList
+        .filter { it.shortName in mode.inspections }
+        .map(::LocalInspectionToolWrapper)
+
 internal fun taigaDoctorInspectionProfile(
     project: Project,
     mode: TaigaDoctorMode,
 ): InspectionProfileImpl {
     val profileManager = InspectionProjectProfileManager.getInstance(project).currentProfile.profileManager
-    val tools =
-        LocalInspectionEP.LOCAL_INSPECTION.extensionList
-            .filter { inspection -> inspection.shortName in mode.inspections }
-            .map(::LocalInspectionToolWrapper)
+    val tools = taigaDoctorInspections(mode)
     val profile =
         InspectionProfileImpl(mode.profileName, InspectionToolsSupplier.Simple(tools), profileManager, null, null)
 

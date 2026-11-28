@@ -1,6 +1,9 @@
 package org.taigaui.designtokens.documentation
 
 import java.net.URI
+import java.time.Duration
+import java.time.Instant
+import java.time.LocalDate
 
 internal enum class TaigaDocKind {
     COMPONENT,
@@ -67,9 +70,21 @@ internal data class TaigaEntityDoc(
     val documentationUri: URI,
 )
 
+internal data class TaigaDocsProvenance(
+    val origin: TaigaDocsLoadOrigin,
+    val retrievedAt: Instant? = null,
+    val sourceRevision: String? = null,
+    val bundledDate: LocalDate? = null,
+) {
+    val isStale: Boolean?
+        get() = retrievedAt?.isBefore(Instant.now().minus(Duration.ofHours(6)))
+}
+
 internal class TaigaDocsIndex(
     val source: TaigaDocsSource,
     entities: Collection<TaigaEntityDoc>,
+    val provenance: TaigaDocsProvenance? = null,
+    val guides: Map<TaigaDocsGuide, String> = emptyMap(),
 ) {
     val entities: List<TaigaEntityDoc> = entities.toList()
     private val byPublicSymbol: Map<String, List<TaigaEntityDoc>> =
@@ -94,4 +109,12 @@ internal class TaigaDocsIndex(
     fun findBySelector(selector: String): List<TaigaEntityDoc> = bySelector[selector].orEmpty()
 
     fun findBySectionId(sectionId: String): TaigaEntityDoc? = bySectionId[sectionId.lowercase()]
+}
+
+internal enum class TaigaDocsGuide(
+    val heading: String,
+) {
+    GENERATION_CHECKLIST("# Code Generation Checklist"),
+    COMMON_MISTAKES("# Common Mistakes"),
+    MIGRATION("# Migration Guide"),
 }

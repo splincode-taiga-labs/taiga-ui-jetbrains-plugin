@@ -68,7 +68,7 @@ Code changes invalidate the card's source-changing actions, including changes to
 
 Open **Taiga UI** on the right-hand tool window bar to browse components, directives, pipes and other APIs by category. The search field filters the tree by name, public symbol or selector. Select an entry to see its package and summary, then press **Enter** in the tree or click **Open Documentation**.
 
-Open the **Taiga UI** tab in Search Everywhere (press **Shift** twice) for the same results without leaving the editor. Both views use the cached documentation for the Taiga UI version installed for the active file, or the project root when no file is selected.
+Open the **Taiga UI** tab in Search Everywhere (press **Shift** twice) for the same results without leaving the editor. Both views use documentation for the Taiga UI major installed for the active file, or the project root when no file is selected. Taiga UI 4 and 5 documentation is available from built-in snapshots on a fresh offline installation. Choose **Cache first**, **Online**, or **Offline only** in **Settings | Tools | Taiga UI**.
 
 ## Project Doctor
 
@@ -112,18 +112,23 @@ used by your active workspace. Select **View release on GitHub** to see the rele
 Connect an agent to WebStorm's **MCP Server** to inspect a project and run Taiga UI actions. Pass a file path
 relative to the project root to select the right Angular or Nx app when a monorepo contains multiple versions.
 
-| Area                                  | MCP tools                                                                  |
-| ------------------------------------- | -------------------------------------------------------------------------- |
-| Project Doctor and releases           | `taiga_ui_inspect_project`, `taiga_ui_check_release`                       |
-| API docs and installed bindings       | `taiga_ui_search_api`, `taiga_ui_read_api`, `taiga_ui_api_at`              |
-| Design tokens and exact color matches | `taiga_ui_search_tokens`, `taiga_ui_resolve_token`, `taiga_ui_match_color` |
-| Folder color replacement              | `taiga_ui_preview_folder_colors`, `taiga_ui_apply_folder_colors`           |
-| Icon catalog and CSS units            | `taiga_ui_search_icons`, `taiga_ui_convert_rem`                            |
-| New Angular or Nx migration           | `taiga_ui_inspect_migration`, `taiga_ui_run_migration`                     |
-| Saved Nx migrations                   | `taiga_ui_inspect_nx_migration_plan`, `taiga_ui_run_nx_migration_plan`     |
+| Area                                  | MCP tools                                                                              |
+| ------------------------------------- | -------------------------------------------------------------------------------------- |
+| Project Doctor and releases           | `taiga_ui_inspect_project`, `taiga_ui_check_release`                                   |
+| API docs and installed bindings       | `taiga_ui_search_api`, `taiga_ui_read_api`, `taiga_ui_api_at`                          |
+| Code generation and examples          | `taiga_ui_get_generation_context`, `taiga_ui_get_examples`                             |
+| Design tokens and exact color matches | `taiga_ui_search_tokens`, `taiga_ui_resolve_token`, `taiga_ui_match_color`             |
+| Folder color replacement              | `taiga_ui_preview_folder_colors`, `taiga_ui_apply_folder_colors`                       |
+| Icon catalog and CSS units            | `taiga_ui_search_icons`, `taiga_ui_convert_rem`                                        |
+| New Angular or Nx migration           | `taiga_ui_get_migration_guide`, `taiga_ui_inspect_migration`, `taiga_ui_run_migration` |
+| Saved Nx migrations                   | `taiga_ui_inspect_nx_migration_plan`, `taiga_ui_run_nx_migration_plan`                 |
 
 To make a change, preview it and pass the returned `revision` to the Run or Apply tool with the same directory.
 WebStorm shows a confirmation before either action changes the workspace.
+
+For code generation, pass a file from the target app to get the generation checklist and examples for its installed
+Taiga UI version. The example response identifies which documented symbols WebStorm verified against the installed
+packages. The v4-to-v5 migration guide is also available from the built-in v5 snapshot in **Offline only** mode.
 
 WebStorm's built-in `get_file_problems` tool also reports enabled Taiga UI inspections, including incorrect imports,
 unknown or deprecated design tokens, and invalid event modifiers. See the [MCP sandbox guide](docs/local-debugging.md#mcp-tools)
@@ -272,14 +277,20 @@ This allows different projects or monorepo packages to use different Taiga UI ve
 
 ## Settings
 
-The plugin adds an application-scoped settings page under **Settings → Tools → Taiga UI**.
+Open **Settings → Tools → Taiga UI** to configure the plugin for all projects in the IDE.
 
-Two editor features can be controlled independently:
+![Taiga UI settings in WebStorm, including design token previews, API cards, network access, and MCP controls](demo/public/screens/plugin-settings.webp)
 
-- **Show design token completion preview** — shows the side preview for the currently selected `--tui-*` completion item, including resolved values and color swatches.
-- **Show design token hover popup** — shows the custom token popup when hovering a complete `var(--tui-...)` reference.
+- **Show completion preview** displays resolved values and color swatches beside the selected design-token suggestion.
+- **Show hover popup** displays a token's values and sources when you hover over a `var(--tui-…)` reference.
+- **Show API cards on hover** opens API cards over Taiga UI components, directives, pipes, and bindings. **Show Taiga UI Card** opens the card on demand.
+- **Expose Taiga UI tools via MCP** controls whether connected clients can use Taiga UI tools.
+- **Allow project changes via MCP** controls folder color replacements and migrations. Turn it off to give agents access to search, diagnostics, and previews. Changes still require confirmation when enabled.
+- **Network access** controls the plugin's requests for documentation, CDN icons, and release information. **Cache first** allows manual documentation refreshes. **Online** allows automatic requests. **Offline only** uses installed, bundled, and cached data.
 
-Both options are enabled by default. Changes affect editor presentation only and do not change token resolution, source precedence, indexing, or cache behavior.
+MCP access changes take effect for new calls after **Apply**. JetBrains MCP caches its tool list, so restart the IDE and reconnect the client if it still shows an old list.
+
+To enable or disable **Taiga xUI Community**, go to **Settings → Plugins → Installed**. The **Open Plugins settings** link opens the Plugins page. Use **Open MCP Server settings** to manage AI client connections and, where available, use **Exposed Tools** to manage individual Taiga UI tools.
 
 ## Compatibility
 

@@ -1,0 +1,5 @@
+Taiga UI documentation snapshots
+Upstream project: https://github.com/taiga-family/taiga-ui
+License: Apache License, Version 2.0 (see LICENSE.txt)
+The original upstream documentation bytes are bundled as gzip archives.
+The manifest records the upstream GitHub Pages revision and content checksums.

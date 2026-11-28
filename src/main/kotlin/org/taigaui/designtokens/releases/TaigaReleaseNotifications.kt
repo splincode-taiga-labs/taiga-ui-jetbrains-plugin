@@ -18,11 +18,14 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import org.taigaui.designtokens.diagnostics.TaigaProjectDoctor
+import org.taigaui.designtokens.settings.TaigaNetworkMode
+import org.taigaui.designtokens.settings.taigaNetworkAccess
 import java.nio.file.Path
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -53,14 +56,22 @@ internal class TaigaReleaseNotifications(
 
     fun start() {
         scope.launch(Dispatchers.IO) {
-            delay(5.seconds)
-
-            while (isActive) {
-                checkRelease()
-                withTimeoutOrNull(RELEASE_CHECK_INTERVAL) { changes.receive() }
-                delay(500.milliseconds)
-                changes.tryReceive()
+            taigaNetworkAccess().modes.collectLatest { mode ->
+                if (mode == TaigaNetworkMode.ONLINE) {
+                    withContext(Dispatchers.IO) { pollReleases() }
+                }
             }
+        }
+    }
+
+    private suspend fun CoroutineScope.pollReleases() {
+        delay(5.seconds)
+
+        while (isActive) {
+            checkRelease()
+            withTimeoutOrNull(RELEASE_CHECK_INTERVAL) { changes.receive() }
+            delay(500.milliseconds)
+            changes.tryReceive()
         }
     }
 

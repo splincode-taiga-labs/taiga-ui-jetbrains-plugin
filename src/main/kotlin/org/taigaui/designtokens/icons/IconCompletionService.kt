@@ -18,6 +18,7 @@ import org.taigaui.designtokens.cache.CoalescingRefreshCallbacks
 import org.taigaui.designtokens.cache.RefreshCallback
 import org.taigaui.designtokens.diagnostics.PerformanceDiagnostics
 import org.taigaui.designtokens.diagnostics.PerformanceMetric
+import org.taigaui.designtokens.settings.taigaNetworkAccess
 import java.nio.file.Path
 
 @Service(Service.Level.PROJECT)
@@ -25,7 +26,8 @@ internal class IconCompletionService(
     private val project: Project,
     private val coroutineScope: CoroutineScope,
 ) {
-    private val loader = IconCatalogLoader()
+    private val network = taigaNetworkAccess()
+    private val loader = IconCatalogLoader(network)
     private val cache = IconCatalogCache()
     private val lock = Any()
     private val pendingWarmups = mutableMapOf<Path, PendingWarmup>()
@@ -55,7 +57,7 @@ internal class IconCompletionService(
                 ?: return IconCatalog(emptyList())
         val lookup = cache.lookup(scopeRoot)
 
-        if (lookup == null || !lookup.isFresh) {
+        if (lookup.needsLoad()) {
             scheduleWarmup(scopeRoot, onUpdated)
         }
 
@@ -74,7 +76,7 @@ internal class IconCompletionService(
                 ?: return null
         val lookup = cache.lookup(scopeRoot)
 
-        if (lookup == null || !lookup.isFresh) {
+        if (lookup.needsLoad()) {
             scheduleWarmup(scopeRoot)
         }
 
@@ -118,10 +120,12 @@ internal class IconCompletionService(
         }
     }
 
+    private fun IconCatalogCacheLookup?.needsLoad(): Boolean = this == null || (!isFresh && network.allowsRequest())
+
     private fun loadScopeNow(scopeRoot: Path): List<String> {
         val lookup = cache.lookup(scopeRoot)
 
-        if (lookup?.isFresh == true) {
+        if (lookup != null && !lookup.needsLoad()) {
             return lookup.catalog.names
         }
 
@@ -130,7 +134,7 @@ internal class IconCompletionService(
 
         cache.publish(scopeRoot, generation, result)
 
-        return result.catalog.names
+        return cache.lookup(scopeRoot)?.catalog?.names ?: result.catalog.names
     }
 
     private fun scheduleWarmup(

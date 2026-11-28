@@ -142,7 +142,7 @@ private class TaigaApiToolWindowPanel(
                 }
             },
         )
-        reloadButton.addActionListener { load(taigaApiSource(project)) }
+        reloadButton.addActionListener { load(taigaApiSource(project), refresh = true) }
         load(taigaApiSource(project))
     }
 
@@ -178,7 +178,10 @@ private class TaigaApiToolWindowPanel(
         )
     }
 
-    private fun load(path: Path?) {
+    private fun load(
+        path: Path?,
+        refresh: Boolean = false,
+    ) {
         source = path
         loadJob?.cancel()
         filterJob?.cancel()
@@ -188,7 +191,7 @@ private class TaigaApiToolWindowPanel(
 
         loadJob =
             scope.launch {
-                catalog = path?.let { TaigaApiCatalog.load(project, it) }
+                catalog = path?.let { TaigaApiCatalog.load(project, it, refresh) }
                 versionLabel.text = catalog?.let { "Taiga UI ${it.version}" }.orEmpty()
 
                 if (catalog == null) {

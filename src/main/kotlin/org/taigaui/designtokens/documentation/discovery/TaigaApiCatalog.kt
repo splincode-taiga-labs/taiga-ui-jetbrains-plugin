@@ -43,12 +43,16 @@ internal data class TaigaApiEntry(
 internal data class TaigaApiMatch(
     val entry: TaigaApiEntry,
     val weight: Int,
-)
+) {
+    val isExact: Boolean
+        get() = weight >= EXACT_TITLE_WEIGHT
+}
 
 internal class TaigaApiCatalog(
     snapshot: TaigaDocsSnapshot,
 ) {
     val version: String = snapshot.projectContext.version
+    val index = snapshot.index
     private val entries: List<TaigaApiEntry> =
         snapshot.entities
             .distinctBy(TaigaEntityDoc::sectionId)
@@ -82,7 +86,7 @@ internal class TaigaApiCatalog(
         when {
             query.isEmpty() -> 0
             query in entry.identifierKeys -> 100
-            entry.titleKey == query -> 90
+            entry.titleKey == query -> EXACT_TITLE_WEIGHT
             entry.titleKey.startsWith(query) -> 80
             entry.identifierKeys.any { it.startsWith(query) } -> 70
             query in entry.titleKey -> 60
@@ -96,9 +100,13 @@ internal class TaigaApiCatalog(
         suspend fun load(
             project: Project,
             source: Path,
+            refresh: Boolean = false,
         ): TaigaApiCatalog? =
             withContext(Dispatchers.Default) {
-                project.service<TaigaDocsService>().snapshotFor(source)?.let(::TaigaApiCatalog)
+                val docs = project.service<TaigaDocsService>()
+                val snapshot = if (refresh) docs.refresh(source) else docs.snapshotFor(source)
+
+                snapshot?.let(::TaigaApiCatalog)
             }
     }
 }
@@ -116,6 +124,8 @@ internal val TaigaDocKind.categoryLabel: String
             TaigaDocKind.CLASS -> "Classes"
             TaigaDocKind.UNKNOWN -> "Other"
         }
+
+private const val EXACT_TITLE_WEIGHT = 90
 
 internal fun taigaApiSource(
     project: Project,

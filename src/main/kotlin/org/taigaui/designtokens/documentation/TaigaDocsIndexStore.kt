@@ -85,7 +85,7 @@ internal class TaigaDocsIndexStore(
             val result = repository.load(source) ?: return@async null
             val published = publish(source, expectedGeneration, result.index)
 
-            if (published && result.refreshRecommended) {
+            if (published && result.refreshRecommended && repository.allowsAutomaticRefresh()) {
                 refreshLoad(source, allowCachedFallback = false)
             }
 
@@ -120,7 +120,8 @@ internal class TaigaDocsIndexStore(
         return coroutineScope.async(Dispatchers.IO + CoroutineName("Taiga UI documentation index refresh")) {
             val result =
                 if (allowCachedFallback) {
-                    repository.refresh(source)
+                    repository.loadFresh(source, explicit = true)
+                        ?: if (cached(source) == null) repository.loadLocal(source) else null
                 } else {
                     repository.loadFresh(source)
                 }

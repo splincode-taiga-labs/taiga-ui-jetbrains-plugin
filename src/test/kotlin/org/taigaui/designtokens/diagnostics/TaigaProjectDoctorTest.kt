@@ -178,8 +178,8 @@ class TaigaProjectDoctorTest {
                 ?.documentationBaseUri
                 .toString(),
         )
-        assertEquals("v5 · Not cached", v5.documentationSummary)
-        assertTrue(currentReport.toMarkdown().contains("- Documentation: v5 · Not cached"))
+        assertEquals("v5 · Bundled snapshot available", v5.documentationSummary)
+        assertTrue(currentReport.toMarkdown().contains("- Documentation: v5 · Bundled snapshot available"))
         assertFalse(currentReport.toMarkdown().contains(workspace.toString()))
     }
 

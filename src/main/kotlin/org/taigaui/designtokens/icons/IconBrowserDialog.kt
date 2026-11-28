@@ -22,6 +22,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import org.taigaui.designtokens.cache.RefreshCallback
+import org.taigaui.designtokens.settings.taigaNetworkAccess
 import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.FlowLayout
@@ -44,7 +45,7 @@ internal class IconBrowserDialog(
     private val sourceFile: Path,
 ) : DialogWrapper(project, true) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.EDT)
-    private val renderer = IconSvgPreviewRenderer()
+    private val renderer = IconSvgPreviewRenderer(network = taigaNetworkAccess())
     private val model = DefaultListModel<String>()
     private val previews = mutableMapOf<String, javax.swing.Icon>()
     private val completedPreviews = mutableSetOf<String>()

@@ -82,6 +82,30 @@ class TaigaMigrationApprovalTest : HeavyPlatformTestCase() {
         assertFalse(Files.exists(root.resolve("migration-ran")))
     }
 
+    fun testRevokedPermissionDuringConfirmationPreventsExecution() {
+        val root = workspace("require('node:fs').writeFileSync('migration-ran', 'unexpected');")
+        val plan = prepare(root)
+        var allowed = true
+        val failure =
+            runInBackground {
+                runCatching {
+                    project.service<TaigaMigrationRunner>().confirmAndRunPlan(
+                        plan,
+                        prepare = { error("A blocked migration must not be prepared again") },
+                        output = MigrationOutput(),
+                        checkPermission = { check(allowed) { "Permission revoked" } },
+                        confirmPlan = {
+                            allowed = false
+                            true
+                        },
+                    )
+                }.exceptionOrNull()
+            }
+
+        assertEquals("Permission revoked", failure?.message)
+        assertFalse(Files.exists(root.resolve("migration-ran")))
+    }
+
     private fun prepare(root: Path): PreparedMigration {
         val plan = prepareNewTaigaMigration(root, root)
 

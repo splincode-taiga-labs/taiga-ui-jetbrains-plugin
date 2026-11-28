@@ -20,6 +20,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.taigaui.designtokens.settings.taigaNetworkAccess
 import java.awt.Dimension
 import java.awt.Point
 import java.nio.file.Path
@@ -32,7 +33,7 @@ internal class IconCompletionPreviewController(
     private val project: Project,
     private val coroutineScope: CoroutineScope,
 ) {
-    private val renderer = IconSvgPreviewRenderer()
+    private val renderer = IconSvgPreviewRenderer(network = taigaNetworkAccess())
     private var activeLookup: Lookup? = null
     private var activeListener: LookupListener? = null
     private var previewHint: LightweightHint? = null

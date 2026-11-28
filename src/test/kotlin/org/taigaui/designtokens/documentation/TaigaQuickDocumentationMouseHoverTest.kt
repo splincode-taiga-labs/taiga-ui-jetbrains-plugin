@@ -1,11 +1,13 @@
 package org.taigaui.designtokens.documentation
 
 import com.intellij.openapi.command.WriteCommandAction
+import com.intellij.openapi.components.service
 import com.intellij.openapi.editor.event.EditorMouseEvent
 import com.intellij.openapi.editor.event.EditorMouseEventArea
 import com.intellij.openapi.editor.ex.EditorSettingsExternalizable
 import com.intellij.openapi.ui.popup.JBPopup
 import kotlinx.coroutines.Job
+import org.taigaui.designtokens.settings.TaigaDesignTokensSettings
 import java.awt.Dimension
 import java.awt.Point
 import java.awt.event.MouseEvent
@@ -96,6 +98,35 @@ class TaigaQuickDocumentationMouseHoverTest : TaigaQuickDocumentationControllerT
         } finally {
             controller.dismissHover(force = true)
             settings.isShowQuickDocOnMouseOverElement = previous
+        }
+    }
+
+    fun testDisablingApiHoverClosesTheAutomaticCardAndKeepsTheManualCard() {
+        configure("<button tuiButton size=\"m\">Save</button>", "size")
+        val pluginSettings = service<TaigaDesignTokensSettings>()
+        val editorSettings = EditorSettingsExternalizable.getInstance()
+        val previousHover = pluginSettings.showApiCardsOnHover
+        val previousEditorHover = editorSettings.isShowQuickDocOnMouseOverElement
+
+        try {
+            pluginSettings.showApiCardsOnHover = true
+            editorSettings.isShowQuickDocOnMouseOverElement = true
+            val event = mouseMoveOver("size")
+            controller.mouseMoved(event)
+            await("automatic API card") { panelOrNull() != null }
+
+            pluginSettings.showApiCardsOnHover = false
+            await("dismissed automatic API card") { panelOrNull() == null }
+            controller.mouseMoved(event)
+            assertNull(documentationField<Job?>(controller, "resolutionJob"))
+
+            controller.showFromCaret(myFixture.editor)
+            await("manual API card") { panelOrNull() != null }
+            assertFalse(panel().compactHover)
+        } finally {
+            controller.dismissHover(force = true)
+            editorSettings.isShowQuickDocOnMouseOverElement = previousEditorHover
+            pluginSettings.showApiCardsOnHover = previousHover
         }
     }
 

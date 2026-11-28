@@ -81,7 +81,7 @@ manifests in the background. It compares common packages that share the Taiga UI
 the report without participating in the comparison. The tab supports explicit reload after dependency changes.
 
 The report reuses the active package scope for design-token source discovery, icon source selection, and documentation
-major-version detection. Source status checks run off the EDT. They use package metadata, icon directories, the
+major-version detection. It also displays the application-wide Taiga UI network policy and bundled snapshot availability. Source status checks run off the EDT. They use package metadata, icon directories, the
 in-memory documentation index, and the presence of its disk cache file. They do not load catalogs, parse cached
 documentation, or make network requests.
 
@@ -117,11 +117,32 @@ paths so an agent's app selection is independent of the active editor. MCP sourc
 symbolic links. Expensive filesystem work and result assembly run in the background, and source-level API lookup uses
 a smart read action over committed PSI.
 
+An optional MCP tools provider uses JetBrains reflection to preserve the existing protocol names and tool descriptors.
+The provider checks the application settings when it builds the exposed list, and its tool wrappers check access again
+on every call. This enforces changes from **Apply** for clients that still have a cached list. In read-only mode the
+provider omits folder color apply and both migration execution tools. The mutation handlers recheck access after
+confirmation and before writing or starting the migration CLI. A CLI process that has already started keeps its normal
+lifecycle.
+
 Catalog documentation describes published APIs for the installed major. Source-position lookup resolves against actual
 installed declarations and identifies when a binding's type comes from those declarations. WebStorm supplies file
-inspection results through its built-in MCP tool. Folder color replacement uses the same scanner, IDE diff dialog,
+inspection results through its built-in MCP tool. Taiga UI's bounded app inspection uses the Doctor's application
+scope and inspection profiles to return app or migration findings. Folder color replacement uses the same scanner, IDE diff dialog,
 and undoable write command as the folder action. The MCP preview binds a revision to the folder and proposed
 changes. Apply rescans and compares revisions before showing the diff, then checks the original snapshots before writing.
+
+## Network policy
+
+**Settings | Tools | Taiga UI** controls the plugin-owned outbound requests for documentation, the T-Bank icon
+catalog and SVG previews, and the GitHub release feed. **Cache first** is the default: background work reads
+local sources and existing caches, and an explicit API documentation reload can request a fresh snapshot.
+**Online** allows automatic requests. **Offline only** also blocks explicit refreshes.
+The shared request guard checks the policy at the transport boundary, cancels admitted requests when the mode changes,
+and blocks subsequent mirror attempts while requests are disabled. Release polling subscribes to policy changes and
+runs only in Online mode. Existing successful cache entries remain usable across policy changes.
+
+Browser links and official Angular/Nx CLI migration processes follow the user's browser and CLI configuration.
+JetBrains MCP transport and AI model connectivity are governed by the IDE and connected client.
 
 ## Release notifications
 
@@ -243,7 +264,7 @@ The current source model is:
 3. map supported majors to the official documentation source:
     - Taiga UI 4 → `https://taiga-ui.dev/v4/llms-full.txt`;
     - Taiga UI 5 → `https://taiga-ui.dev/llms-full.txt`;
-4. parse the import map and entity sections into an immutable index;
+4. parse the import map, entity sections, and agent guidance into an immutable index;
 5. expose lookup by public symbol, selector, and documentation section ID where the source provides enough metadata.
 
 Unsupported future majors do not fall back to the current documentation implicitly. A new source mapping must be added deliberately after its compatibility is known.
@@ -261,6 +282,11 @@ Official documentation can enrich that local truth with descriptions, examples, 
 
 The docs snapshot therefore filters parsed entities against packages installed in the resolved local package scope and excludes entities introduced after the locally installed Taiga UI version. Angular template cards intersect documented inputs/outputs with the installed Angular-resolved API; remote descriptions may enrich matching properties but cannot add missing bindings or replace installed types. Matching inherited and exposed host-directive members can also obtain descriptions from their locally captured declaring owner. Markdown table parsing treats pipes inside backtick-delimited types as union operators, including escaped generator variants, and discards punctuation-only description artifacts.
 
+MCP example lookup uses the same version-filtered catalog. It returns documented snippets and, for a source file,
+separately reports documented exports confirmed by IDE import resolution in that file's context. Generation guidance
+uses the selected app's documentation major. The explicit v4-to-v5 guide reads the target major through the same
+cache and network policy while retaining the app's installed version in the response.
+
 ### Loading and cache lifecycle
 
 Documentation network access, package discovery, disk cache IO, and parsing run off the EDT.
@@ -269,10 +295,11 @@ The project-level docs store:
 
 - keeps immutable in-memory indexes keyed by versioned documentation source;
 - coalesces concurrent cold loads and concurrent refreshes for the same source;
+- uses a same-major bundled snapshot when the disk snapshot is missing or fails parsing;
 - persists only successfully parsed remote content as the last-known-good disk snapshot;
 - can serve that disk snapshot offline;
 - keeps the last usable snapshot when refresh returns empty, malformed, or fails;
-- performs a background refresh after publishing a disk-cached snapshot;
+- schedules a background refresh after publishing a stale disk snapshot or a bundled snapshot in Online mode;
 - uses a generation guard so invalidated work cannot publish stale results;
 - supports targeted invalidation per documented Taiga major.
 
@@ -299,6 +326,9 @@ Pinned cards retain their immutable documentation snapshot and ignore ordinary e
 Source-changing actions carry a context captured in the background read action: the host document stamp, project root generation, a bounded local import graph rooted at the template and its component, installed package roots reached by that graph, and ancestor configuration/lockfile paths. Explicit installed source dependencies can extend that context. Unsaved or uncommitted documents invalidate it only when they belong to these dependencies. A truncated graph retains a conservative project boundary. Checks immediately before and inside each write remain cheap; listeners only record relevant VFS changes and schedule stale-state presentation. Unrelated project edits keep a card usable. Navigation and literal copying remain available while value, required-input, deprecated-binding and icon writes are blocked.
 
 Refresh uses a disposable marker around the opening tag to find the original binding after unrelated edits or an action's rename. It resolves the installed API in a cancellable background read action with committed documents and smart-mode indexes, and re-detects the current installed package context before enrichment. It replaces adapters only after a current result is available. Presentation views and navigation history are rebound to the newly resolved installed subjects and API members; removed members/receivers are dropped instead of retaining an editable stale snapshot. API queries, selected rows, viewport positions and pinned popup geometry survive replacement; failed/deleted targets keep actions blocked. Successful value/template writes trigger this refresh; Undo/Redo invalidate the prior snapshot. Closing the popup or releasing its editor disposes the refresh marker.
+
+**Show API cards on hover** controls automatic cards. Turning it off cancels pending hover work and closes a transient
+hover card. Pinned cards and cards opened explicitly remain available.
 
 The `TaigaUI.ShowDocumentationCard` action opens the same interactive Swing card at the caret, independently of mouse-hover settings, without the hover delay. It is available in Find Action and the editor context menu with Alt+Shift+Q. Explicit cards request focus on the first action; all buttons and links support Enter, links support Space, focus traversal stays within the card, Escape closes it, and F5 refreshes. Allowed values use a compact informational summary; a confirmed editable static binding exposes a native value selector and Apply button. Larger editable sets expose case-insensitive search. Selecting or filtering values never changes source code, and stale-context write blocking survives selection changes. Code blocks use the bundled HTML/TypeScript lexer and active editor color scheme without allocating editors or parsing PSI. Flattened single-element examples are reflowed for presentation while the immutable original remains intact; nested markup and preformatted/raw text examples are left as supplied. Binding summaries retain accepted types, defaults, required/deprecated warnings, and relevant stored types and transforms. No clipboard controls or Details disclosure are rendered. Header Pin/Close use compact IDE icon buttons. Hover uses a transient background range highlight and a scaled pointer aligned to the source range; pinning removes the pointer, and dismissal removes the highlight. Explicit requests show a cancellable loading/indexing popup and an unavailable-target state. Refresh shows progress inside the existing card. Automatic refresh after required-input insertion does not request card focus and explicitly returns focus to the host editor. Icon preview loading and guarded chooser writes live in `TaigaDocumentationIcons`. `TaigaDocumentationCardEditors` owns and disposes binding/tag adapters for the captured action context; `TaigaDocumentationStatusPopup` owns the temporary loading/unavailable popup. The hover controller owns installed-card lifetime and request validity. Native Quick Documentation remains an informational HTML surface. Description expansion operates only on immutable presentation text. Import assistance delegates to the platform ShowIntentionActions action at the tracked host offset, allowing native Angular intentions to own import candidates and component/module scope updates; it performs no independent package discovery or import rewrite.
 
