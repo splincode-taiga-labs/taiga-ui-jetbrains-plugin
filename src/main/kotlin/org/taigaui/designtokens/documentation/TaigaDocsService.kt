@@ -12,6 +12,7 @@ import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
 
 @Service(Service.Level.PROJECT)
+@Suppress("TooManyFunctions")
 internal class TaigaDocsService(
     private val project: Project,
     private val coroutineScope: CoroutineScope,
@@ -26,12 +27,12 @@ internal class TaigaDocsService(
     private val projectContexts = ConcurrentHashMap<Path, TaigaUiProjectContext>()
 
     suspend fun snapshotFor(sourceFile: Path): TaigaDocsSnapshot? {
-        val context = detectContext(sourceFile)
-        val source = context?.let { TaigaDocsSources.forMajor(it.majorVersion) }
-        val index = source?.let { indexStore.indexFor(it) }
-
-        return if (context != null && index != null) TaigaDocsSnapshot(context, index) else null
+        val context = detectContext(sourceFile) ?: return null
+        return indexForMajor(context.majorVersion)?.let { TaigaDocsSnapshot(context, it) }
     }
+
+    suspend fun indexForMajor(major: Int): TaigaDocsIndex? =
+        TaigaDocsSources.forMajor(major)?.let { indexStore.indexFor(it) }
 
     suspend fun refresh(sourceFile: Path): TaigaDocsSnapshot? {
         val context = detectContext(sourceFile)

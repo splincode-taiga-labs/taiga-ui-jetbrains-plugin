@@ -19,8 +19,40 @@ internal class TaigaDocsParser {
                 parseEntity(source, section, imports)
             }
 
-        return entities.takeIf(List<TaigaEntityDoc>::isNotEmpty)?.let { TaigaDocsIndex(source, it, provenance) }
+        return entities.takeIf(List<TaigaEntityDoc>::isNotEmpty)?.let {
+            TaigaDocsIndex(source, it, provenance, parseGuides(lines))
+        }
     }
+
+    private fun parseGuides(lines: List<String>): Map<TaigaDocsGuide, String> =
+        buildMap {
+            val headings = guideHeadings(lines)
+            headings.zipWithNext().forEach { (start, end) ->
+                val guide = TaigaDocsGuide.entries.firstOrNull { it.heading == lines[start].trimEnd() }
+                if (guide != null) {
+                    val body =
+                        lines
+                            .subList(start + 1, end)
+                            .joinToString("\n")
+                            .trim()
+                            .removeSuffix("\n---")
+                            .trimEnd()
+                    if (body.isNotEmpty()) put(guide, body)
+                }
+            }
+        }
+
+    private fun guideHeadings(lines: List<String>): List<Int> =
+        buildList {
+            var inCodeBlock = false
+            lines.forEachIndexed { index, line ->
+                when {
+                    !inCodeBlock && line.startsWith("# ") -> add(index)
+                    line.trimStart().startsWith(CODE_FENCE) -> inCodeBlock = !inCodeBlock
+                }
+            }
+            add(lines.size)
+        }
 
     private fun parseImportMap(lines: List<String>): List<ImportEntry> {
         val start = lines.indexOfFirst { it.trim() == IMPORT_MAP_HEADING }

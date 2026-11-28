@@ -43,6 +43,29 @@ class TaigaDocsParserTest {
     }
 
     @Test
+    fun keepsGuideHeadingsInsideCodeBlocks() {
+        val docs =
+            listOf(
+                "# Code Generation Checklist",
+                "Check installed imports.",
+                "# components/Button",
+                "Button documentation.",
+                "# Migration Guide",
+                "### Angular CLI",
+                "```sh",
+                "# Install dependencies first",
+                "ng update",
+                "```",
+            ).joinToString("\n")
+        val index = requireNotNull(parser.parse(requireNotNull(TaigaDocsSources.forMajor(5)), docs))
+
+        assertEquals("Check installed imports.", index.guides[TaigaDocsGuide.GENERATION_CHECKLIST])
+        val guide = requireNotNull(index.guides[TaigaDocsGuide.MIGRATION])
+        assertTrue(guide.contains("# Install dependencies first\nng update"))
+        assertEquals(listOf("components/button"), index.entities.map { it.sectionId })
+    }
+
+    @Test
     fun discoveryRanksExactIdentifiersAndFindsFuzzyTitlesFromTheSameCatalog() {
         val catalog =
             discoveryCatalog(

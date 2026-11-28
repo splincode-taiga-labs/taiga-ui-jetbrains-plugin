@@ -216,7 +216,7 @@ internal fun resolvedApi(value: TaigaResolvedDocumentation) =
         }
     }
 
-private fun JsonObjectBuilder.putDocumentation(index: TaigaDocsIndex?) {
+internal fun JsonObjectBuilder.putDocumentation(index: TaigaDocsIndex?) {
     val provenance = index?.provenance
 
     put(

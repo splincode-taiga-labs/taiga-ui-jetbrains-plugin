@@ -43,7 +43,10 @@ internal data class TaigaApiEntry(
 internal data class TaigaApiMatch(
     val entry: TaigaApiEntry,
     val weight: Int,
-)
+) {
+    val isExact: Boolean
+        get() = weight >= EXACT_TITLE_WEIGHT
+}
 
 internal class TaigaApiCatalog(
     snapshot: TaigaDocsSnapshot,
@@ -83,7 +86,7 @@ internal class TaigaApiCatalog(
         when {
             query.isEmpty() -> 0
             query in entry.identifierKeys -> 100
-            entry.titleKey == query -> 90
+            entry.titleKey == query -> EXACT_TITLE_WEIGHT
             entry.titleKey.startsWith(query) -> 80
             entry.identifierKeys.any { it.startsWith(query) } -> 70
             query in entry.titleKey -> 60
@@ -121,6 +124,8 @@ internal val TaigaDocKind.categoryLabel: String
             TaigaDocKind.CLASS -> "Classes"
             TaigaDocKind.UNKNOWN -> "Other"
         }
+
+private const val EXACT_TITLE_WEIGHT = 90
 
 internal fun taigaApiSource(
     project: Project,

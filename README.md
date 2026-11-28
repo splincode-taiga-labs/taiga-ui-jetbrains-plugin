@@ -112,18 +112,23 @@ used by your active workspace. Select **View release on GitHub** to see the rele
 Connect an agent to WebStorm's **MCP Server** to inspect a project and run Taiga UI actions. Pass a file path
 relative to the project root to select the right Angular or Nx app when a monorepo contains multiple versions.
 
-| Area                                  | MCP tools                                                                  |
-| ------------------------------------- | -------------------------------------------------------------------------- |
-| Project Doctor and releases           | `taiga_ui_inspect_project`, `taiga_ui_check_release`                       |
-| API docs and installed bindings       | `taiga_ui_search_api`, `taiga_ui_read_api`, `taiga_ui_api_at`              |
-| Design tokens and exact color matches | `taiga_ui_search_tokens`, `taiga_ui_resolve_token`, `taiga_ui_match_color` |
-| Folder color replacement              | `taiga_ui_preview_folder_colors`, `taiga_ui_apply_folder_colors`           |
-| Icon catalog and CSS units            | `taiga_ui_search_icons`, `taiga_ui_convert_rem`                            |
-| New Angular or Nx migration           | `taiga_ui_inspect_migration`, `taiga_ui_run_migration`                     |
-| Saved Nx migrations                   | `taiga_ui_inspect_nx_migration_plan`, `taiga_ui_run_nx_migration_plan`     |
+| Area                                  | MCP tools                                                                              |
+| ------------------------------------- | -------------------------------------------------------------------------------------- |
+| Project Doctor and releases           | `taiga_ui_inspect_project`, `taiga_ui_check_release`                                   |
+| API docs and installed bindings       | `taiga_ui_search_api`, `taiga_ui_read_api`, `taiga_ui_api_at`                          |
+| Code generation and examples          | `taiga_ui_get_generation_context`, `taiga_ui_get_examples`                             |
+| Design tokens and exact color matches | `taiga_ui_search_tokens`, `taiga_ui_resolve_token`, `taiga_ui_match_color`             |
+| Folder color replacement              | `taiga_ui_preview_folder_colors`, `taiga_ui_apply_folder_colors`                       |
+| Icon catalog and CSS units            | `taiga_ui_search_icons`, `taiga_ui_convert_rem`                                        |
+| New Angular or Nx migration           | `taiga_ui_get_migration_guide`, `taiga_ui_inspect_migration`, `taiga_ui_run_migration` |
+| Saved Nx migrations                   | `taiga_ui_inspect_nx_migration_plan`, `taiga_ui_run_nx_migration_plan`                 |
 
 To make a change, preview it and pass the returned `revision` to the Run or Apply tool with the same directory.
 WebStorm shows a confirmation before either action changes the workspace.
+
+For code generation, pass a file from the target app to get the generation checklist and examples for its installed
+Taiga UI version. The example response identifies which documented symbols WebStorm verified against the installed
+packages. The v4-to-v5 migration guide is also available from the built-in v5 snapshot in **Offline only** mode.
 
 WebStorm's built-in `get_file_problems` tool also reports enabled Taiga UI inspections, including incorrect imports,
 unknown or deprecated design tokens, and invalid event modifiers. See the [MCP sandbox guide](docs/local-debugging.md#mcp-tools)

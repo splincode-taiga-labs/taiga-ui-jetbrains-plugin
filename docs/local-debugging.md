@@ -74,6 +74,9 @@ opened project, picking a file from the intended app in a mixed monorepo.
 | `taiga_ui_search_api`                | `{"source":"src/app.html","query":"tuiButton"}`              |
 | `taiga_ui_read_api`                  | `{"source":"src/app.html","sectionId":"components/button"}`  |
 | `taiga_ui_api_at`                    | `{"source":"src/app.html","line":1,"column":9}`              |
+| `taiga_ui_get_generation_context`    | `{"source":"src/app.ts"}`                                    |
+| `taiga_ui_get_examples`              | `{"source":"src/app.ts","names":["tuiButton","Calendar"]}`   |
+| `taiga_ui_get_migration_guide`       | `{"source":"src/app.ts"}`                                    |
 | `taiga_ui_search_tokens`             | `{"source":"src/styles.css","query":"background"}`           |
 | `taiga_ui_resolve_token`             | `{"source":"src/styles.css","name":"--tui-background-base"}` |
 | `taiga_ui_match_color`               | `{"source":"src/styles.css","color":"#fff"}`                 |
@@ -93,6 +96,11 @@ Doctor, token values with Token Explorer, and a binding with Quick Documentation
 **Analyze v4 to v5 Migration** actions run the existing batch inspections over the selected app in WebStorm.
 `taiga_ui_inspect_app` uses the same inspection sets and returns project-relative findings. A bounded result reports
 `partial: true` if it skips files larger than 1 MiB or reaches the file or finding limit.
+
+For an offline client smoke test, select **Offline only**, then request examples for the same API using a
+TypeScript source file from each app in a mixed v4/v5 workspace. Check the installed version and documentation
+major on each result, and compare `verifiedExports` with the app's installed declarations. Request the migration
+guide from the v4 app and check that its documentation major is 5, the target of the guide.
 
 For folder cleanup, pass the preview's revision to the apply tool, review the IDE diff, and confirm. Check cancellation,
 stale revision rejection, and IDE Undo in the disposable workspace. For migration, inspect the workspace before

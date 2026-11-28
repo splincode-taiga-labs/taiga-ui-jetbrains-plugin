@@ -18,6 +18,8 @@ class TaigaMcpToolsProvider : McpToolsProvider {
             TaigaMigrationToolset(),
             TaigaProjectToolset(),
             TaigaApiToolset(),
+            TaigaExampleToolset(),
+            TaigaGuideToolset(),
             TaigaTokenToolset(),
             TaigaFolderColorToolset(),
         ).flatMap { toolset ->

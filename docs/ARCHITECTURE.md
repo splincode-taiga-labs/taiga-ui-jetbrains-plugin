@@ -264,7 +264,7 @@ The current source model is:
 3. map supported majors to the official documentation source:
     - Taiga UI 4 → `https://taiga-ui.dev/v4/llms-full.txt`;
     - Taiga UI 5 → `https://taiga-ui.dev/llms-full.txt`;
-4. parse the import map and entity sections into an immutable index;
+4. parse the import map, entity sections, and agent guidance into an immutable index;
 5. expose lookup by public symbol, selector, and documentation section ID where the source provides enough metadata.
 
 Unsupported future majors do not fall back to the current documentation implicitly. A new source mapping must be added deliberately after its compatibility is known.
@@ -281,6 +281,11 @@ Installed project packages are the source of truth for:
 Official documentation can enrich that local truth with descriptions, examples, API explanations, documentation links, and migration guidance. Remote documentation must never make a missing local API appear available or authorize a destructive/source-changing fix by itself.
 
 The docs snapshot therefore filters parsed entities against packages installed in the resolved local package scope and excludes entities introduced after the locally installed Taiga UI version. Angular template cards intersect documented inputs/outputs with the installed Angular-resolved API; remote descriptions may enrich matching properties but cannot add missing bindings or replace installed types. Matching inherited and exposed host-directive members can also obtain descriptions from their locally captured declaring owner. Markdown table parsing treats pipes inside backtick-delimited types as union operators, including escaped generator variants, and discards punctuation-only description artifacts.
+
+MCP example lookup uses the same version-filtered catalog. It returns documented snippets and, for a source file,
+separately reports documented exports confirmed by IDE import resolution in that file's context. Generation guidance
+uses the selected app's documentation major. The explicit v4-to-v5 guide reads the target major through the same
+cache and network policy while retaining the app's installed version in the response.
 
 ### Loading and cache lifecycle
 
