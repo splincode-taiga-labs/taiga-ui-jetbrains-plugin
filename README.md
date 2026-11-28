@@ -276,7 +276,12 @@ Open **Settings → Tools → Taiga UI** to configure the plugin for all project
 
 - **Show completion preview** displays resolved values and color swatches beside the selected design-token suggestion.
 - **Show hover popup** displays a token's values and sources when you hover over a `var(--tui-…)` reference.
+- **Show API cards on hover** opens API cards over Taiga UI components, directives, pipes, and bindings. **Show Taiga UI Card** opens the card on demand.
+- **Expose Taiga UI tools via MCP** controls whether connected clients can use Taiga UI tools.
+- **Allow project changes via MCP** controls folder color replacements and migrations. Turn it off to give agents access to search, diagnostics, and previews. Changes still require confirmation when enabled.
 - **Network access** controls the plugin's requests for documentation, CDN icons, and release information. **Cache first** allows manual documentation refreshes. **Online** allows automatic requests. **Offline only** uses installed, bundled, and cached data.
+
+MCP access changes take effect for new calls after **Apply**. JetBrains MCP caches its tool list, so restart the IDE and reconnect the client if it still shows an old list.
 
 To enable or disable **Taiga xUI Community**, go to **Settings → Plugins → Installed**. The **Open Plugins settings** link opens the Plugins page. Use **Open MCP Server settings** to manage AI client connections and, where available, use **Exposed Tools** to manage individual Taiga UI tools.
 

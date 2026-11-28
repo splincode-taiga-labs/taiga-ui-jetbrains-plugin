@@ -84,6 +84,7 @@ internal class TaigaMigrationRunner(
 
     suspend fun runConfirmedPlan(
         revision: String,
+        checkPermission: () -> Unit = {},
         prepare: suspend () -> PreparedMigration,
     ): TaigaMigrationResult {
         if (!migration.tryLock()) {
@@ -93,6 +94,7 @@ internal class TaigaMigrationRunner(
         val output = MigrationOutput()
 
         return try {
+            checkPermission()
             check(isProjectTrusted(project)) { "Trust this WebStorm project before running migrations." }
             val plan = prepare()
             plan.requireRevision(revision)
@@ -100,7 +102,7 @@ internal class TaigaMigrationRunner(
             if (ApplicationManager.getApplication().isHeadlessEnvironment) {
                 output.result("confirmation_required", "Confirm the migration in an open WebStorm window.")
             } else {
-                confirmAndRunPlan(plan, prepare, output)
+                confirmAndRunPlan(plan, prepare, output, checkPermission = checkPermission)
             }
         } catch (_: CancellationException) {
             currentCoroutineContext().ensureActive()
@@ -122,13 +124,16 @@ internal class TaigaMigrationRunner(
         plan: PreparedMigration,
         prepare: suspend () -> PreparedMigration,
         output: MigrationOutput,
+        checkPermission: () -> Unit = {},
         confirmPlan: (PreparedMigration) -> Boolean = ::confirm,
     ): TaigaMigrationResult {
         val node = withContext(Dispatchers.IO) { requireLocalNode(project) }
         val confirmed =
             withContext(Dispatchers.EDT) {
+                checkPermission()
                 (!project.isDisposed && confirmPlan(plan)).also { accepted ->
                     if (accepted) {
+                        checkPermission()
                         check(
                             isProjectTrusted(project) && !project.isDisposed,
                         ) { "The WebStorm project is no longer trusted or open." }
@@ -147,6 +152,7 @@ internal class TaigaMigrationRunner(
                     isProjectTrusted(project) && !project.isDisposed,
                 ) { "The WebStorm project is no longer trusted or open." }
                 check(prepare() == plan) { "The workspace or migration plan changed. Inspect the plan again." }
+                checkPermission()
                 try {
                     plan.run { arguments ->
                         runMigrationCommand(node, plan.workspace, arguments) { text, _ -> output.append(text) }

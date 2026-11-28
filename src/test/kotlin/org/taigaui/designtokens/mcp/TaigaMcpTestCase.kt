@@ -5,8 +5,8 @@ import com.intellij.mcpserver.McpCallAdditionalDataElement
 import com.intellij.mcpserver.McpCallInfo
 import com.intellij.mcpserver.McpTool
 import com.intellij.mcpserver.McpToolCallResult
+import com.intellij.mcpserver.McpToolsProvider
 import com.intellij.mcpserver.impl.McpServerService
-import com.intellij.mcpserver.impl.ReflectionToolsProvider
 import com.intellij.testFramework.HeavyPlatformTestCase
 import com.intellij.testFramework.PlatformTestUtil
 import com.intellij.util.concurrency.AppExecutorUtil
@@ -37,8 +37,7 @@ abstract class TaigaMcpTestCase : HeavyPlatformTestCase() {
         return requireNotNull(structuredContent)
     }
 
-    protected fun tool(name: String): McpTool =
-        ReflectionToolsProvider().getTools().single { it.descriptor.name == name }
+    protected fun tool(name: String): McpTool = registeredMcpTools().single { it.descriptor.name == name }
 
     protected fun McpTool.callInProject(args: JsonObject): McpToolCallResult {
         val info =
@@ -60,3 +59,5 @@ abstract class TaigaMcpTestCase : HeavyPlatformTestCase() {
         )
     }
 }
+
+internal fun registeredMcpTools(): List<McpTool> = McpToolsProvider.EP.extensionList.flatMap { it.getTools() }

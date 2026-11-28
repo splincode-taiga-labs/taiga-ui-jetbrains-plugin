@@ -32,6 +32,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.taigaui.designtokens.settings.TaigaDesignTokensSettings
 import java.awt.Dimension
 import java.awt.Point
 import javax.swing.SwingUtilities
@@ -43,6 +44,7 @@ internal class TaigaQuickDocumentationHoverController(
     private val project: Project,
     private val coroutineScope: CoroutineScope,
 ) : Disposable {
+    private val settings = service<TaigaDesignTokensSettings>()
     private val nativeHoverSuppression = DesignTokenNativeHoverPopupSuppression()
     private val underline = TaigaQuickDocumentationUnderline()
     private var activeKey: TaigaQuickDocumentationHoverKey? = null
@@ -75,6 +77,11 @@ internal class TaigaQuickDocumentationHoverController(
     private var refreshTarget: TaigaDocumentationRefreshTarget? = null
 
     init {
+        coroutineScope.launch(Dispatchers.EDT) {
+            settings.apiCardsOnHoverChanges.collect { enabled ->
+                if (!enabled) dismissAutomaticHover()
+            }
+        }
         EditorFactory.getInstance().addEditorFactoryListener(
             object : EditorFactoryListener {
                 override fun editorReleased(event: EditorFactoryEvent) {
@@ -168,7 +175,13 @@ internal class TaigaQuickDocumentationHoverController(
         clearHover()
     }
 
+    private fun dismissAutomaticHover() {
+        if (pinned || refreshInProgress) return
+        if (resolutionStatus.editor == null && currentRequest?.explicit != true) dismissHover()
+    }
+
     fun mouseMoved(event: EditorMouseEvent) {
+        if (!settings.showApiCardsOnHover) return
         if (pinned || refreshInProgress || hasInteractiveCard()) {
             return
         }
@@ -225,6 +238,7 @@ internal class TaigaQuickDocumentationHoverController(
     ) {
         if (pendingKey != candidate.key || pinned) return
         when {
+            !settings.showApiCardsOnHover -> clearHover()
             request == null -> {
                 underline.clear()
                 if (popup?.isVisible == true) scheduleHide() else clearHover()
@@ -376,7 +390,7 @@ internal class TaigaQuickDocumentationHoverController(
             withContext(Dispatchers.EDT) {
                 when {
                     pendingKey != candidateKey || !request.isStillCurrent(project) -> Unit
-                    resolved == null -> clearHover()
+                    !settings.showApiCardsOnHover || resolved == null -> clearHover()
                     else -> {
                         hoverJob = null
                         if (switching) {

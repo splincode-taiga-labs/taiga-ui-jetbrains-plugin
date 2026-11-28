@@ -24,6 +24,9 @@ class TaigaDesignTokensConfigurableTest : BasePlatformTestCase() {
                 networkMode = originalNetworkMode
                 showCompletionPreview = true
                 showHoverPopup = true
+                showApiCardsOnHover = true
+                exposeMcpTools = true
+                allowMcpChanges = true
             }
         } finally {
             super.tearDown()
@@ -57,6 +60,31 @@ class TaigaDesignTokensConfigurableTest : BasePlatformTestCase() {
 
         assertTrue(completion.isSelected)
         assertFalse(hover.isSelected)
+    }
+
+    fun testApiHoverAndMcpControlsApplyWithoutOverwritingTheWritePreference() {
+        val panel = TaigaDesignTokensConfigurable().createPanel()
+        val checks = panel.descendants().filterIsInstance<JCheckBox>().associateBy(JCheckBox::getText)
+        val hover = requireNotNull(checks["Show API cards on hover"])
+        val expose = requireNotNull(checks["Expose Taiga UI tools via MCP"])
+        val changes = requireNotNull(checks["Allow project changes via MCP"])
+
+        hover.isSelected = false
+        expose.isSelected = false
+        assertFalse(changes.isEnabled)
+        panel.apply()
+
+        assertFalse(settings.showApiCardsOnHover)
+        assertFalse(settings.exposeMcpTools)
+        assertTrue(settings.allowMcpChanges)
+
+        expose.isSelected = true
+        assertTrue(changes.isEnabled)
+        changes.isSelected = false
+        panel.apply()
+
+        assertTrue(settings.exposeMcpTools)
+        assertFalse(settings.allowMcpChanges)
     }
 
     fun testNetworkChoicesApplyAndReset() {

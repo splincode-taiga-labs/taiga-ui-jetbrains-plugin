@@ -60,7 +60,7 @@ class TaigaMigrationToolset : McpToolset {
     ): McpToolCallResult {
         val project = currentCoroutineContext().project
         val result =
-            project.service<TaigaMigrationRunner>().runConfirmedPlan(revision) {
+            project.service<TaigaMigrationRunner>().runConfirmedPlan(revision, ::requireTaigaMcpChanges) {
                 withContext(Dispatchers.IO) {
                     val plan = prepareNewTaigaMigration(project.migrationFolder(directory), project.migrationRoot())
                     PreparedMigration(plan.workspace, newRevision = plan.revision)
@@ -128,7 +128,7 @@ class TaigaMigrationToolset : McpToolset {
     ): McpToolCallResult {
         val project = currentCoroutineContext().project
         val result =
-            project.service<TaigaMigrationRunner>().runConfirmedPlan(revision) {
+            project.service<TaigaMigrationRunner>().runConfirmedPlan(revision, ::requireTaigaMcpChanges) {
                 val plan = project.loadPlan(directory)
                 PreparedMigration(plan.workspace, existing = plan)
             }

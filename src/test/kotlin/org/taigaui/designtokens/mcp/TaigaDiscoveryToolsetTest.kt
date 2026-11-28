@@ -1,7 +1,6 @@
 package org.taigaui.designtokens.mcp
 
 import com.intellij.execution.ExecutionException
-import com.intellij.mcpserver.impl.ReflectionToolsProvider
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.components.service
@@ -39,7 +38,7 @@ class TaigaDiscoveryToolsetTest : TaigaMcpTestCase() {
     override fun isCreateDirectoryBasedProject(): Boolean = true
 
     fun testAllDiscoveryToolsAreRegisteredWithTheBundledMcpProvider() {
-        val names = ReflectionToolsProvider().getTools().map { it.descriptor.name }
+        val names = registeredMcpTools().map { it.descriptor.name }
 
         for (name in listOf(
             "inspect_project",

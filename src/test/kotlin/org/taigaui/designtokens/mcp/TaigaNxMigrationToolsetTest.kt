@@ -4,7 +4,6 @@ import com.intellij.mcpserver.ClientInfo
 import com.intellij.mcpserver.McpCallAdditionalDataElement
 import com.intellij.mcpserver.McpCallInfo
 import com.intellij.mcpserver.impl.McpServerService
-import com.intellij.mcpserver.impl.ReflectionToolsProvider
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -13,7 +12,7 @@ import kotlinx.serialization.json.put
 
 class TaigaNxMigrationToolsetTest : BasePlatformTestCase() {
     fun testRegisteredMcpToolsRejectPathsOutsideTheProject() {
-        val tools = ReflectionToolsProvider().getTools().associateBy { it.descriptor.name }
+        val tools = registeredMcpTools().associateBy { it.descriptor.name }
         val inspect = requireNotNull(tools["taiga_ui_inspect_nx_migration_plan"])
         val run = requireNotNull(tools["taiga_ui_run_nx_migration_plan"])
         val args = buildJsonObject { put("directory", "../outside") }

@@ -8,10 +8,14 @@ import com.intellij.openapi.options.SearchableConfigurable
 import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.options.ex.Settings
 import com.intellij.openapi.ui.DialogPanel
+import com.intellij.ui.dsl.builder.Cell
+import com.intellij.ui.dsl.builder.Panel
 import com.intellij.ui.dsl.builder.bind
 import com.intellij.ui.dsl.builder.bindSelected
 import com.intellij.ui.dsl.builder.panel
+import com.intellij.ui.dsl.builder.selected
 import java.awt.Component
+import javax.swing.JCheckBox
 
 internal class TaigaDesignTokensConfigurable : BoundConfigurable("Taiga UI") {
     override fun createPanel(): DialogPanel {
@@ -31,40 +35,77 @@ internal class TaigaDesignTokensConfigurable : BoundConfigurable("Taiga UI") {
                 }
             }
 
-            group("Network access") {
-                buttonsGroup {
-                    row {
-                        radioButton("Cache first (default)", TaigaNetworkMode.CACHE_FIRST)
-                            .comment("Use local data. Download documentation only when you refresh it manually.")
-                    }
-                    row {
-                        radioButton("Online", TaigaNetworkMode.ONLINE)
-                            .comment("Allow automatic requests for documentation, CDN icons, and release information.")
-                    }
-                    row {
-                        radioButton("Offline only", TaigaNetworkMode.OFFLINE_ONLY)
-                            .comment("Use installed, bundled, and cached data, even when you refresh documentation.")
-                    }
-                }.bind(settings::networkMode)
+            group("API documentation") {
+                row {
+                    checkBox("Show API cards on hover")
+                        .bindSelected(settings::showApiCardsOnHover)
+                        .comment(
+                            "Open Taiga UI API cards automatically. The Show Taiga UI Card action is always available.",
+                        )
+                }
             }
 
-            group("Plugin and MCP") {
+            networkAccess(settings)
+            mcpAccess(settings)
+
+            group("Plugin management") {
                 row {
                     link(
                         "Open Plugins settings",
                     ) { event -> openSettings(event.source as Component, PLUGINS_SETTINGS_ID) }
                         .comment("Enable or disable Taiga xUI Community in the Installed tab.")
                 }
-                row {
-                    link(
-                        "Open MCP Server settings",
-                    ) { event -> openSettings(event.source as Component, MCP_SETTINGS_ID) }
-                        .comment(
-                            "Manage AI client connections and, where supported, individual Taiga UI tools. " +
-                                "If MCP Server is disabled, enable it in Plugins.",
-                        )
-                }
             }
+        }
+    }
+}
+
+private fun Panel.networkAccess(settings: TaigaDesignTokensSettings) {
+    group("Network access") {
+        buttonsGroup {
+            row {
+                radioButton("Cache first (default)", TaigaNetworkMode.CACHE_FIRST)
+                    .comment("Use local data. Download documentation only when you refresh it manually.")
+            }
+            row {
+                radioButton("Online", TaigaNetworkMode.ONLINE)
+                    .comment("Allow automatic requests for documentation, CDN icons, and release information.")
+            }
+            row {
+                radioButton("Offline only", TaigaNetworkMode.OFFLINE_ONLY)
+                    .comment("Use installed, bundled, and cached data, even when you refresh documentation.")
+            }
+        }.bind(settings::networkMode)
+    }
+}
+
+private fun Panel.mcpAccess(settings: TaigaDesignTokensSettings) {
+    group("MCP access") {
+        lateinit var toolsEnabled: Cell<JCheckBox>
+        row {
+            toolsEnabled =
+                checkBox("Expose Taiga UI tools via MCP")
+                    .bindSelected(settings::exposeMcpTools)
+                    .comment(
+                        "Control access for all connected clients. Restart the IDE if the client's tool list does not update.",
+                    )
+        }
+        row {
+            checkBox("Allow project changes via MCP")
+                .bindSelected(settings::allowMcpChanges)
+                .enabledIf(toolsEnabled.selected)
+                .comment(
+                    "Allow Taiga UI tools to apply color replacements and run migrations after confirmation.",
+                )
+        }
+        row {
+            link(
+                "Open MCP Server settings",
+            ) { event -> openSettings(event.source as Component, MCP_SETTINGS_ID) }
+                .comment(
+                    "Manage AI client connections and, where supported, individual Taiga UI tools. " +
+                        "If MCP Server is disabled, enable it in Plugins.",
+                )
         }
     }
 }
