@@ -274,6 +274,8 @@ This allows different projects or monorepo packages to use different Taiga UI ve
 
 Open **Settings → Tools → Taiga UI** to configure the plugin for all projects in the IDE.
 
+![Taiga UI settings in WebStorm, including design token previews, API cards, network access, and MCP controls](demo/public/screens/plugin-settings.webp)
+
 - **Show completion preview** displays resolved values and color swatches beside the selected design-token suggestion.
 - **Show hover popup** displays a token's values and sources when you hover over a `var(--tui-…)` reference.
 - **Show API cards on hover** opens API cards over Taiga UI components, directives, pipes, and bindings. **Show Taiga UI Card** opens the card on demand.
