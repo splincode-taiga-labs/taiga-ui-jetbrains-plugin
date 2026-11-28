@@ -272,14 +272,13 @@ This allows different projects or monorepo packages to use different Taiga UI ve
 
 ## Settings
 
-The plugin adds an application-scoped settings page under **Settings → Tools → Taiga UI**.
+Open **Settings → Tools → Taiga UI** to configure the plugin for all projects in the IDE.
 
-Two editor features can be controlled independently:
+- **Show completion preview** displays resolved values and color swatches beside the selected design-token suggestion.
+- **Show hover popup** displays a token's values and sources when you hover over a `var(--tui-…)` reference.
+- **Network access** controls the plugin's requests for documentation, CDN icons, and release information. **Cache first** allows manual documentation refreshes. **Online** allows automatic requests. **Offline only** uses installed, bundled, and cached data.
 
-- **Show design token completion preview** — shows the side preview for the currently selected `--tui-*` completion item, including resolved values and color swatches.
-- **Show design token hover popup** — shows the custom token popup when hovering a complete `var(--tui-...)` reference.
-
-Both options are enabled by default. Changes affect editor presentation only and do not change token resolution, source precedence, indexing, or cache behavior.
+To enable or disable **Taiga xUI Community**, go to **Settings → Plugins → Installed**. The **Open Plugins settings** link opens the Plugins page. Use **Open MCP Server settings** to manage AI client connections and, where available, use **Exposed Tools** to manage individual Taiga UI tools.
 
 ## Compatibility
 
